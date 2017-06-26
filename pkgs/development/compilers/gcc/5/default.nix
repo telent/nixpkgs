@@ -281,6 +281,7 @@ stdenv.mkDerivation ({
   inherit noSysDirs staticCompiler langJava
     libcCross crossMingw;
 
+  depsBuildBuild = [ buildPackages.stdenv.cc ];
   nativeBuildInputs = [ texinfo which gettext ]
     ++ (optional (perl != null) perl)
     ++ (optional javaAwtGtk pkgconfig);
@@ -291,7 +292,6 @@ stdenv.mkDerivation ({
     ++ (optionals langJava [ boehmgc zip unzip ])
     ++ (optionals javaAwtGtk ([ gtk2 libart_lgpl ] ++ xlibs))
     ++ (optionals (targetPlatform != hostPlatform) [targetPackages.stdenv.cc.bintools])
-    ++ (optionals (buildPlatform != hostPlatform) [buildPackages.stdenv.cc])
     ++ (optionals langAda [gnatboot])
     ++ (optionals langVhdl [gnat])
 
