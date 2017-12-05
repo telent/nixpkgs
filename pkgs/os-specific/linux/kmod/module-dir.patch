@@ -2,11 +2,12 @@ diff --git a/Makefile.am b/Makefile.am
 index d4eeb7e..5c9f603 100644
 --- a/Makefile.am
 +++ b/Makefile.am
-@@ -19,6 +19,7 @@ AM_CPPFLAGS = \
+@@ -19,6 +19,8 @@ AM_CPPFLAGS = \
  	-include $(top_builddir)/config.h \
  	-I$(top_srcdir) \
  	-DSYSCONFDIR=\""$(sysconfdir)"\" \
 +	-DMODULESDIRS=\""$(shell echo $(modulesdirs) | $(SED) 's|:|\\",\\"|g')"\" \
++	${liblzma_CFLAGS} \
  	${zlib_CFLAGS}
  
  AM_CFLAGS = $(OUR_CFLAGS)
