@@ -1,42 +1,30 @@
-[<img src="http://nixos.org/logo/nixos-hires.png" width="500px" alt="logo" />](https://nixos.org/nixos)
+# NixWRT
 
-[![Build Status](https://travis-ci.org/NixOS/nixpkgs.svg?branch=master)](https://travis-ci.org/NixOS/nixpkgs)
-[![Code Triagers Badge](https://www.codetriage.com/nixos/nixpkgs/badges/users.svg)](https://www.codetriage.com/nixos/nixpkgs)
+An experiment, currently, to see if Nixpkgs is a good way to build an
+OS for a domestic wifi router of the kind that OpenWRT or DD-WRT or
+Tomato run on.
 
-Nixpkgs is a collection of packages for the [Nix](https://nixos.org/nix/) package
-manager. It is periodically built and tested by the [hydra](http://hydra.nixos.org/)
-build daemon as so-called channels. To get channel information via git, add
-[nixpkgs-channels](https://github.com/NixOS/nixpkgs-channels.git) as a remote:
+* nixwrt.nix contains the derivation which will eventually produce a
+  firmware router image
+  
+* everything else is a lightly forked (I hope and expect that I can
+  upstream it) nixpkgs with a few changes I've had to make for
+  cross-compiling some packages
 
-```
-% git remote add channels git://github.com/NixOS/nixpkgs-channels.git
-```
+## Status
 
-For stability and maximum binary package support, it is recommended to maintain
-custom changes on top of one of the channels, e.g. `nixos-17.09` for the latest
-release and `nixos-unstable` for the latest successful build of master:
+* (on qemu) it builds a kernel which boots and a root filesystem that
+  mounts
+* but init won't start, I suspect because of missing shared libraries
+  because it is not copying the closure of all the store paths
 
-```
-% git remote update channels
-% git rebase channels/nixos-17.09
-```
+## How to run it
 
-For pull-requests, please rebase onto nixpkgs `master`.
+    nix-build nixwrt.nix -A image -o image
+    nix-build nixwrt.nix -A kernel -o kernel
+    
+## How to run it
 
-[NixOS](https://nixos.org/nixos/) linux distribution source code is located inside
-`nixos/` folder.
+    nix-shell '<nixpkgs>' -p qemu --run "qemu-system-mipsel  -M malta -m 512 -kernel kernel/vmlinux  -append 'root=/dev/sr0 init=/sbin/init' -blockdev driver=file,node-name=squashed,read-only=on,filename=image/image.squashfs -blockdev driver=raw,node-name=rootfs,file=squashed,read-only=on -device ide-cd,drive=rootfs -nographic"
 
-* [NixOS installation instructions](https://nixos.org/nixos/manual/#ch-installation)
-* [Documentation (Nix Expression Language chapter)](https://nixos.org/nix/manual/#ch-expression-language)
-* [Manual (How to write packages for Nix)](https://nixos.org/nixpkgs/manual/)
-* [Manual (NixOS)](https://nixos.org/nixos/manual/)
-* [Community maintained wiki](https://nixos.wiki/)
-* [Continuous package builds for unstable/master](https://hydra.nixos.org/jobset/nixos/trunk-combined)
-* [Continuous package builds for 17.09 release](https://hydra.nixos.org/jobset/nixos/release-17.09)
-* [Tests for unstable/master](https://hydra.nixos.org/job/nixos/trunk-combined/tested#tabs-constituents)
-* [Tests for 17.09 release](https://hydra.nixos.org/job/nixos/release-17.09/tested#tabs-constituents)
 
-Communication:
-
-* [Mailing list](https://groups.google.com/forum/#!forum/nix-devel)
-* [IRC - #nixos on freenode.net](irc://irc.freenode.net/#nixos)
