@@ -88,7 +88,7 @@ let
 
         kernelConfig = kernelConfigFun configCross;
 
-        inherit (kernel.crossDrv) src patches preUnpack;
+        inherit (kernel) src patches preUnpack;
       };
 
     prePatch = kernel.prePatch + ''
