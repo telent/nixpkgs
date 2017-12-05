@@ -3,6 +3,8 @@
 , # The root directory of the squashfs filesystem is filled with the
   # closures of the Nix store paths listed here.
   storeContents ? []
+, compression ? "xz"
+, compressionFlags ? "-Xdict-size 100%"
 }:
 
 stdenv.mkDerivation {
@@ -52,6 +54,6 @@ stdenv.mkDerivation {
 
       # Generate the squashfs image.
       mksquashfs nix-path-registration $storePaths $out \
-        -keep-as-directory -all-root -b 1048576 -comp xz -Xdict-size 100%
+        -keep-as-directory -all-root -b 1048576 -comp ${compression} ${compressionFlags}
     '';
 }
