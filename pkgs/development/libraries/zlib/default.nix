@@ -4,7 +4,8 @@
 , static ? false
 }:
 
-stdenv.mkDerivation rec {
+let amCrossBuilding = !(hostPlatform == buildPlatform); 
+in stdenv.mkDerivation rec {
   name = "zlib-${version}";
   version = "1.2.11";
 
@@ -52,8 +53,14 @@ stdenv.mkDerivation rec {
   # to the bootstrap-tools libgcc (as uses to happen on arm/mips)
   NIX_CFLAGS_COMPILE = stdenv.lib.optionalString (!hostPlatform.isDarwin) "-static-libgcc";
 
-  dontStrip = hostPlatform != buildPlatform && static;
+  dontStrip = amCrossBuilding && static;
+
+  # zlib doesn't accept standard autoconfy arguments for crossbuilding, so 
+  # we have to unset configurePlatforms (which would introduce them) and
+  # set compiler environment variables instead
   configurePlatforms = [];
+  CC = if amCrossBuilding then "${hostPlatform.config}-cc" else "cc";
+  AR = if amCrossBuilding then "${hostPlatform.config}-ar" else "ar";
 
   installFlags = stdenv.lib.optionals (hostPlatform.libc == "msvcrt") [
     "BINARY_PATH=$(out)/bin"
