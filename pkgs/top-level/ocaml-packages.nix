@@ -128,7 +128,7 @@ let
 
     ocaml_cairo = callPackage ../development/ocaml-modules/ocaml-cairo { };
 
-    ocaml_cairo2 = callPackage ../development/ocaml-modules/ocaml-cairo2 { };
+    cairo2 = callPackage ../development/ocaml-modules/cairo2 { };
 
     cil = callPackage ../development/ocaml-modules/cil { };
 
@@ -176,9 +176,16 @@ let
 
     cryptokit = callPackage ../development/ocaml-modules/cryptokit { };
 
-    cstruct = callPackage ../development/ocaml-modules/cstruct {
+    cstruct =
+      if lib.versionAtLeast ocaml.version "4.2"
+      then callPackage ../development/ocaml-modules/cstruct {}
+      else callPackage ../development/ocaml-modules/cstruct/1.9.0.nix { lwt = ocaml_lwt; };
+
+    cstruct-lwt = callPackage ../development/ocaml-modules/cstruct/lwt.nix {
       lwt = ocaml_lwt;
     };
+
+    cstruct-unix = callPackage ../development/ocaml-modules/cstruct/unix.nix {};
 
     csv =
       if lib.versionAtLeast ocaml.version "4.2"
@@ -219,6 +226,8 @@ let
     ezjsonm = callPackage ../development/ocaml-modules/ezjsonm {
       lwt = ocaml_lwt;
     };
+
+    facile = callPackage ../development/ocaml-modules/facile { };
 
     faillib = callPackage ../development/ocaml-modules/faillib { };
 
@@ -360,7 +369,7 @@ let
 
     magick = callPackage ../development/ocaml-modules/magick { };
 
-    markup = callPackage ../development/ocaml-modules/markup { lwt = lwt2; };
+    markup = callPackage ../development/ocaml-modules/markup { lwt = ocaml_lwt; };
 
     menhir = callPackage ../development/ocaml-modules/menhir { };
 
@@ -380,9 +389,7 @@ let
 
     mtime =  callPackage ../development/ocaml-modules/mtime { };
 
-    nocrypto =  callPackage ../development/ocaml-modules/nocrypto {
-      lwt = ocaml_lwt;
-    };
+    nocrypto =  callPackage ../development/ocaml-modules/nocrypto { };
 
     notty = callPackage ../development/ocaml-modules/notty {
       lwt = ocaml_lwt;
@@ -569,6 +576,8 @@ let
       if lib.versionAtLeast ocaml.version "4.02"
       then callPackage ../development/ocaml-modules/ppx_blob {}
       else null;
+
+    ppx_cstruct = callPackage ../development/ocaml-modules/cstruct/ppx.nix {};
 
     ppx_derivers = callPackage ../development/ocaml-modules/ppx_derivers {};
 
@@ -960,10 +969,6 @@ let
     };
 
     matita_130312 = callPackage ../applications/science/logic/matita/130312.nix { };
-
-    ott = callPackage ../applications/science/logic/ott {
-      camlp5 = camlp5_transitional;
-    };
 
   };
     in (ocamlPackages.janeStreet // ocamlPackages);

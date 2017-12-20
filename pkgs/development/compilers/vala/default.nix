@@ -12,6 +12,8 @@ let
       inherit sha256;
     };
 
+    outputs = [ "out" "devdoc" ];
+
     nativeBuildInputs = [ pkgconfig flex bison libxslt ] ++ extraNativeBuildInputs;
 
     buildInputs = [ glib libiconv ] ++ libintlOrEmpty ++ extraBuildInputs;
@@ -26,12 +28,6 @@ let
   };
 
 in rec {
-
-  vala_0_23 = generic {
-    major   = "0.23";
-    minor   = "2";
-    sha256  = "0g22ss9qbm3fqhx4fxhsyfmdc5g1hgdw4dz9d37f4489kl0qf8pl";
-  };
 
   vala_0_26 = generic {
     major   = "0.26";
@@ -65,5 +61,5 @@ in rec {
     extraBuildInputs = [ graphviz ];
   };
 
-  vala = vala_0_34;
+  vala = vala_0_38;
 }

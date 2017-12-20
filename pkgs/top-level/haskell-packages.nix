@@ -71,13 +71,6 @@ in rec {
       inherit (bootPkgs) hscolour;
       sphinx = pkgs.python27Packages.sphinx;
     };
-    ghc821 = callPackage ../development/compilers/ghc/8.2.1.nix rec {
-      bootPkgs = packages.ghc802;
-      inherit (bootPkgs) hscolour alex happy;
-      inherit buildPlatform targetPlatform;
-      sphinx = pkgs.python3Packages.sphinx;
-      selfPkgs = packages.ghc821;
-    };
     ghc822 = callPackage ../development/compilers/ghc/8.2.2.nix rec {
       bootPkgs = packages.ghc802;
       inherit (bootPkgs) hscolour alex happy;
@@ -86,7 +79,7 @@ in rec {
       selfPkgs = packages.ghc822;
     };
     ghcHEAD = callPackage ../development/compilers/ghc/head.nix rec {
-      bootPkgs = packages.ghc802;
+      bootPkgs = packages.ghc822;
       inherit (bootPkgs) alex happy;
       inherit buildPlatform targetPlatform;
       selfPkgs = packages.ghcHEAD;
@@ -169,10 +162,6 @@ in rec {
       ghc = compiler.ghc802;
       compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.0.x.nix { };
     };
-    ghc821 = callPackage ../development/haskell-modules {
-      ghc = compiler.ghc821;
-      compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.2.x.nix { };
-    };
     ghc822 = callPackage ../development/haskell-modules {
       ghc = compiler.ghc822;
       compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.2.x.nix { };
@@ -185,10 +174,6 @@ in rec {
     ghcCross = callPackage ../development/haskell-modules {
       ghc = compiler.ghcHEAD.crossCompiler;
       compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-head.nix { };
-    };
-    ghcCross821 = callPackage ../development/haskell-modules {
-      ghc = compiler.ghc821.crossCompiler;
-      compilerConfig = callPackage ../development/haskell-modules/configuration-ghc-8.2.x.nix { };
     };
     ghcjs = callPackage ../development/haskell-modules {
       ghc = compiler.ghcjs;

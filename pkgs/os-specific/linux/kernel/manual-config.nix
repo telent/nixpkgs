@@ -1,4 +1,6 @@
 { runCommand, nettools, bc, perl, gmp, libmpc, mpfr, kmod, openssl
+, libelf ? null
+, utillinux ? null
 , writeTextFile, ubootTools
 , hostPlatform
 }:
@@ -37,6 +39,8 @@ in {
   config ? stdenv.lib.optionalAttrs allowImportFromDerivation (readConfig configfile),
   # Cross-compiling config
   crossConfig ? if allowImportFromDerivation then (readConfig crossConfigfile) else config,
+  # Use defaultMeta // extraMeta
+  extraMeta ? {},
   # Whether to utilize the controversial import-from-derivation feature to parse the config
   allowImportFromDerivation ? false
 }:
@@ -110,7 +114,7 @@ let
         make $makeFlags prepare
         actualModDirVersion="$(cat $buildRoot/include/config/kernel.release)"
         if [ "$actualModDirVersion" != "${modDirVersion}" ]; then
-          echo "Error: modDirVersion specified in the Nix expression is wrong, it should be: $actualModDirVersion"
+          echo "Error: modDirVersion ${modDirVersion} specified in the Nix expression is wrong, it should be: $actualModDirVersion"
           exit 1
         fi
 
@@ -226,17 +230,22 @@ let
           maintainers.thoughtpolice
         ];
         platforms = platforms.linux;
-      };
+      } // extraMeta;
     };
 in
 
+assert stdenv.lib.versionAtLeast version "4.15" -> libelf != null;
+assert stdenv.lib.versionAtLeast version "4.15" -> utillinux != null;
 stdenv.mkDerivation ((drvAttrs config stdenv.platform (kernelPatches ++ nativeKernelPatches) configfile) // {
   name = "linux-${version}";
 
   enableParallelBuilding = true;
 
   nativeBuildInputs = [ perl bc nettools openssl gmp libmpc mpfr ]
-    ++ optional (stdenv.platform.kernelTarget == "uImage") ubootTools;
+      ++ optional (stdenv.platform.kernelTarget == "uImage") ubootTools
+      ++ optional (stdenv.lib.versionAtLeast version "4.15") libelf
+      ++ optional (stdenv.lib.versionAtLeast version "4.15") utillinux
+      ;
 
   hardeningDisable = [ "bindnow" "format" "fortify" "stackprotector" "pic" ];
 

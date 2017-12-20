@@ -74,14 +74,6 @@ ccWrapper_addCVars () {
         export NIX_${role}CFLAGS_COMPILE+=" ${ccIncludeFlag:--isystem} $1/include"
     fi
 
-    if [[ -d "$1/lib64" && ! -L "$1/lib64" ]]; then
-        export NIX_${role}LDFLAGS+=" -L$1/lib64"
-    fi
-
-    if [[ -d "$1/lib" ]]; then
-        export NIX_${role}LDFLAGS+=" -L$1/lib"
-    fi
-
     if [[ -d "$1/Library/Frameworks" ]]; then
         export NIX_${role}CFLAGS_COMPILE+=" -F$1/Library/Frameworks"
     fi
@@ -97,10 +89,12 @@ ccWrapper_addCVars () {
 # setup-hook, which `role` tracks.
 if [ -n "${crossConfig:-}" ]; then
     export NIX_CC_WRAPPER_@infixSalt@_TARGET_BUILD=1
-    role="BUILD_"
+    role_pre='BUILD_'
+    role_post='_FOR_BUILD'
 else
     export NIX_CC_WRAPPER_@infixSalt@_TARGET_HOST=1
-    role=""
+    role_pre=''
+    role_post=''
 fi
 
 # Eventually the exact sort of env-hook we create will depend on the role. This
@@ -117,11 +111,6 @@ if [ -n "@cc@" ]; then
 fi
 
 # shellcheck disable=SC2157
-if [ -n "@binutils_bin@" ]; then
-    addToSearchPath _PATH @binutils_bin@/bin
-fi
-
-# shellcheck disable=SC2157
 if [ -n "@libc_bin@" ]; then
     addToSearchPath _PATH @libc_bin@/bin
 fi
@@ -133,20 +122,12 @@ fi
 
 # Export tool environment variables so various build systems use the right ones.
 
-export NIX_${role}CC=@out@
+export NIX_${role_pre}CC=@out@
 
-export ${role}CC=@named_cc@
-export ${role}CXX=@named_cxx@
-
-for CMD in \
-    ar as nm objcopy ranlib strip strings size ld windres
-do
-    if
-        PATH=$_PATH type -p "@binPrefix@$CMD" > /dev/null
-    then
-        export "${role}$(echo "$CMD" | tr "[:lower:]" "[:upper:]")=@binPrefix@${CMD}";
-    fi
-done
+export ${role_pre}CC=@named_cc@
+export ${role_pre}CXX=@named_cxx@
+export CC${role_post}=@named_cc@
+export CXX${role_post}=@named_cxx@
 
 # No local scope in sourced file
-unset role
+unset -v role_pre role_post

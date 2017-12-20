@@ -1,22 +1,22 @@
-{ fetchFromGitHub, pkgs }:
+{ fetchFromGitHub, fetchurl, lib, pkgs }:
 
 {
   brotli = {
     src = fetchFromGitHub {
       owner = "google";
       repo = "ngx_brotli";
-      rev = "788615eab7c5e0a984278113c55248305620df14";
-      sha256 = "02514bbjdhm9m38vljdh626d3c1783jxsxawv5c6bzblwmb8xgvf";
+      rev = "bfd2885b2da4d763fed18f49216bb935223cd34b";
+      sha256 = "04yx1n0wi3l2x37jd1ynl9951qxkn8xp42yv0mfp1qz9svips81n";
+      fetchSubmodules = true;
     };
-    inputs = [ pkgs.libbrotli ];
   };
 
-  rtmp = {
+  rtmp ={
     src = fetchFromGitHub {
       owner = "arut";
       repo = "nginx-rtmp-module";
-      rev = "v1.1.11";
-      sha256 = "09zrnf8lk179mpqnx92zm24xl7m3bq4ca84wc2zwi5hc8kxjbwxc";
+      rev = "v1.2.1";
+      sha256 = "0na1aam176irz6w148hnvamqy1ilbn4abhdzkva0yrm35a3ksbzn";
     };
   };
 
@@ -45,6 +45,16 @@
     preConfigure = ''
       export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -I${pkgs.aprutil.dev}/include/apr-1 -I${pkgs.apacheHttpd.dev}/include -I${pkgs.apr.dev}/include/apr-1 -I${pkgs.yajl}/include"
     '';
+  };
+
+  modsecurity-beta = {
+    src = fetchFromGitHub {
+      owner = "SpiderLabs";
+      repo = "ModSecurity-nginx";
+      rev = "a2a5858d249222938c2f5e48087a922c63d7f9d8";
+      sha256 = "1zj0fq35hddzf7b3x40xlbss866lg7w2vd1bbm8g1hcq1ny2s84n";
+    };
+    inputs = [ pkgs.curl pkgs.geoip pkgs.libmodsecurity pkgs.libxml2 pkgs.lmdb pkgs.yajl ];
   };
 
   echo = {

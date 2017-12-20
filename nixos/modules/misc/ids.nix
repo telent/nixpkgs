@@ -281,8 +281,8 @@
       stanchion = 262;
       riak-cs = 263;
       infinoted = 264;
-      keystone = 265;
-      glance = 266;
+      # keystone = 265; # unused, removed 2017-12-13
+      # glance = 266; # unused, removed 2017-12-13
       couchpotato = 267;
       gogs = 268;
       pdns-recursor = 269;
@@ -300,6 +300,7 @@
       kanboard = 281;
       pykms = 282;
       kodi = 283;
+      restya-board = 284;
 
       # When adding a uid, make sure it doesn't match an existing gid. And don't use uids above 399!
 
@@ -550,8 +551,8 @@
       stanchion = 262;
       riak-cs = 263;
       infinoted = 264;
-      keystone = 265;
-      glance = 266;
+      # keystone = 265; # unused, removed 2017-12-13
+      # glance = 266; # unused, removed 2017-12-13
       couchpotato = 267;
       gogs = 268;
       kresd = 270;
@@ -568,6 +569,7 @@
       kanboard = 281;
       pykms = 282;
       kodi = 283;
+      restya-board = 284;
 
       # When adding a gid, make sure it doesn't match an existing
       # uid. Users and groups with the same name should have equal

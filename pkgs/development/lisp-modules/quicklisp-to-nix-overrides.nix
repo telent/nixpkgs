@@ -28,12 +28,13 @@ in
     propagatedBuildInputs = [pkgs.fuse];
     overrides = y : (x.overrides y) // {
       configurePhase = ''
-        export SAVED_CL_SOURCE_REGISTRY="$CL_SOURCE_REGISTRY"
-        export CL_SOURCE_REGISTRY="$CL_SOURCE_REGISTRY:$PWD"
         export makeFlags="$makeFlags LISP=common-lisp.sh"
       '';
       preInstall = ''
-        export CL_SOURCE_REGISTRY="$SAVED_CL_SOURCE_REGISTRY"
+        type gcc
+        mkdir -p "$out/lib/common-lisp/" 
+        cp -r . "$out/lib/common-lisp/cl-fuse/"
+        "gcc" "-x" "c" "$out/lib/common-lisp/cl-fuse/fuse-launcher.c-minus" "-fPIC" "--shared" "-lfuse" "-o" "$out/lib/common-lisp/cl-fuse/libfuse-launcher.so"        
       '';
     };
   };
@@ -65,7 +66,8 @@ in
     overrides = y: (x.overrides y) // {
       linkedSystems = [];
       postInstall = ((x.overrides y).postInstall or "") + ''
-        export CL_SOURCE_REGISTRY="$CL_SOURCE_REGISTRY:$out/lib/common-lisp/query-fs"
+        export NIX_LISP_ASDF_PATHS="$NIX_LISP_ASDF_PATHS
+$out/lib/common-lisp/query-fs"
 	export HOME=$PWD
         "$out/bin/query-fs-lisp-launcher.sh" --eval '(asdf:make :query-fs)' \
           --eval "(progn $(for i in $linkedSystems; do echo "(asdf:make :$i)"; done) )" \

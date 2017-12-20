@@ -210,6 +210,7 @@
   ./services/desktops/gnome3/seahorse.nix
   ./services/desktops/gnome3/sushi.nix
   ./services/desktops/gnome3/tracker.nix
+  ./services/desktops/gnome3/tracker-miners.nix
   ./services/desktops/profile-sync-daemon.nix
   ./services/desktops/telepathy.nix
   ./services/development/hoogle.nix
@@ -226,6 +227,7 @@
   ./services/hardware/bluetooth.nix
   ./services/hardware/brltty.nix
   ./services/hardware/freefall.nix
+  ./services/hardware/fwupd.nix
   ./services/hardware/illum.nix
   ./services/hardware/interception-tools.nix
   ./services/hardware/irqbalance.nix
@@ -237,6 +239,7 @@
   ./services/hardware/tlp.nix
   ./services/hardware/thinkfan.nix
   ./services/hardware/trezord.nix
+  ./services/hardware/u2f.nix
   ./services/hardware/udev.nix
   ./services/hardware/udisks2.nix
   ./services/hardware/upower.nix
@@ -326,6 +329,7 @@
   ./services/misc/nix-ssh-serve.nix
   ./services/misc/nzbget.nix
   ./services/misc/octoprint.nix
+  ./services/misc/osrm.nix
   ./services/misc/packagekit.nix
   ./services/misc/parsoid.nix
   ./services/misc/phd.nix
@@ -350,6 +354,7 @@
   ./services/misc/taskserver
   ./services/misc/tzupdate.nix
   ./services/misc/uhub.nix
+  ./services/misc/xmr-stak.nix
   ./services/misc/zookeeper.nix
   ./services/monitoring/apcupsd.nix
   ./services/monitoring/arbtt.nix
@@ -397,6 +402,7 @@
   ./services/monitoring/zabbix-agent.nix
   ./services/monitoring/zabbix-server.nix
   ./services/network-filesystems/cachefilesd.nix
+  ./services/network-filesystems/davfs2.nix
   ./services/network-filesystems/drbd.nix
   ./services/network-filesystems/glusterfs.nix
   ./services/network-filesystems/kbfs.nix
@@ -586,6 +592,7 @@
   ./services/system/cloud-init.nix
   ./services/system/dbus.nix
   ./services/system/earlyoom.nix
+  ./services/system/localtime.nix
   ./services/system/kerberos.nix
   ./services/system/nscd.nix
   ./services/system/saslauthd.nix
@@ -608,6 +615,7 @@
   ./services/web-apps/pgpkeyserver-lite.nix
   ./services/web-apps/piwik.nix
   ./services/web-apps/pump.io.nix
+  ./services/web-apps/restya-board.nix
   ./services/web-apps/tt-rss.nix
   ./services/web-apps/selfoss.nix
   ./services/web-apps/quassel-webserver.nix
@@ -742,6 +750,4 @@
   ./virtualisation/vmware-guest.nix
   ./virtualisation/xen-dom0.nix
   ./virtualisation/xe-guest-utilities.nix
-  ./virtualisation/openstack/keystone.nix
-  ./virtualisation/openstack/glance.nix
 ]

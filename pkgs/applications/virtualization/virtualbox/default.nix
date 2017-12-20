@@ -1,8 +1,9 @@
 { stdenv, fetchurl, lib, iasl, dev86, pam, libxslt, libxml2, libX11, xproto, libXext
 , libXcursor, libXmu, qt5, libIDL, SDL, libcap, zlib, libpng, glib, lvm2
 , libXrandr, libXinerama
-, which, alsaLib, curl, libvpx, gawk, nettools, dbus
-, xorriso, makeself, perl, pkgconfig
+, pkgconfig, which, docbook_xsl, docbook_xml_dtd_43
+, alsaLib, curl, libvpx, gawk, nettools, dbus
+, xorriso, makeself, perl
 , javaBindings ? false, jdk ? null
 , pythonBindings ? false, python2 ? null
 , enableExtensionPack ? false, requireFile ? null, patchelf ? null, fakeroot ? null
@@ -19,10 +20,10 @@ let
   python = python2;
   buildType = "release";
   # Manually sha256sum the extensionPack file, must be hex!
-  extpack = "005ba9211862643e2516d549e98b80942918047f1f6c55fcfe08c490dd1947bc";
-  extpackRev = "118431";
-  main = "0m6y98pvkngprw5iaswvkbbfxmzvfl8yvgi984p1866zwap77z16";
-  version = "5.2.0";
+  extpack = "9328548ca8cbc526232c0631cb5a17618c771b07665b362c1e3d89a2425bf799";
+  extpackRev = "119230";
+  main = "05y03fcp013gc500q34bj6hvx1banib41v8l3hcxknzfgwq0rarm";
+  version = "5.2.2";
 
   # See https://github.com/NixOS/nixpkgs/issues/672 for details
   extensionPack = requireFile rec {
@@ -51,10 +52,12 @@ in stdenv.mkDerivation {
 
   outputs = [ "out" "modsrc" ];
 
+  nativeBuildInputs = [ pkgconfig which docbook_xsl docbook_xml_dtd_43 ];
+
   buildInputs =
     [ iasl dev86 libxslt libxml2 xproto libX11 libXext libXcursor libIDL
       libcap glib lvm2 alsaLib curl libvpx pam xorriso makeself perl
-      pkgconfig which libXmu libpng patchelfUnstable python ]
+      libXmu libpng patchelfUnstable python ]
     ++ optional javaBindings jdk
     ++ optional pythonBindings python # Python is needed even when not building bindings
     ++ optional pulseSupport libpulseaudio
@@ -88,8 +91,13 @@ in stdenv.mkDerivation {
     set +x
   '';
 
-  patches = optional enableHardening ./hardened.patch
-    ++ [ ./qtx11extras.patch ];
+  patches =
+     optional enableHardening ./hardened.patch
+     # https://www.virtualbox.org/pipermail/vbox-dev/2017-December/014888.html
+  ++ optional headless [ ./HostServices-SharedClipboard-x11-stub.cpp-use-RT_NOR.patch ]
+  ++ [ ./qtx11extras.patch ];
+
+
 
   postPatch = ''
     sed -i -e 's|/sbin/ifconfig|${nettools}/bin/ifconfig|' \
@@ -199,6 +207,6 @@ in stdenv.mkDerivation {
     description = "PC emulator";
     homepage = http://www.virtualbox.org/;
     maintainers = [ lib.maintainers.sander ];
-    platforms = lib.platforms.linux;
+    platforms = [ "x86_64-linux" "i686-linux" ];
   };
 }
