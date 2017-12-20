@@ -25,7 +25,14 @@ an obvious cause of shared libraries not working - because they're not
 there.  Probably what we should do instead is build an initramfs and
 then mount the squashfs onto `/nix/store` in the initramfs "/init" script.
 
+What needs to go in the root fs
+/bin/sh
+/init  - mount /dev /sys /proc /nix/store
+/etc - where should we get this?
 
+now having second thoughts that this needs to be a ramdisk anyway
+... if the root fs comes from the same mmc as the kernel, might as
+well make it a filesystem image
 ## How to run it
 
     nix-build nixwrt.nix -A image -o image
