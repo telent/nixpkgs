@@ -42,4 +42,43 @@ well make it a filesystem image
 
     nix-shell '<nixpkgs>' -p qemu --run "qemu-system-mipsel  -M malta -m 512 -kernel kernel/vmlinux  -append 'root=/dev/sr0 console=ttyS0 init=/bin/sh' -blockdev driver=file,node-name=squashed,read-only=on,filename=image/image.squashfs -blockdev driver=raw,node-name=rootfs,file=squashed,read-only=on -device ide-cd,drive=rootfs -nographic"
 
+# Real hardware
 
+Initial target is the Arduino Yun because I have one and because the
+USB gadget interface on the Atmega side makes it easy to test with.
+The Yun is logically a traditional Arduino bolted onto an Atheros 9331
+by means of a two-wire serial connection: we're going to target the
+Atheros SoC and use the Arduino MCU as a USB/serial converter 
+
+## Invoking the kernel
+
+* You need a tftp server, and you need to choose a static IP address
+  for your Yun.  In my case these are 192.168.0.2 and 192.168.0.251
+
+* When developing remotely there is no easy way to hard-reset the Linux
+half of the Yun.  To mitigate, be sure to start the kernel with 
+panic=10 oops=panic
+
+* To talk to the Atheros over a serial connection, upload
+  https://www.arduino.cc/en/Tutorial/YunSerialTerminal to your Yun
+  using the standard Arduino IDE.  Once the sketch is running, rather
+  than using the Arduino serial monitor as it suggests, I run minicom
+  on `/dev/ttyACM0`
+
+On your build machine, copy the files to somewhere the tftp server
+can see them
+  
+    cp kernel/uImage.lzma image/image.squashfs /tftp
+
+On a serial connection to the Yun, get into the U-Boot monitor
+(hit YUN RST button, then press RET a couple of times - or in newer
+U-Boot versions you need to type `ard` very quickly -
+https://www.arduino.cc/en/Tutorial/YunUBootReflash may help)
+Once you have the `ar7240>` prompt, run
+
+    setenv serverip 192.168.0.2 ; setenv ipaddr 192.168.0.251 ; setenv bootargs console=ttyS0 panic=10 oops=panic init=/bin/sh ; tftp 0x81060000 /tftp/uImage.lzma ; bootm   0x81060000
+
+substituting your own IP addresses where appropriate.  0x81060000 is
+an address I chose at random which (I hope) exists and is sufficiently
+greater than 0x80060000 that the uncompressed kernel doesn't overwrite
+the compressed kernel.
