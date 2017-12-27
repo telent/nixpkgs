@@ -202,7 +202,7 @@ stdenv.mkDerivation {
     '';
 
   propagatedBuildInputs = [ bintools ];
-  depsTargetTarget = extraPackages;
+  depsTargetTargetPropagated = extraPackages;
 
   setupHook = ./setup-hook.sh;
 

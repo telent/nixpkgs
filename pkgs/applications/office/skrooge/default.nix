@@ -15,7 +15,11 @@ mkDerivation rec {
   };
 
   nativeBuildInputs = [
+<<<<<<< HEAD
     cmake extra-cmake-modules kdocktools shared_mime_info
+=======
+    cmake extra-cmake-modules kdoctools shared_mime_info
+>>>>>>> cross/cross-elegant
   ];
 
   buildInputs = [

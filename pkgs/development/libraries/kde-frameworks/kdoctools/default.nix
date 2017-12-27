@@ -9,9 +9,8 @@ mkDerivation {
   name = "kdoctools";
   meta = { maintainers = [ lib.maintainers.ttuegel ]; };
   nativeBuildInputs = [ extra-cmake-modules ];
-  propagatedBuildInputs = [ perl perlPackages.URI ];
+  propagatedBuildInputs = [ perl perlPackages.URI qtbase ];
   buildInputs = [ karchive ki18n ];
-  propagatedBuildInputs = [ qtbase ];
   outputs = [ "out" "dev" ];
   patches = [ ./kdoctools-no-find-docbook-xml.patch ];
   cmakeFlags = [

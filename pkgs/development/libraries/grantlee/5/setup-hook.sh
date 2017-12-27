@@ -10,4 +10,5 @@ _grantleeEnvHook() {
         propagatedUserEnvPkgs+=" $1"
     fi
 }
-addEnvHooks "$hostOffset" _grantleeCrossEnvHook
+addEnvHooks "$hostOffset" _grantleeEnvHook
+
