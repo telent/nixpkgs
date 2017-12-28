@@ -1,3 +1,7 @@
+For NixWRT, see separate file [README.nixwrt.md](README.nixwrt.md)
+
+----
+
 [<img src="https://nixos.org/logo/nixos-hires.png" width="500px" alt="logo" />](https://nixos.org/nixos)
 
 [![Code Triagers Badge](https://www.codetriage.com/nixos/nixpkgs/badges/users.svg)](https://www.codetriage.com/nixos/nixpkgs)
