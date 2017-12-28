@@ -216,7 +216,7 @@ stdenv.mkDerivation ({
 // lib.optionalAttrs (cross != null) {
   preInstall = null; # clobber the native hook
 
-  dontStrip = true;
+#  dontStrip = true;
 
   separateDebugInfo = false; # this is currently broken for crossDrv
 
