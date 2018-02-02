@@ -1,4 +1,4 @@
-{ fetchurl, stdenv }:
+{ fetchurl, stdenv, buildPlatform, hostPlatform }:
 
 stdenv.mkDerivation rec {
   name = "qprint-1.1";
@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
     sha256 = "1701cnb1nl84rmcpxzq11w4cyj4385jh3gx4aqxznwf8a4fwmagz";
   };
 
-  doCheck = true;
+  doCheck = (buildPlatform == hostPlatform);
 
   checkTarget = "wringer";
 
