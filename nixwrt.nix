@@ -12,7 +12,7 @@
 # * we need a busybox that runs on the end-user device, 
 #    build=x86-64, host=mips, target is not relevant
 
-{ target ? "malta", ssh, syslogServerAddress, interfaces, ... }: 
+{ target ? "malta", ssh, monitConfig, ... }: 
 let onTheBuild = import ./default.nix {} ;
     targetPlatform = {
       malta = { name = "malta"; endian = "big"; baseConfig = "malta_defconfig"; };
@@ -46,34 +46,7 @@ let onTheBuild = import ./default.nix {} ;
     stdenv = onTheHost.stdenv;
     pkgs = onTheHost.pkgs;
     sshHostKey = ./ssh_host_key;
-    intf = name : attrs : ''
-      check network ${name} interface ${attrs.device}
-       start program = "/bin/sh -c '/bin/ifconfig ${attrs.device} ${attrs.ipAddress} up && route add default gw ${attrs.defaultRoute} dev ${attrs.device}'"
-       stop program = "/bin/ifconfig ${attrs.device} down"
-       if failed link then restart
-    ''; 
-    monitrc = {mode = "0400"; content = ''
-      set init
-      set daemon 30
-      set httpd port 80
-        allow localhost
-        allow 192.168.0.0/24
-      set idfile /run/monit.id
-      set statefile /run/monit.state
-      ${intf "wired" interfaces.wired}
-      check process syslogd with pidfile /run/syslogd.pid
-        start program = "/bin/syslogd -R ${syslogServerAddress}"
-        stop program = "/bin/kill \$MONIT_PROCESS_PID"
-        depends on wired
-      check process ntpd with pidfile /run/ntpd.pid
-        start program = "/bin/ntpd -p pool.ntp.org"
-        stop program = "/bin/kill \$MONIT_PROCESS_PID"
-        depends on wired
-      check process dropbear with pidfile /run/dropbear.pid
-        start program = "${pkgs.dropbear}/bin/dropbear -s -P /run/dropbear.pid"
-        stop program = "/bin/kill \$MONIT_PROCESS_PID"
-    '';};
-
+    monitrc = import ./monitrc.nix onTheBuild.pkgs;
 in with onTheHost; rec {
   dropbearHostKey = runCommand "makeHostKey" { preferLocalBuild = true; } ''
    ${onTheBuild.pkgs.dropbear}/bin/dropbearconvert openssh dropbear ${sshHostKey} $out
@@ -250,7 +223,7 @@ in with onTheHost; rec {
          let s = defaults // spec;
              c = builtins.replaceStrings ["\n" "=" "\""] ["=0A" "=3D" "=22"] s.content; in
            "/etc/${name} f ${s.mode} ${s.owner} ${s.group} echo -n \"${c}\" |qprint -d")
-      { monitrc = monitrc;
+      { monitrc = {content = monitrc monitConfig ; mode = "0600"; };
         hosts = {content = "127.0.0.1 localhost\n"; };
         fstab = {content = ''
           proc /proc proc defaults 0 0
