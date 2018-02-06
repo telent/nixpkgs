@@ -44,9 +44,10 @@ attached USB disk.
 - [x] builds a root filesystem
 - [x] mounts the root filesystem
 - [x] ethernet driver
-- [ ] bring the network up at boot
+- [x] bring the network up at boot
 - [ ] wireless
-- [ ] run some services, route some packets
+- [x] run some services
+- [ ] route some packets
 
 You can follow progress (or lack of) in my blog: start with
 https://ww.telent.net/2017/12/27/all_mipsy_were_the_borogroves and
@@ -55,6 +56,11 @@ follow the 'next week' links at the bottom of each post.
 # How to run it
 
 ## With QEMU
+
+[ As of Mon Feb  5 23:35:51 2018 this is most likely broken.  You need
+to create a malta.nix that looks similar but not identical to yun.nix
+and improvised on a theme of the instructions for "real hardware" ] 
+
 
     nix-build ./nixwrt.nix -A tftproot -o malta --argstr target malta
     nix-shell  -p qemu --run "qemu-system-mips -M malta -m 64 -nographic -kernel malta/vmlinux   -append 'root=/dev/sr0 console=ttyS0 init=/bin/sh' -blockdev driver=file,node-name=squashed,read-only=on,filename=malta/rootfs.image -blockdev driver=raw,node-name=rootfs,file=squashed,read-only=on -device ide-cd,drive=rootfs -nographic" 
@@ -92,7 +98,7 @@ your TFTP server.  In my case these are 192.168.0.251 and 192.168.0.2
 Build the derivation and copy the result into your tftp server data
 directory:
 
-    nix-build nixwrt.nix -A tftproot -o yun --argstr target yun
+    nix-build yun.nix -A tftproot -o yun
     rsync -cIa yun/ /tftp/ # rync should ignore timestamps when comparing
 
 On a serial connection to the Yun, get into the U-Boot monitor
