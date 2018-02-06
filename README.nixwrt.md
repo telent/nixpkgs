@@ -130,16 +130,21 @@ because the kernel serial driver is running at a different speed to
 U-Boot, and you need to change it (if using the YunSerialTerminal
 sketch, by pressing `~1` or something along those lines).
 
-# Rambling
+If it doesn't work, you could try
 
-services & stuff
-
-we want to define services "pull" - style
-
-"I can reach 5 of 12 big internet sites"
-if I can't, why not?
-  do I have dns?
-  do I have ip routing?
+* changing `init=/bin/init` to `init=/bin/sh`.  Sometimes the ersatz
+  edifice of string glommeration that creates the contents of `/etc`
+  goes wrong and generates broken files or empty files or no files.
+  This will give you a root shell on the console with which you can
+  poke around
+* changing `ath79-wdt.from_boot=n` to `ath79-wdt.from_boot=y`: this
+  will cause the board to reboot after 21 seconds, which is handy if
+  it's wedgin during the boot process - especially if you're not
+  physically colocated with it.
   
-  
+# Feedback
 
+Is welcome.  I'm subscribed to the nix-devel list and will see
+messages there.  I'm @telent_net on Twitter if that suits better, and
+I occasionally show up as `dan_b` or some variant of that name on
+#nixos IRC.
