@@ -139,7 +139,7 @@ If it doesn't work, you could try
   poke around
 * changing `ath79-wdt.from_boot=n` to `ath79-wdt.from_boot=y`: this
   will cause the board to reboot after 21 seconds, which is handy if
-  it's wedgin during the boot process - especially if you're not
+  it's wedging during the boot process - especially if you're not
   physically colocated with it.
   
 # Feedback
