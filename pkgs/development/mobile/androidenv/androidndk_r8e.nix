@@ -32,7 +32,7 @@ stdenv.mkDerivation rec {
     sed_script_2 =
       "'s|^MYNDKDIR=`dirname $0`" +
       "|MYNDKDIR=`dirname $(readlink -f $(which $0))`|'";
-    runtime_paths = (lib.makeSearchPath "bin" [
+    runtime_paths = (lib.makeBinPath [
       coreutils file findutils
       gawk gnugrep gnused
       jdk
@@ -54,8 +54,8 @@ stdenv.mkDerivation rec {
     find $out \( \
         \( -type f -a -name "*.so*" \) -o \
         \( -type f -a -perm -0100 \) \
-        \) -exec patchelf --set-interpreter ${stdenv.cc.libc}/lib/ld-*so.? \
-                          --set-rpath ${zlib}/lib:${ncurses}/lib {} \;
+        \) -exec patchelf --set-interpreter ${stdenv.cc.libc.out}/lib/ld-*so.? \
+                          --set-rpath ${stdenv.lib.makeLibraryPath [ zlib ncurses ]} {} \;
     # fix ineffective PROGDIR / MYNDKDIR determination
     for i in ndk-build ndk-gdb ndk-gdb-py
     do
@@ -64,17 +64,17 @@ stdenv.mkDerivation rec {
     sed -i -e ${sed_script_2} ndk-which
     # a bash script
     patchShebangs ndk-which
+    # wrap
+    for i in ndk-build ndk-gdb ndk-gdb-py ndk-which
+    do
+        wrapProgram "$(pwd)/$i" --prefix PATH : "${runtime_paths}"
+    done
     # make some executables available in PATH
     mkdir -pv ${bin_path}
     for i in \
         ndk-build ndk-depends ndk-gdb ndk-gdb-py ndk-gdb.py ndk-stack ndk-which
     do
         ln -sf ${pkg_path}/$i ${bin_path}/$i
-    done
-    # wrap
-    for i in ndk-build ndk-gdb ndk-gdb-py ndk-which
-    do
-        wrapProgram "${bin_path}/$i" --prefix PATH : "${runtime_paths}"
     done
   '';
 }

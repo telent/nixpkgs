@@ -1,24 +1,21 @@
-{ stdenv, fetchurl, python, pythonPackages, gettext, pygtksourceview, sqlite }:
+{ stdenv, fetchurl, pythonPackages, gettext, sqlite }:
 
 with stdenv.lib;
 stdenv.mkDerivation rec {
 
   name = "cherrytree-${version}";
-  version = "0.35.9";
+  version = "0.37.6";
 
   src = fetchurl {
     url = "http://www.giuspen.com/software/${name}.tar.xz";
-    sha256 = "14yahp0y13z3xkpwvprm7q9x3rj6jbzi0bryqlsn3bbafdq7wnac";
+    sha256 = "0x4cgsimpwh7wfbzbzw2f5ipxxjizpi4wa99s1cwizynfjr38y5s";
   };
 
-  propagatedBuildInputs = with pythonPackages;
-  [ sqlite3 ];
-
   buildInputs = with pythonPackages;
-  [ python gettext wrapPython pygtk dbus pygtksourceview ];
+  [ python gettext wrapPython pygtk dbus-python pygtksourceview ];
 
   pythonPath = with pythonPackages;
-  [ pygtk dbus pygtksourceview ];
+  [ pygtk dbus-python pygtksourceview ];
 
   patches = [ ./subprocess.patch ];
 
@@ -33,7 +30,7 @@ stdenv.mkDerivation rec {
 
   doCheck = false;
 
-  meta = { 
+  meta = {
     description = "An hierarchical note taking application";
     longDescription = ''
       Cherrytree is an hierarchical note taking application,
@@ -44,10 +41,10 @@ stdenv.mkDerivation rec {
       documents. All those little bits of information you have scattered
       around your hard drive can be conveniently placed into a
       Cherrytree document where you can easily find it.
-    ''; 
+    '';
     homepage = http://www.giuspen.com/cherrytree;
     license = licenses.gpl3;
-    platforms = platforms.linux; 
-    maintainers = [ maintainers.AndersonTorres ]; 
-  }; 
+    platforms = platforms.linux;
+    maintainers = [ maintainers.AndersonTorres ];
+  };
 }

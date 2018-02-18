@@ -27,8 +27,10 @@ stdenv.mkDerivation rec {
     '';
     homepage = http://ctags.sourceforge.net/;
     license = licenses.gpl2Plus;
-    maintainers = with maintainers; [ simons ];
     platforms = platforms.unix;
+
+    # So that Exuberant ctags is preferred over emacs's ctags
+    priority = 1;
   };
 
 }

@@ -1,28 +1,30 @@
-{ stdenv, pkgconfig, zlib, qtbase, qtsvg, qttools, qtmultimedia, fetchurl }:
+{ stdenv, pkgconfig, zlib, qtbase, qtsvg, qttools, qtmultimedia, qmake, fetchurl }:
 stdenv.mkDerivation rec {
   name = "chessx-${version}";
-  version = "1.3.2";
+  version = "1.4.0";
   src = fetchurl {
     url = "mirror://sourceforge/chessx/chessx-${version}.tgz";
-    sha256 = "b136cf56d37d34867cdb9538176e1703b14f61b3384885b6f100580d0af0a3ff";
+    sha256 = "1x10c9idj2qks8xk9dy7aw3alc5w7z1kvv6dnahs0428j0sp4a74";
   };
-  preConfigure = ''
-    qmake -spec linux-g++ chessx.pro
-  '';
   buildInputs = [
-   stdenv
-   pkgconfig
    qtbase
    qtsvg
    qttools
    qtmultimedia
    zlib
   ];
+  nativeBuildInputs = [ pkgconfig qmake ];
 
-  enableParallelBuilding = true;
+  # RCC: Error in 'resources.qrc': Cannot find file 'i18n/chessx_da.qm'
+  enableParallelBuilding = false;
+
   installPhase = ''
+      runHook preInstall
       mkdir -p "$out/bin"
+      mkdir -p "$out/share/applications"
       cp -pr release/chessx "$out/bin"
+      cp -pr unix/chessx.desktop "$out/share/applications"
+      runHook postInstall
   '';
 
   meta = with stdenv.lib; {

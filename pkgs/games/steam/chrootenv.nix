@@ -1,16 +1,25 @@
-{ lib, buildFHSUserEnv, steam
-, withJava   ? false
+{ stdenv, lib, writeScript, buildFHSUserEnv, steam
+, steam-runtime-wrapped, steam-runtime-wrapped-i686 ? null
+, withJava ? false
 , withPrimus ? false
+, extraPkgs ? pkgs: [ ] # extra packages to add to targetPkgs
+, nativeOnly ? false
+, runtimeOnly ? false
 }:
 
-buildFHSUserEnv {
-  name = "steam";
-
-  targetPkgs = pkgs: with pkgs; [
-      steamPackages.steam
+let
+  commonTargetPkgs = pkgs: with pkgs;
+    let
+      tzdir = "${pkgs.tzdata}/share/zoneinfo";
+      # I'm not sure if this is the best way to add things like this
+      # to an FHSUserEnv
+      etc-zoneinfo = pkgs.runCommand "zoneinfo" {} ''
+        mkdir -p $out/etc
+        ln -s ${tzdir} $out/etc/zoneinfo
+        ln -s ${tzdir}/UTC $out/etc/localtime
+      '';
+    in [
       steamPackages.steam-fonts
-      # License agreement
-      gnome3.zenity
       # Errors in output without those
       pciutils
       python2
@@ -19,33 +28,67 @@ buildFHSUserEnv {
       which
       # Needed by gdialog, including in the steam-runtime
       perl
-    ]
-    ++ lib.optional withJava   jdk
-    ++ lib.optional withPrimus primus
-    ;
+      # Open URLs
+      xdg_utils
+      # Zoneinfo
+      etc-zoneinfo
+      iana-etc
+    ] ++ lib.optional withJava jdk
+      ++ lib.optional withPrimus primus
+      ++ extraPkgs pkgs;
+
+  ldPath = map (x: "/steamrt/${steam-runtime-wrapped.arch}/" + x) steam-runtime-wrapped.libs
+           ++ lib.optionals (steam-runtime-wrapped-i686 != null) (map (x: "/steamrt/${steam-runtime-wrapped-i686.arch}/" + x) steam-runtime-wrapped-i686.libs);
+
+  runSh = writeScript "run.sh" ''
+    #!${stdenv.shell}
+    runtime_paths="${lib.concatStringsSep ":" ldPath}"
+    if [ "$1" == "--print-steam-runtime-library-paths" ]; then
+      echo "$runtime_paths"
+      exit 0
+    fi
+    export LD_LIBRARY_PATH="$runtime_paths:$LD_LIBRARY_PATH"
+    exec "$@"
+  '';
+
+in buildFHSUserEnv rec {
+  name = "steam";
+
+  targetPkgs = pkgs: with pkgs; [
+    steamPackages.steam
+    # License agreement
+    gnome3.zenity
+  ] ++ commonTargetPkgs pkgs;
 
   multiPkgs = pkgs: with pkgs; [
-      # These are required by steam with proper errors
-      xlibs.libXcomposite
-      xlibs.libXtst
-      xlibs.libXrandr
-      xlibs.libXext
-      xlibs.libX11
-      xlibs.libXfixes
+    # These are required by steam with proper errors
+    xlibs.libXcomposite
+    xlibs.libXtst
+    xlibs.libXrandr
+    xlibs.libXext
+    xlibs.libX11
+    xlibs.libXfixes
 
-      # Not formally in runtime but needed by some games
-      gst_all_1.gstreamer
-      gst_all_1.gst-plugins-ugly
-      libdrm
+    # Not formally in runtime but needed by some games
+    gst_all_1.gstreamer
+    gst_all_1.gst-plugins-ugly
+    libdrm
+    mono
+    xorg.xkeyboardconfig
+    xlibs.libpciaccess
 
-      steamPackages.steam-runtime-wrapped
-    ];
+    (steamPackages.steam-runtime-wrapped.override {
+      inherit nativeOnly runtimeOnly;
+    })
+  ];
 
   extraBuildCommands = ''
     mkdir -p steamrt
-
-    ln -s ../lib64/steam-runtime steamrt/amd64
-    ln -s ../lib32/steam-runtime steamrt/i386
+    ln -s ../lib/steam-runtime steamrt/${steam-runtime-wrapped.arch}
+    ${lib.optionalString (steam-runtime-wrapped-i686 != null) ''
+      ln -s ../lib32/steam-runtime steamrt/${steam-runtime-wrapped-i686.arch}
+    ''}
+    ln -s ${runSh} steamrt/run.sh
   '';
 
   extraInstallCommands = ''
@@ -57,7 +100,27 @@ buildFHSUserEnv {
 
   profile = ''
     export STEAM_RUNTIME=/steamrt
+    export TZDIR=/etc/zoneinfo
   '';
 
   runScript = "steam";
+
+  passthru.run = buildFHSUserEnv {
+    name = "steam-run";
+
+    targetPkgs = commonTargetPkgs;
+    inherit multiPkgs extraBuildCommands;
+
+    runScript = writeScript "steam-run" ''
+      #!${stdenv.shell}
+      run="$1"
+      if [ "$run" = "" ]; then
+        echo "Usage: steam-run command-to-run args..." >&2
+        exit 1
+      fi
+      shift
+      export LD_LIBRARY_PATH=${lib.concatStringsSep ":" ldPath}:$LD_LIBRARY_PATH
+      exec "$run" "$@"
+    '';
+  };
 }

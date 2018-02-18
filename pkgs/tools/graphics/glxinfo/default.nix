@@ -1,22 +1,22 @@
-{stdenv, fetchurl, xlibsWrapper, mesa}:
+{ stdenv, fetchurl, xlibsWrapper, mesa_noglu }:
 
-let version = "8.1.0"; in
+let version = "8.3.0"; in
 
 stdenv.mkDerivation {
   name = "glxinfo-${version}";
 
   src = fetchurl {
     url = "ftp://ftp.freedesktop.org/pub/mesa/demos/${version}/mesa-demos-${version}.tar.bz2";
-    sha256 = "0a58hw5850731p4smz4zqsbvyxvgjf7n5xdbs9l1wamk8q3gl0wp";
+    sha256 = "1vqb7s5m3fcg2csbiz45mha1pys2xx6rhw94fcyvapqdpm5iawy1";
   };
 
-  buildInputs = [xlibsWrapper mesa];
+  buildInputs = [ xlibsWrapper mesa_noglu ];
 
   configurePhase = "true";
 
   buildPhase = "
     cd src/xdemos
-    gcc glxinfo.c -o glxinfo -lGL -lX11
+    gcc glxinfo.c glinfo_common.c -o glxinfo -lGL -lX11
     gcc glxgears.c -o glxgears -lGL -lX11
   ";
 
@@ -24,4 +24,8 @@ stdenv.mkDerivation {
     mkdir -p $out/bin
     cp glxinfo glxgears $out/bin/
   ";
+
+  meta = {
+    platforms = stdenv.lib.platforms.linux;
+  };
 }

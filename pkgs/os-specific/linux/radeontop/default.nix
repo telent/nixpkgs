@@ -1,18 +1,19 @@
-{ stdenv, fetchFromGitHub, pkgconfig, gettext, ncurses, libdrm, libpciaccess }:
+{ stdenv, fetchFromGitHub, pkgconfig, gettext, makeWrapper
+, ncurses, libdrm, libpciaccess, libxcb }:
 
-let version = "2015-11-24"; in
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "radeontop-${version}";
+  version = "2016-10-28";
 
   src = fetchFromGitHub {
-    sha256 = "0irwq6rps5mnban8cxbrm59wpyv4j80q3xdjm9fxvfpiyys2g2hz";
-    rev = "0e82272f3e8f2287c1bc1d8a0c7bdbd5c4818b37";
+    sha256 = "0y4rl8pm7p22s1ipyb75mlsk9qb6j4rd6nlqb3digmimnyxda1q3";
+    rev = "v1.0";
     repo = "radeontop";
     owner = "clbr";
   };
 
-  buildInputs = [ ncurses libdrm libpciaccess ];
-  nativeBuildInputs = [ pkgconfig gettext ];
+  buildInputs = [ ncurses libdrm libpciaccess libxcb ];
+  nativeBuildInputs = [ pkgconfig gettext makeWrapper ];
 
   enableParallelBuilding = true;
 
@@ -22,8 +23,12 @@ stdenv.mkDerivation {
 
   makeFlags = [ "PREFIX=$(out)" ];
 
+  postInstall = ''
+    wrapProgram $out/sbin/radeontop \
+      --prefix LD_LIBRARY_PATH : $out/lib
+  '';
+
   meta = with stdenv.lib; {
-    inherit version;
     description = "Top-like tool for viewing AMD Radeon GPU utilization";
     longDescription = ''
       View GPU utilization, both for the total activity percent and individual

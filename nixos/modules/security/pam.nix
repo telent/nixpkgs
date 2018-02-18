@@ -41,7 +41,7 @@ let
         type = types.bool;
         description = ''
           If set, users listed in
-          <filename>~/.yubico/u2f_keys</filename> are able to log in
+          <filename>~/.config/Yubico/u2f_keys</filename> are able to log in
           with the associated U2F key.
         '';
       };
@@ -75,7 +75,7 @@ let
       };
 
       oathAuth = mkOption {
-        default = config.security.pam.enableOATH;
+        default = config.security.pam.oath.enable;
         type = types.bool;
         description = ''
           If set, the OATH Toolkit will be used.
@@ -102,6 +102,16 @@ let
           the user access to audio devices, CD-ROM drives.  In the
           default PolicyKit configuration, it also allows the user to
           reboot the system.
+        '';
+      };
+
+      setEnvironment = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Whether the service should set the environment variables
+          listed in <option>environment.sessionVariables</option>
+          using <literal>pam_env.so</literal>.
         '';
       };
 
@@ -202,6 +212,17 @@ let
         '';
       };
 
+      enableKwallet = mkOption {
+        default = false;
+        type = types.bool;
+        description = ''
+          If enabled, pam_wallet will attempt to automatically unlock the
+          user's default KDE wallet upon login. If the user has no wallet named
+          "kdewallet", or the login password does not match their wallet
+          password, KDE will prompt separately after login.
+        '';
+      };
+
       text = mkOption {
         type = types.nullOr types.lines;
         description = "Contents of the PAM service file.";
@@ -221,8 +242,10 @@ let
         (''
           # Account management.
           account sufficient pam_unix.so
-          ${optionalString config.users.ldap.enable
+          ${optionalString use_ldap
               "account sufficient ${pam_ldap}/lib/security/pam_ldap.so"}
+          ${optionalString config.services.sssd.enable
+              "account sufficient ${pkgs.sssd}/lib/security/pam_sss.so"}
           ${optionalString config.krb5.enable
               "account sufficient ${pam_krb5}/lib/security/pam_krb5.so"}
 
@@ -241,6 +264,8 @@ let
               "auth sufficient ${pkgs.pam_u2f}/lib/security/pam_u2f.so"}
           ${optionalString cfg.usbAuth
               "auth sufficient ${pkgs.pam_usb}/lib/security/pam_usb.so"}
+          ${let oath = config.security.pam.oath; in optionalString cfg.oathAuth
+              "auth requisite ${pkgs.oathToolkit}/lib/security/pam_oath.so window=${toString oath.window} usersfile=${toString oath.usersFile} digits=${toString oath.digits}"}
         '' +
           # Modules in this block require having the password set in PAM_AUTHTOK.
           # pam_unix is marked as 'sufficient' on NixOS which means nothing will run
@@ -248,21 +273,24 @@ let
           # prompts the user for password so we run it once with 'required' at an
           # earlier point and it will run again with 'sufficient' further down.
           # We use try_first_pass the second time to avoid prompting password twice
-          (optionalString (cfg.unixAuth && (config.security.pam.enableEcryptfs || cfg.pamMount)) ''
+          (optionalString (cfg.unixAuth && (config.security.pam.enableEcryptfs || cfg.pamMount || cfg.enableKwallet)) ''
               auth required pam_unix.so ${optionalString cfg.allowNullPassword "nullok"} likeauth
               ${optionalString config.security.pam.enableEcryptfs
                 "auth optional ${pkgs.ecryptfs}/lib/security/pam_ecryptfs.so unwrap"}
               ${optionalString cfg.pamMount
                 "auth optional ${pkgs.pam_mount}/lib/security/pam_mount.so"}
+              ${optionalString cfg.enableKwallet
+                ("auth optional ${pkgs.plasma5.kwallet-pam}/lib/security/pam_kwallet5.so" +
+                 " kwalletd=${pkgs.libsForQt5.kwallet.bin}/bin/kwalletd5")}
             '') + ''
           ${optionalString cfg.unixAuth
               "auth sufficient pam_unix.so ${optionalString cfg.allowNullPassword "nullok"} likeauth try_first_pass"}
           ${optionalString cfg.otpwAuth
               "auth sufficient ${pkgs.otpw}/lib/security/pam_otpw.so"}
-          ${optionalString cfg.oathAuth
-              "auth sufficient ${pkgs.oathToolkit}/lib/security/pam_oath.so window=5 usersfile=/etc/users.oath"}
-          ${optionalString config.users.ldap.enable
+          ${optionalString use_ldap
               "auth sufficient ${pam_ldap}/lib/security/pam_ldap.so use_first_pass"}
+          ${optionalString config.services.sssd.enable
+              "auth sufficient ${pkgs.sssd}/lib/security/pam_sss.so use_first_pass"}
           ${optionalString config.krb5.enable ''
             auth [default=ignore success=1 service_err=reset] ${pam_krb5}/lib/security/pam_krb5.so use_first_pass
             auth [default=die success=done] ${pam_ccreds}/lib/security/pam_ccreds.so action=validate use_first_pass
@@ -276,34 +304,38 @@ let
               "password optional ${pkgs.ecryptfs}/lib/security/pam_ecryptfs.so"}
           ${optionalString cfg.pamMount
               "password optional ${pkgs.pam_mount}/lib/security/pam_mount.so"}
-          ${optionalString config.users.ldap.enable
+          ${optionalString use_ldap
               "password sufficient ${pam_ldap}/lib/security/pam_ldap.so"}
+          ${optionalString config.services.sssd.enable
+              "password sufficient ${pkgs.sssd}/lib/security/pam_sss.so use_authtok"}
           ${optionalString config.krb5.enable
               "password sufficient ${pam_krb5}/lib/security/pam_krb5.so use_first_pass"}
           ${optionalString config.services.samba.syncPasswordsByPam
               "password optional ${pkgs.samba}/lib/security/pam_smbpass.so nullok use_authtok try_first_pass"}
 
           # Session management.
-          session required pam_env.so envfile=${config.system.build.pamEnvironment}
+          ${optionalString cfg.setEnvironment ''
+            session required pam_env.so envfile=${config.system.build.pamEnvironment}
+          ''}
           session required pam_unix.so
           ${optionalString cfg.setLoginUid
               "session ${
                 if config.boot.isContainer then "optional" else "required"
               } pam_loginuid.so"}
           ${optionalString cfg.makeHomeDir
-              "session required ${pkgs.pam}/lib/security/pam_mkhomedir.so silent skel=/etc/skel umask=0022"}
+              "session required ${pkgs.pam}/lib/security/pam_mkhomedir.so silent skel=${config.security.pam.makeHomeDir.skelDirectory} umask=0022"}
           ${optionalString cfg.updateWtmp
               "session required ${pkgs.pam}/lib/security/pam_lastlog.so silent"}
           ${optionalString config.security.pam.enableEcryptfs
               "session optional ${pkgs.ecryptfs}/lib/security/pam_ecryptfs.so"}
-          ${optionalString config.users.ldap.enable
+          ${optionalString use_ldap
               "session optional ${pam_ldap}/lib/security/pam_ldap.so"}
+          ${optionalString config.services.sssd.enable
+              "session optional ${pkgs.sssd}/lib/security/pam_sss.so"}
           ${optionalString config.krb5.enable
               "session optional ${pam_krb5}/lib/security/pam_krb5.so"}
           ${optionalString cfg.otpwAuth
               "session optional ${pkgs.otpw}/lib/security/pam_otpw.so"}
-          ${optionalString cfg.oathAuth
-              "session optional ${pkgs.oathToolkit}/lib/security/pam_oath.so window=5 usersfile=/etc/users.oath"}
           ${optionalString cfg.startSession
               "session optional ${pkgs.systemd}/lib/security/pam_systemd.so"}
           ${optionalString cfg.forwardXAuth
@@ -316,6 +348,9 @@ let
               "session optional ${pkgs.pam_mount}/lib/security/pam_mount.so"}
           ${optionalString (cfg.enableAppArmor && config.security.apparmor.enable)
               "session optional ${pkgs.apparmor-pam}/lib/security/pam_apparmor.so order=user,group,default debug"}
+          ${optionalString (cfg.enableKwallet)
+              ("session optional ${pkgs.plasma5.kwallet-pam}/lib/security/pam_kwallet5.so" +
+               " kwalletd=${pkgs.libsForQt5.kwallet.bin}/bin/kwalletd5")}
         '');
     };
 
@@ -324,6 +359,7 @@ let
 
   inherit (pkgs) pam_krb5 pam_ccreds;
 
+  use_ldap = (config.users.ldap.enable && config.users.ldap.loginPam);
   pam_ldap = if config.users.ldap.daemon.enable then pkgs.nss_pam_ldapd else pkgs.pam_ldap;
 
   # Create a limits.conf(5) file.
@@ -375,8 +411,7 @@ in
 
     security.pam.services = mkOption {
       default = [];
-      type = types.loaOf types.optionSet;
-      options = [ pamOpts ];
+      type = with types; loaOf (submodule pamOpts);
       description =
         ''
           This option defines the PAM services.  A service typically
@@ -385,6 +420,16 @@ in
           Each attribute of this set defines a PAM service, with the attribute name
           defining the name of the service.
         '';
+    };
+
+    security.pam.makeHomeDir.skelDirectory = mkOption {
+      type = types.str;
+      default = "/var/empty";
+      example =  "/etc/skel";
+      description = ''
+        Path to skeleton directory whose contents are copied to home
+        directories newly created by <literal>pam_mkhomedir</literal>.
+      '';
     };
 
     security.pam.enableSSHAgentAuth = mkOption {
@@ -402,13 +447,6 @@ in
       default = false;
       description = ''
         Enable the OTPW (one-time password) PAM module.
-      '';
-    };
-
-    security.pam.enableOATH = mkOption {
-      default = false;
-      description = ''
-        Enable the OATH (one-time password) PAM module.
       '';
     };
 
@@ -444,24 +482,24 @@ in
       # Include the PAM modules in the system path mostly for the manpages.
       [ pkgs.pam ]
       ++ optional config.users.ldap.enable pam_ldap
+      ++ optional config.services.sssd.enable pkgs.sssd
       ++ optionals config.krb5.enable [pam_krb5 pam_ccreds]
       ++ optionals config.security.pam.enableOTPW [ pkgs.otpw ]
-      ++ optionals config.security.pam.enableOATH [ pkgs.oathToolkit ]
-      ++ optionals config.security.pam.enableU2F [ pkgs.pam_u2f ]
-      ++ optionals config.security.pam.enableEcryptfs [ pkgs.ecryptfs ];
+      ++ optionals config.security.pam.oath.enable [ pkgs.oathToolkit ]
+      ++ optionals config.security.pam.enableU2F [ pkgs.pam_u2f ];
 
-    security.setuidPrograms =
-        optionals config.security.pam.enableEcryptfs [ "mount.ecryptfs_private" "umount.ecryptfs_private" ];
+    boot.supportedFilesystems = optionals config.security.pam.enableEcryptfs [ "ecryptfs" ];
+
+    security.wrappers = {
+      unix_chkpwd = {
+        source = "${pkgs.pam}/sbin/unix_chkpwd.orig";
+        owner = "root";
+        setuid = true;
+      };
+    };
 
     environment.etc =
       mapAttrsToList (n: v: makePAMService v) config.security.pam.services;
-
-    security.setuidOwners = [ {
-      program = "unix_chkpwd";
-      source = "${pkgs.pam}/sbin/unix_chkpwd.orig";
-      owner = "root";
-      setuid = true;
-    } ];
 
     security.pam.services =
       { other.text =
@@ -480,10 +518,19 @@ in
         cups = {};
         ftp = {};
         i3lock = {};
+        i3lock-color = {};
+        swaylock = {};
         screen = {};
         vlock = {};
         xlock = {};
         xscreensaver = {};
+
+        runuser = { rootOK = true; unixAuth = false; setEnvironment = false; };
+
+        /* FIXME: should runuser -l start a systemd session? Currently
+           it complains "Cannot create session: Already running in a
+           session". */
+        runuser-l = { rootOK = true; unixAuth = false; };
       };
 
   };

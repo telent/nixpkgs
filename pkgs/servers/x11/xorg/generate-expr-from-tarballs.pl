@@ -239,7 +239,9 @@ let
   mkDerivation = name: attrs:
     let newAttrs = (overrides."\${name}" or (x: x)) attrs;
         stdenv = newAttrs.stdenv or args.stdenv;
-    in stdenv.mkDerivation (removeAttrs newAttrs [ "stdenv" ]);
+      in stdenv.mkDerivation ((removeAttrs newAttrs [ "stdenv" ]) // {
+        hardeningDisable = [ "bindnow" "relro" ];
+      });
 
   overrides = import ./overrides.nix {inherit args xorg;};
 
@@ -279,7 +281,8 @@ foreach my $pkg (sort (keys %pkgURLs)) {
       url = $pkgURLs{$pkg};
       sha256 = "$pkgHashes{$pkg}";
     };
-    buildInputs = [pkgconfig $inputs];$extraAttrs
+    nativeBuildInputs = [ pkgconfig ];
+    buildInputs = [ $inputs];$extraAttrs
     meta.platforms = stdenv.lib.platforms.unix;
   }) // {inherit $inputs;};
 

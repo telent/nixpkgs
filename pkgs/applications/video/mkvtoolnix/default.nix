@@ -1,76 +1,56 @@
-{ stdenv, fetchurl, gettext, pkgconfig, ruby
-, boost, expat, file, flac, libebml, libmatroska, libogg, libvorbis, xdg_utils, zlib
-# pugixml (not packaged)
-, buildConfig ? "all"
-, withGUI ? false, qt5 ? null # Disabled for now until upstream issues are resolved
-, legacyGUI ? true, wxGTK ? null
-# For now both qt5 and wxwidgets gui's are enabled, if wxwidgets is disabled the
-# build system doesn't install desktop entries, icons, etc...
-, libiconv
+{ stdenv, fetchFromGitHub, pkgconfig, autoconf, automake, libiconv
+, drake, ruby, docbook_xsl, file, xdg_utils, gettext, expat, qt5, boost
+, libebml, zlib, libmatroska, libogg, libvorbis, flac, libxslt
+, withGUI ? true
 }:
 
-let
-  inherit (stdenv.lib) enableFeature optional;
-in
-
 assert withGUI -> qt5 != null;
-assert legacyGUI -> wxGTK != null;
+
+with stdenv.lib;
 
 stdenv.mkDerivation rec {
   name = "mkvtoolnix-${version}";
-  version = "8.4.0";
+  version = "17.0.0";
 
-  src = fetchurl {
-    url = "http://www.bunkus.org/videotools/mkvtoolnix/sources/${name}.tar.xz";
-    sha256 = "0y7qm8q9vpvjiw7b69k9140pw9nhvs6ggmk56yxnmcd02inm19gn";
+  src = fetchFromGitHub {
+    owner = "mbunkus";
+    repo = "mkvtoolnix";
+    rev = "release-${version}";
+    sha256 = "1v74rxf9wm0sn2illy0hp36hpwz7q04y0k32wq6wn7qrnzkzcc88";
   };
 
-  patchPhase = ''
-    patchShebangs ./rake.d/
-    patchShebangs ./Rakefile
-    # Force ruby encoding to use UTF-8 or else when enabling qt5 the Rakefile may
-    # fail with `invalid byte sequence in US-ASCII' due to UTF-8 characters
-    # This workaround replaces an arbitrary comment in the drake file
-    sed -e 's,#--,Encoding.default_external = Encoding::UTF_8,' -i ./drake
-  '';
-
-  configureFlags = [
-    "--with-boost-libdir=${boost.lib}/lib"
-    "--without-curl"
-  ] ++ (
-    if (withGUI || legacyGUI) then [
-      "--with-mkvtoolnix-gui"
-      "--enable-gui"
-      (enableFeature withGUI "qt")
-      (enableFeature legacyGUI "wxwidgets")
-    ] else [
-      "--disable-gui"
-    ]
-  );
-
-  nativeBuildInputs = [ gettext pkgconfig ruby ];
+  nativeBuildInputs = [ pkgconfig autoconf automake gettext drake ruby docbook_xsl libxslt ];
 
   buildInputs = [
-    boost expat file flac libebml libmatroska libogg libvorbis xdg_utils zlib
-  ] ++ stdenv.lib.optionals stdenv.isDarwin [ libiconv ]
-    ++ optional withGUI qt5
-    ++ optional legacyGUI wxGTK;
+    expat file xdg_utils boost libebml zlib libmatroska libogg
+    libvorbis flac
+  ]
+  ++ optional stdenv.isDarwin libiconv
+  ++ optionals withGUI [qt5.qtbase qt5.qtmultimedia];
 
-  enableParallelBuilding = true;
+  preConfigure = "./autogen.sh; patchShebangs .";
+  buildPhase   = "drake -j $NIX_BUILD_CORES";
+  installPhase = "drake install -j $NIX_BUILD_CORES";
 
-  buildPhase = ''
-    ./drake
-  '';
-
-  installPhase = ''
-    ./drake install
-  '';
+  configureFlags = [
+    "--enable-magic"
+    "--enable-optimization"
+    "--with-boost-libdir=${boost.out}/lib"
+    "--disable-debug"
+    "--disable-profiling"
+    "--disable-precompiled-headers"
+    "--disable-static-qt"
+    "--with-gettext"
+    "--with-docbook-xsl-root=${docbook_xsl}/share/xml/docbook-xsl"
+    (enableFeature withGUI "qt")
+  ];
 
   meta = with stdenv.lib; {
     description = "Cross-platform tools for Matroska";
-    homepage = http://www.bunkus.org/videotools/mkvtoolnix/;
-    license = licenses.gpl2;
-    maintainers = with maintainers; [ codyopel fuuzetsu ];
-    platforms = platforms.all;
+    homepage    = http://www.bunkus.org/videotools/mkvtoolnix/;
+    license     = licenses.gpl2;
+    maintainers = with maintainers; [ codyopel fuuzetsu rnhmjoj ];
+    platforms   = platforms.linux
+      ++ optionals (!withGUI) platforms.darwin;
   };
 }

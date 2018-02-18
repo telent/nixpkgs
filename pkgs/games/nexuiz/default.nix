@@ -36,14 +36,14 @@ in stdenv.mkDerivation {
   '';
 
   NIX_LDFLAGS = ''
-    -rpath ${zlib}/lib
-    -rpath ${curl}/lib
-    -rpath ${libjpeg}/lib
-    -rpath ${libpng}/lib
-    -rpath ${libvorbis}/lib
-    -rpath ${libtheora}/lib
-    -rpath ${libogg}/lib
-    -rpath ${libmodplug}/lib
+    -rpath ${zlib.out}/lib
+    -rpath ${curl.out}/lib
+    -rpath ${libjpeg.out}/lib
+    -rpath ${libpng.out}/lib
+    -rpath ${libvorbis.out}/lib
+    -rpath ${libtheora.out}/lib
+    -rpath ${libogg.out}/lib
+    -rpath ${libmodplug.out}/lib
   '';
 
   buildPhase = ''
@@ -69,7 +69,7 @@ in stdenv.mkDerivation {
 
   meta = {
     description = "A free fast-paced first-person shooter";
-    homepage = "http://www.alientrap.org/games/nexuiz";
+    homepage = http://www.alientrap.org/games/nexuiz;
     license = stdenv.lib.licenses.gpl2;
     platforms = stdenv.lib.platforms.linux;
   };

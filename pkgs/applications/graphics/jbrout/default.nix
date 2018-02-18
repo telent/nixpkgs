@@ -1,6 +1,8 @@
-{ stdenv, fetchsvn, buildPythonPackage, python, pyGtkGlade, makeWrapper, pyexiv2,  pythonPackages, fbida, which }:
+{ stdenv, fetchsvn, pythonPackages, makeWrapper, fbida, which }:
 
-buildPythonPackage rec {
+let
+  inherit (pythonPackages) python;
+in pythonPackages.buildPythonApplication rec {
   name = "jbrout-${version}";
   version = "338";
 
@@ -32,7 +34,7 @@ buildPythonPackage rec {
   propagatedBuildInputs = with pythonPackages; [ pillow lxml pyGtkGlade pyexiv2 fbida ];
 
   meta = {
-    homepage = "http://code.google.com/p/jbrout";
+    homepage = http://manatlan.com/jbrout/;
     description = "Photo manager";
     platforms = stdenv.lib.platforms.linux;
   };

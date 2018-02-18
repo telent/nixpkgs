@@ -23,6 +23,9 @@ with frameworks; with libs; {
   CalendarStore           = [];
   Cocoa                   = [ AppKit ];
   Collaboration           = [];
+  # Impure version of CoreFoundation, this should not be used unless another
+  # framework includes headers that are not available in the pure version.
+  CoreFoundation          = [];
   CoreAudio               = [ CF IOKit ];
   CoreAudioKit            = [ AudioUnit ];
   CoreData                = [];
@@ -46,12 +49,14 @@ with frameworks; with libs; {
   ExceptionHandling       = [];
   FWAUserLib              = [];
   ForceFeedback           = [ CF IOKit ];
-  Foundation              = [ CF libobjc Security ApplicationServices SystemConfiguration ];
+  # cf-private was moved first in list because of https://github.com/NixOS/nixpkgs/pull/28635
+  Foundation              = [ cf-private CF libobjc Security ApplicationServices SystemConfiguration ];
   GLKit                   = [ CF ];
-  GLUT                    = [ GL OpenGL ];
+  GLUT                    = [ OpenGL ];
   GSS                     = [];
   GameController          = [];
   GameKit                 = [ Foundation ];
+  Hypervisor              = [];
   ICADevices              = [ Carbon CF IOBluetooth ];
   IMServicePlugIn         = [];
   IOBluetoothUI           = [ IOBluetooth ];
@@ -104,6 +109,7 @@ with frameworks; with libs; {
   VideoDecodeAcceleration = [ CF CoreVideo ];
   VideoToolbox            = [ CF CoreMedia CoreVideo ];
   WebKit                  = [ ApplicationServices Carbon JavaScriptCore OpenGL ];
+  X11                     = []; # used by Tk, should this exist?
 
   # Umbrellas
   Accelerate          = [ CoreWLAN IOBluetooth ];
@@ -116,4 +122,6 @@ with frameworks; with libs; {
   OpenDirectory       = [];
   Quartz              = [ QuickLook QTKit ];
   QuartzCore          = [ ApplicationServices CF CoreVideo OpenCL ];
+
+  vmnet = [];
 }

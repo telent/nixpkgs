@@ -7,7 +7,8 @@ stdenv.mkDerivation rec {
     sha256 = "13p3nfqaa78h6bl0k8mdsn90ai99wbqaj6qlsjsgsn8imficivsv";
   };
 
-  buildInputs = [ scons pkgconfig SDL mesa physfs SDL_mixer ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ scons SDL mesa physfs SDL_mixer ];
 
   installPhase = ''
     scons prefix=$out install
@@ -16,7 +17,7 @@ stdenv.mkDerivation rec {
   meta = {
     homepage = http://www.dxx-rebirth.com/;
     description = "Source Port of the Descent 1 engine";
-    license = stdenv.lib.licenses.mit;
+    license = stdenv.lib.licenses.unfree;
     platforms = with stdenv.lib.platforms; linux;
     maintainers = with stdenv.lib.maintainers; [viric];
   };

@@ -66,22 +66,21 @@ in
         # Don't edit this file. Set the NixOS options ‘security.sudo.configFile’
         # or ‘security.sudo.extraConfig’ instead.
 
-        # Environment variables to keep for root and %wheel.
-        Defaults:root,%wheel env_keep+=TERMINFO_DIRS
-        Defaults:root,%wheel env_keep+=TERMINFO
-
         # Keep SSH_AUTH_SOCK so that pam_ssh_agent_auth.so can do its magic.
         Defaults env_keep+=SSH_AUTH_SOCK
 
         # "root" is allowed to do anything.
-        root        ALL=(ALL) SETENV: ALL
+        root        ALL=(ALL:ALL) SETENV: ALL
 
         # Users in the "wheel" group can do anything.
         %wheel      ALL=(ALL:ALL) ${if cfg.wheelNeedsPassword then "" else "NOPASSWD: ALL, "}SETENV: ALL
         ${cfg.extraConfig}
       '';
 
-    security.setuidPrograms = [ "sudo" "sudoedit" ];
+    security.wrappers = {
+      sudo.source = "${pkgs.sudo.out}/bin/sudo";
+      sudoedit.source = "${pkgs.sudo.out}/bin/sudoedit";
+    };
 
     environment.systemPackages = [ sudo ];
 

@@ -1,6 +1,6 @@
-{ system, minimal ? false }:
+{ system, minimal ? false, config ? {} }:
 
-let pkgs = import ../.. { config = {}; inherit system; }; in
+let pkgs = import ../.. { inherit system config; }; in
 
 with pkgs.lib;
 with import ../lib/qemu-flags.nix;
@@ -8,6 +8,8 @@ with import ../lib/qemu-flags.nix;
 rec {
 
   inherit pkgs;
+
+  qemu = pkgs.qemu_test;
 
 
   # Build a virtual network from an attribute set `{ machine1 =
@@ -27,6 +29,7 @@ rec {
         [ ../modules/virtualisation/qemu-vm.nix
           ../modules/testing/test-instrumentation.nix # !!! should only get added for automated test runs
           { key = "no-manual"; services.nixosManual.enable = false; }
+          { key = "qemu"; system.build.qemu = qemu; }
         ] ++ optional minimal ../modules/testing/minimal-kernel.nix;
       extraArgs = { inherit nodes; };
     };

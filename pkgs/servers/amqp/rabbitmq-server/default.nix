@@ -1,5 +1,5 @@
 { stdenv, fetchurl, erlang, python, libxml2, libxslt, xmlto
-, docbook_xml_dtd_45, docbook_xsl, zip, unzip
+, docbook_xml_dtd_45, docbook_xsl, zip, unzip, rsync
 
 , AppKit, Carbon, Cocoa
 }:
@@ -7,15 +7,15 @@
 stdenv.mkDerivation rec {
   name = "rabbitmq-server-${version}";
 
-  version = "3.5.6";
+  version = "3.6.10";
 
   src = fetchurl {
-    url = "http://www.rabbitmq.com/releases/rabbitmq-server/v${version}/${name}.tar.gz";
-    sha256 = "07v7c6ippngkq269jmrf3gji389czcmz6phc3qwxn4j14cri9gi4";
+    url = "https://www.rabbitmq.com/releases/rabbitmq-server/v${version}/${name}.tar.xz";
+    sha256 = "0k1rhg1a51201b1hp6vaf4fk48hqz7m9hw55b8xnnyz2ld88jiqg";
   };
 
   buildInputs =
-    [ erlang python libxml2 libxslt xmlto docbook_xml_dtd_45 docbook_xsl zip unzip ]
+    [ erlang python libxml2 libxslt xmlto docbook_xml_dtd_45 docbook_xsl zip unzip rsync ]
     ++ stdenv.lib.optionals stdenv.isDarwin [ AppKit Carbon Cocoa ];
 
   preBuild =
@@ -24,20 +24,13 @@ stdenv.mkDerivation rec {
       patchShebangs .
     '';
 
-  installFlags = "TARGET_DIR=$(out)/libexec/rabbitmq SBIN_DIR=$(out)/sbin MAN_DIR=$(out)/share/man DOC_INSTALL_DIR=$(out)/share/doc";
-
-  preInstall =
-    ''
-      sed -i \
-        -e 's|SYS_PREFIX=|SYS_PREFIX=''${SYS_PREFIX-''${HOME}/.rabbitmq/${version}}|' \
-        -e 's|CONF_ENV_FILE=''${SYS_PREFIX}\(.*\)|CONF_ENV_FILE=\1|' \
-        scripts/rabbitmq-defaults
-    '';
+  installFlags = "PREFIX=$(out) RMQ_ERLAPP_DIR=$(out)";
+  installTargets = "install install-man";
 
   postInstall =
     ''
-      echo 'PATH=${erlang}/bin:${PATH:+:}$PATH' >> $out/sbin/rabbitmq-env
-    ''; # */
+      echo 'PATH=${erlang}/bin:''${PATH:+:}$PATH' >> $out/sbin/rabbitmq-env
+    '';
 
   meta = {
     homepage = http://www.rabbitmq.com/;

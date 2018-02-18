@@ -11,6 +11,7 @@ import ./make-test.nix ({ pkgs, ...} : {
 
       services.xserver.enable = true;
 
+      services.xserver.displayManager.slim.enable = false;
       services.xserver.displayManager.gdm = {
         enable = true;
         autoLogin = {
@@ -20,7 +21,7 @@ import ./make-test.nix ({ pkgs, ...} : {
       };
       services.xserver.desktopManager.gnome3.enable = true;
 
-      virtualisation.memorySize = 512;
+      virtualisation.memorySize = 1024;
     };
 
   testScript =
@@ -32,6 +33,7 @@ import ./make-test.nix ({ pkgs, ...} : {
       $machine->succeed("getfacl /dev/snd/timer | grep -q alice");
 
       $machine->succeed("su - alice -c 'DISPLAY=:0.0 gnome-terminal &'");
+      $machine->succeed("xauth merge ~alice/.Xauthority");
       $machine->waitForWindow(qr/Terminal/);
       $machine->sleep(20);
       $machine->screenshot("screen");

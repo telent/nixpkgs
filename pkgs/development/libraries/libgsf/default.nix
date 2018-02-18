@@ -1,14 +1,14 @@
 { fetchurl, stdenv, pkgconfig, intltool, gettext, glib, libxml2, zlib, bzip2
 , python, perl, gdk_pixbuf, libiconv, libintlOrEmpty }:
 
-with { inherit (stdenv.lib) optionals; };
+let inherit (stdenv.lib) optionals; in
 
 stdenv.mkDerivation rec {
-  name = "libgsf-1.14.34";
+  name = "libgsf-1.14.41";
 
   src = fetchurl {
     url    = "mirror://gnome/sources/libgsf/1.14/${name}.tar.xz";
-    sha256 = "f0fea447e0374a73df45b498fd1701393f8e6acb39746119f8a292fb4a0cb528";
+    sha256 = "1lq87wnrsjbjafpk3c8xwd56gqx319fhck9xkg2da88hd9c9h2qm";
   };
 
   nativeBuildInputs = [ pkgconfig intltool ];
@@ -19,6 +19,8 @@ stdenv.mkDerivation rec {
   propagatedBuildInputs = [ libxml2 glib gdk_pixbuf libiconv ]
     ++ libintlOrEmpty;
 
+  outputs = [ "out" "dev" ];
+
   doCheck = true;
   preCheck = "patchShebangs ./tests/";
 
@@ -26,7 +28,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "GNOME's Structured File Library";
-    homepage    = http://www.gnome.org/projects/libgsf;
+    homepage    = https://www.gnome.org/projects/libgsf;
     license     = licenses.lgpl2Plus;
     maintainers = with maintainers; [ lovek323 ];
     platforms   = stdenv.lib.platforms.unix;

@@ -14,7 +14,7 @@ let
       substituteInPlace ./configure \
         --replace " -static" "" \
         ${stdenv.lib.optionalString (stdenv.cc.libc != null) ''
-          --replace /usr/include/iconv.h ${stdenv.cc.libc}/include/iconv.h
+          --replace /usr/include/iconv.h ${stdenv.lib.getDev stdenv.cc.libc}/include/iconv.h
         ''}
     '';
 
@@ -29,7 +29,8 @@ in
 
     configureFlags = "--enable-agent --enable-server --with-pgsql --with-libcurl";
 
-    buildInputs = [ pkgconfig postgresql curl openssl zlib ];
+  nativeBuildInputs = [ pkgconfig ];
+    buildInputs = [ postgresql curl openssl zlib ];
 
     postInstall =
       ''
@@ -62,7 +63,7 @@ in
       homepage = http://www.zabbix.com/;
       license = licenses.gpl2;
       maintainers = [ maintainers.eelco ];
-      platforms = platforms.linux ++ platforms.darwin;
+      platforms = platforms.linux;
     };
   };
 

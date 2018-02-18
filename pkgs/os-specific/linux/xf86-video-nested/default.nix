@@ -1,5 +1,5 @@
-{ stdenv, fetchgit, autoconf, automake, fontsproto, libX11, libXext
-, libtool, pixman, pkgconfig, renderproto, utilmacros, xorgserver
+{ stdenv, fetchgit, autoreconfHook, fontsproto, libX11, libXext
+, pixman, pkgconfig, renderproto, utilmacros, xorgserver
 }:
 
 stdenv.mkDerivation {
@@ -8,19 +8,17 @@ stdenv.mkDerivation {
   src = fetchgit {
     url = git://anongit.freedesktop.org/xorg/driver/xf86-video-nested;
     rev = "ad48dc6eb98776a8a886f26f31c0110352fa1da4";
-    sha256 = "43a102405acdcdb346ab197b33c8fa724d2140f33754f8ee3941a0eea152735c";
+    sha256 = "0r5k9rk8mq4j51a310qvvfmhhz8a0cmcwr8pl8mkwfsgcpwxbpfg";
   };
 
   buildInputs =
-    [ autoconf automake fontsproto libX11 libXext libtool pixman
+    [ autoreconfHook fontsproto libX11 libXext pixman
       pkgconfig renderproto utilmacros xorgserver
     ];
 
+  hardeningDisable = [ "fortify" ];
 
-  configurePhase = ''
-    autoreconf -fvi
-    ./configure --prefix=$out CFLAGS="-I${pixman}/include/pixman-1"
-  '';
+  CFLAGS = "-I${pixman}/include/pixman-1";
 
   meta = {
     homepage = http://cgit.freedesktop.org/xorg/driver/xf86-video-nested;

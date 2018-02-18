@@ -1,6 +1,6 @@
 { stdenv, python27Packages, fetchFromGitHub }:
 
-python27Packages.buildPythonPackage rec {
+python27Packages.buildPythonApplication rec {
   name = "printrun-20150310";
 
   src = fetchFromGitHub {
@@ -11,7 +11,7 @@ python27Packages.buildPythonPackage rec {
   };
 
   propagatedBuildInputs = with python27Packages; [
-    wxPython30 pyserial dbus psutil numpy pyopengl pyglet cython
+    wxPython30 pyserial dbus-python psutil numpy pyopengl pyglet cython
   ];
 
   doCheck = false;

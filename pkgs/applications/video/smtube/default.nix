@@ -1,19 +1,22 @@
-{ stdenv, fetchurl, qtscript }:
+{ stdenv, fetchurl, qmake, qtscript, qtwebkit }:
 
 stdenv.mkDerivation rec {
-  version = "15.11.0";
+  version = "17.5.0";
   name = "smtube-${version}";
 
   src = fetchurl {
     url = "mirror://sourceforge/smtube/SMTube/${version}/${name}.tar.bz2";
-    sha256 = "13pkd0462ygsdlmym6y2cfivihmi175y41jq5hjyh926cgfg7pny";
+    sha256 = "13m0ll18n1da8i4r4b7gn0jjz9dgrkkyk9mpfas4rgnjw92m5jld";
   };
 
   makeFlags = [
     "PREFIX=$(out)"
   ];
 
-  buildInputs = [ qtscript ];
+  dontUseQmakeConfigure = true;
+
+  nativeBuildInputs = [ qmake ];
+  buildInputs = [ qtscript qtwebkit ];
 
   meta = with stdenv.lib; {
     description = "Play and download Youtube videos";

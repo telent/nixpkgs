@@ -1,16 +1,15 @@
-{ stdenv, fetchgit }:
+{ stdenv, fetchurl }:
 
-let version = "2015-12-14"; in
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "wireless-regdb-${version}";
+  version = "2017.03.07";
 
-  src = fetchgit {
-    sha256 = "1ldfcxn3mdb104czy78b7nj1clsbfp8fc6mshix98zq0bg4k7rsm";
-    url = https://git.kernel.org/pub/scm/linux/kernel/git/sforshee/wireless-regdb.git;
-    rev = "refs/tags/master-${version}";
+  src = fetchurl {
+    url = "https://www.kernel.org/pub/software/network/wireless-regdb/${name}.tar.xz";
+    sha256 = "1f9mcp78sdd4sci6v32vxfcl1rfjpv205jisz1p93kkfnaisy7ip";
   };
 
-  phases = [ "unpackPhase" "installPhase" ];
+  dontBuild = true;
 
   makeFlags = [
     "DESTDIR=$(out)"
@@ -18,11 +17,10 @@ stdenv.mkDerivation {
   ];
 
   meta = with stdenv.lib; {
-    inherit version;
     description = "Wireless regulatory database for CRDA";
     homepage = http://wireless.kernel.org/en/developers/Regulatory/;
     license = licenses.isc;
     platforms = platforms.all;
-    maintainers = with maintainers; [ nckx ];
+    maintainers = with maintainers; [ nckx fpletz ];
   };
 }

@@ -4,24 +4,25 @@
 }:
 
 # Note that since gst-libav-1.6, libav is actually ffmpeg. See
-# http://gstreamer.freedesktop.org/releases/1.6/ for more info.
+# https://gstreamer.freedesktop.org/releases/1.6/ for more info.
 
 assert withSystemLibav -> libav != null;
 
 stdenv.mkDerivation rec {
-  name = "gst-libav-1.6.1";
+  name = "gst-libav-1.12.3";
 
   meta = {
-    homepage = "http://gstreamer.freedesktop.org";
+    homepage = https://gstreamer.freedesktop.org;
     license = stdenv.lib.licenses.lgpl2Plus;
-    platforms = stdenv.lib.platforms.linux;
-    maintainers = with stdenv.lib.maintainers; [ iyzsong ];
+    platforms = stdenv.lib.platforms.unix;
   };
 
   src = fetchurl {
     url = "${meta.homepage}/src/gst-libav/${name}.tar.xz";
-    sha256 = "1a9pc7zp5rg0cvpx8gqkr21w73i6p9xa505a34day9f8p3lfim94";
+    sha256 = "0l4nc6ikdx49l7bdrk3bd9p3pzry8a328r22zg48gyzpnv5ghph1";
   };
+
+  outputs = [ "out" "dev" ];
 
   configureFlags = stdenv.lib.optionalString withSystemLibav
     "--with-system-libav";

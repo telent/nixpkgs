@@ -251,16 +251,13 @@ bound to the variable name <varname>e2fsprogs</varname> in
 
   <listitem><para>The version part of the <literal>name</literal>
   attribute <emphasis>must</emphasis> start with a digit (following a
-  dash) — e.g., <literal>"hello-0.3-pre-r3910"</literal> instead of
-  <literal>"hello-svn-r3910"</literal>, as the latter would be seen as
-  a package named <literal>hello-svn</literal> by
-  <command>nix-env</command>.</para></listitem>
+  dash) — e.g., <literal>"hello-0.3.1rc2"</literal>.</para></listitem>
 
-  <listitem><para>If package is fetched from git's commit then
-  the version part of the name <emphasis>must</emphasis> be the date of that 
+  <listitem><para>If a package is not a release but a commit from a repository, then
+  the version part of the name <emphasis>must</emphasis> be the date of that
   (fetched) commit. The date must be in <literal>"YYYY-MM-DD"</literal> format.
-  Also add <literal>"git"</literal> to the name - e.g.,
-  <literal>"pkgname-git-2014-09-23"</literal>.</para></listitem>
+  Also append <literal>"unstable"</literal> to the name - e.g.,
+  <literal>"pkgname-unstable-2014-09-23"</literal>.</para></listitem>
 
   <listitem><para>Dashes in the package name should be preserved
   in new variable names, rather than converted to underscores
@@ -368,7 +365,7 @@ splitting up an existing category.</para>
   <varlistentry>
     <term>If it’s a (set of) <emphasis>tool(s)</emphasis>:</term>
     <listitem>
-      <para>(A tool is a relatively small program, especially one intented
+      <para>(A tool is a relatively small program, especially one intended
       to be used non-interactively.)</para>
       <variablelist>
         <varlistentry>
@@ -459,7 +456,7 @@ splitting up an existing category.</para>
   <varlistentry>
     <term>If it’s a <emphasis>window manager</emphasis>:</term>
     <listitem>
-      <para><filename>applications/window-managers</filename> (e.g. <filename>awesome</filename>, <filename>compiz</filename>, <filename>stumpwm</filename>)</para>
+      <para><filename>applications/window-managers</filename> (e.g. <filename>awesome</filename>, <filename>stumpwm</filename>)</para>
     </listitem>
   </varlistentry>
   <varlistentry>
@@ -611,7 +608,7 @@ evaluate correctly.</para>
 </section>
 <section xml:id="sec-sources"><title>Fetching Sources</title>
   <para>There are multiple ways to fetch a package source in nixpkgs. The
-    general guidline is that you should package sources with a high degree of
+    general guideline is that you should package sources with a high degree of
     availability. Right now there is only one fetcher which has mirroring
     support and that is <literal>fetchurl</literal>. Note that you should also
     prefer protocols which have a corresponding proxy environment variable.
@@ -626,7 +623,7 @@ evaluate correctly.</para>
     from bad to good:
     <itemizedlist>
       <listitem>
-        <para>Uses <literal>git://</literal> which won't be proxied.
+        <para>Bad: Uses <literal>git://</literal> which won't be proxied.
 <programlisting>
 src = fetchgit {
   url = "git://github.com/NixOS/nix.git";
@@ -637,7 +634,7 @@ src = fetchgit {
         </para>
       </listitem>
       <listitem>
-        <para>This is ok, but an archive fetch will still be faster.
+        <para>Better: This is ok, but an archive fetch will still be faster.
 <programlisting>
 src = fetchgit {
   url = "https://github.com/NixOS/nix.git";
@@ -648,7 +645,7 @@ src = fetchgit {
         </para>
       </listitem>
       <listitem>
-        <para>Fetches a snapshot archive and you get the rev you want.
+        <para>Best: Fetches a snapshot archive and you get the rev you want.
 <programlisting>
 src = fetchFromGitHub {
   owner = "NixOS";
@@ -662,4 +659,45 @@ src = fetchFromGitHub {
     </itemizedlist>
   </para>
 </section>
+
+<section xml:id="sec-patches"><title>Patches</title>
+  <para>Patches available online should be retrieved using
+    <literal>fetchpatch</literal>.</para>
+  <para>
+<programlisting>
+patches = [
+  (fetchpatch {
+    name = "fix-check-for-using-shared-freetype-lib.patch";
+    url = "http://git.ghostscript.com/?p=ghostpdl.git;a=patch;h=8f5d285";
+    sha256 = "1f0k043rng7f0rfl9hhb89qzvvksqmkrikmm38p61yfx51l325xr";
+  })
+];
+</programlisting>
+  </para>
+  <para>Otherwise, you can add a <literal>.patch</literal> file to the
+  <literal>nixpkgs</literal> repository. In the interest of keeping our
+  maintenance burden to a minimum, only patches that are unique
+  to <literal>nixpkgs</literal> should be added in this way.</para>
+<para><programlisting>
+patches = [ ./0001-changes.patch ];
+</programlisting></para>
+  <para>If you do need to do create this sort of patch file,
+  one way to do so is with git:
+  <orderedlist>
+    <listitem><para>Move to the root directory of the source code
+    you're patching.<screen>
+$ cd the/program/source</screen></para></listitem>
+    <listitem><para>If a git repository is not already present,
+    create one and stage all of the source files.<screen>
+$ git init
+$ git add .</screen></para></listitem>
+    <listitem><para>Edit some files to make whatever changes need
+    to be included in the patch.</para></listitem>
+    <listitem><para>Use git to create a diff, and pipe the output
+    to a patch file:<screen>
+$ git diff > nixpkgs/pkgs/the/package/0001-changes.patch</screen>
+    </para></listitem>
+  </orderedlist></para>
+</section>
+
 </chapter>

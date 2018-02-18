@@ -1,14 +1,14 @@
 { stdenv, fetchurl, boost, zlib, libevent, openssl, python, pkgconfig, bison
-, flex
+, flex, twisted
 }:
 
 stdenv.mkDerivation rec {
   name = "thrift-${version}";
-  version = "0.9.2";
+  version = "0.10.0";
 
   src = fetchurl {
     url = "http://archive.apache.org/dist/thrift/${version}/${name}.tar.gz";
-    sha256 = "0w4m6hjmgr1wqac9p5zyfxx2wwqay730qi14fzxba7f46hwhvxff";
+    sha256 = "02x1xw0l669idkn6xww39j60kqxzcbmim4mvpb5h9nz8wqnx1292";
   };
 
   #enableParallelBuilding = true; problems on hydra
@@ -17,8 +17,9 @@ stdenv.mkDerivation rec {
   # pythonFull.buildEnv.override { extraLibs = [ thrift ]; }
   pythonPath = [];
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    boost zlib libevent openssl python pkgconfig bison flex
+    boost zlib libevent openssl python bison flex twisted
   ];
 
   preConfigure = "export PY_PREFIX=$out";

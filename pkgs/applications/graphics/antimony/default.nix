@@ -1,36 +1,41 @@
-{ stdenv, fetchgit, libpng, python3, boost, mesa, qtbase, ncurses }:
+{ stdenv, fetchFromGitHub, libpng, python3, boost, mesa, qtbase, ncurses, cmake, flex, lemon }:
 
 let
-  gitRev    = "745eca3a2d2657c495d5509e9083c884e021d09c";
+  gitRev    = "e8480c718e8c49ae3cc2d7af10ea93ea4c2fff9a";
   gitBranch = "master";
-  gitTag    = "0.8.0b";
+  gitTag    = "0.9.2";
 in 
   stdenv.mkDerivation rec {
     name    = "antimony-${version}";
     version = gitTag;
 
-    src  = fetchgit {
-      url         = "git://github.com/mkeeter/antimony.git";
-      rev         = gitRev;
-      sha256      = "19ir3y5ipmfyygcn8mbxika4j3af6dfrv54dvhn6maz7dy8h30f4";
+    src = fetchFromGitHub {
+      owner = "mkeeter";
+      repo = "antimony";
+      rev = gitTag;
+      sha256 = "0fpgy5cb4knz2z9q078206k8wzxfs8b9g76mf4bz1ic77931ykjz";
     };
 
     patches = [ ./paths-fix.patch ];
+
+    postPatch = ''
+       sed -i "s,/usr/local,$out,g" app/CMakeLists.txt app/app/app.cpp app/app/main.cpp
+    '';
 
     buildInputs = [
       libpng python3 (boost.override { python = python3; })
       mesa qtbase ncurses
     ];
 
-    configurePhase = ''
-      export GITREV=${gitRev}
-      export GITBRANCH=${gitBranch}
-      export GITTAG=${gitTag}
+    nativeBuildInputs = [ cmake flex lemon ];
 
-      cd qt
-      export sourceRoot=$sourceRoot/qt
-      qmake antimony.pro PREFIX=$out
-    '';
+    cmakeFlags= [
+      "-DGITREV=${gitRev}"
+      "-DGITTAG=${gitTag}"
+      "-DGITBRANCH=${gitBranch}"
+    ];
+
+    enableParallelBuilding = true;
 
     meta = with stdenv.lib; {
       description = "A computer-aided design (CAD) tool from a parallel universe";

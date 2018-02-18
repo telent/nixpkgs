@@ -2,18 +2,19 @@
 , intltool, dbus_glib, at_spi2_core, libSM }:
 
 stdenv.mkDerivation rec {
-  versionMajor = "2.18";
-  versionMinor = "0";
+  versionMajor = "2.26";
+  versionMinor = "1";
   moduleName   = "at-spi2-atk";
   name = "${moduleName}-${versionMajor}.${versionMinor}";
 
   src = fetchurl {
     url = "mirror://gnome/sources/${moduleName}/${versionMajor}/${name}.tar.xz";
-    sha256 = "0xgkrnx04vaklbkzc7bzym9s0qhj8aiz4knqlxgx3vxnacsb6vaa";
+    sha256 = "0x9vc99ni46fg5dzlx67vbw0zqffr24gz8jvbdxbmzyvc5xw5w5l";
   };
 
-  buildInputs = [ python pkgconfig popt atk libX11 libICE xorg.libXtst libXi
-                  intltool dbus_glib at_spi2_core libSM ];
+  nativeBuildInputs = [ pkgconfig intltool ];
+  buildInputs = [ python popt atk libX11 libICE xorg.libXtst libXi
+                  dbus_glib at_spi2_core libSM ];
 
   meta = with stdenv.lib; {
     platforms = platforms.unix;

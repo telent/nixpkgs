@@ -1,4 +1,4 @@
-{ stdenv, fetchurl }:
+{ stdenv, fetchurl, buildPlatform, hostPlatform }:
 
 stdenv.mkDerivation rec {
   name = "hello-2.10";
@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
     sha256 = "0ssi1wpaf7plaswqqjwigppsg5fyh99vdlb9kzl7c9lng89ndq1i";
   };
 
-  doCheck = false;
+  doCheck = ( buildPlatform == hostPlatform );
 
   meta = {
     description = "A program that produces a familiar, friendly greeting";

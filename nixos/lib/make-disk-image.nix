@@ -7,10 +7,19 @@
 , # The size of the disk, in megabytes.
   diskSize
 
+  # The files and directories to be placed in the target file system.
+  # This is a list of attribute sets {source, target} where `source'
+  # is the file system object (regular file or directory) to be
+  # grafted in the file system at path `target'.
+, contents ? []
+
 , # Whether the disk should be partitioned (with a single partition
   # containing the root filesystem) or contain the root filesystem
   # directly.
   partitioned ? true
+
+  # Whether to invoke switch-to-configuration boot during image creation
+, installBootLoader ? true
 
 , # The root file system type.
   fsType ? "ext4"
@@ -22,95 +31,167 @@
 , # Shell code executed after the VM has finished.
   postVM ? ""
 
+, name ? "nixos-disk-image"
+
+, # Disk image format, one of qcow2, qcow2-compressed, vpc, raw.
+  format ? "raw"
 }:
 
 with lib;
 
-pkgs.vmTools.runInLinuxVM (
-  pkgs.runCommand "nixos-disk-image"
-    { preVM =
-        ''
-          mkdir $out
-          diskImage=$out/nixos.img
-          ${pkgs.vmTools.qemu}/bin/qemu-img create -f raw $diskImage "${toString diskSize}M"
-          mv closure xchg/
-        '';
-      buildInputs = [ pkgs.utillinux pkgs.perl pkgs.e2fsprogs pkgs.parted ];
-      exportReferencesGraph =
-        [ "closure" config.system.build.toplevel ];
-      inherit postVM;
+let format' = format; in let
+
+  format = if (format' == "qcow2-compressed") then "qcow2" else format';
+
+  compress = optionalString (format' == "qcow2-compressed") "-c";
+
+  filename = "nixos." + {
+    qcow2 = "qcow2";
+    vpc   = "vhd";
+    raw   = "img";
+  }.${format};
+
+  nixpkgs = cleanSource pkgs.path;
+
+  channelSources = pkgs.runCommand "nixos-${config.system.nixosVersion}" {} ''
+    mkdir -p $out
+    cp -prd ${nixpkgs} $out/nixos
+    chmod -R u+w $out/nixos
+    if [ ! -e $out/nixos/nixpkgs ]; then
+      ln -s . $out/nixos/nixpkgs
+    fi
+    rm -rf $out/nixos/.git
+    echo -n ${config.system.nixosVersionSuffix} > $out/nixos/.version-suffix
+  '';
+
+  metaClosure = pkgs.writeText "meta" ''
+    ${config.system.build.toplevel}
+    ${config.nix.package.out}
+    ${channelSources}
+  '';
+
+  prepareImageInputs = with pkgs; [ rsync utillinux parted e2fsprogs lkl fakeroot config.system.build.nixos-prepare-root ] ++ stdenv.initialPath;
+
+  # I'm preserving the line below because I'm going to search for it across nixpkgs to consolidate
+  # image building logic. The comment right below this now appears in 4 different places in nixpkgs :)
+  # !!! should use XML.
+  sources = map (x: x.source) contents;
+  targets = map (x: x.target) contents;
+
+  prepareImage = ''
+    export PATH=${makeSearchPathOutput "bin" "bin" prepareImageInputs}
+
+    mkdir $out
+    diskImage=nixos.raw
+    truncate -s ${toString diskSize}M $diskImage
+
+    ${if partitioned then ''
+      parted --script $diskImage -- mklabel msdos mkpart primary ext4 1M -1s
+      offset=$((2048*512))
+    '' else ''
+      offset=0
+    ''}
+
+    mkfs.${fsType} -F -L nixos -E offset=$offset $diskImage
+
+    root="$PWD/root"
+    mkdir -p $root
+
+    # Copy arbitrary other files into the image
+    # Semi-shamelessly copied from make-etc.sh. I (@copumpkin) shall factor this stuff out as part of
+    # https://github.com/NixOS/nixpkgs/issues/23052.
+    set -f
+    sources_=(${concatStringsSep " " sources})
+    targets_=(${concatStringsSep " " targets})
+    set +f
+
+    for ((i = 0; i < ''${#targets_[@]}; i++)); do
+      source="''${sources_[$i]}"
+      target="''${targets_[$i]}"
+
+      if [[ "$source" =~ '*' ]]; then
+        # If the source name contains '*', perform globbing.
+        mkdir -p $root/$target
+        for fn in $source; do
+          rsync -a --no-o --no-g "$fn" $root/$target/
+        done
+      else
+        mkdir -p $root/$(dirname $target)
+        if ! [ -e $root/$target ]; then
+          rsync -a --no-o --no-g $source $root/$target
+        else
+          echo "duplicate entry $target -> $source"
+          exit 1
+        fi
+      fi
+    done
+
+    # TODO: Nix really likes to chown things it creates to its current user...
+    fakeroot nixos-prepare-root $root ${channelSources} ${config.system.build.toplevel} closure
+
+    # fakeroot seems to always give the owner write permissions, which we do not want
+    find $root/nix/store -mindepth 1 -maxdepth 1 -type f -o -type d -exec chmod -R a-w '{}' \;
+
+    echo "copying staging root to image..."
+    cptofs ${optionalString partitioned "-P 1"} -t ${fsType} -i $diskImage $root/* /
+  '';
+in pkgs.vmTools.runInLinuxVM (
+  pkgs.runCommand name
+    { preVM = prepareImage;
+      buildInputs = with pkgs; [ utillinux e2fsprogs ];
+      exportReferencesGraph = [ "closure" metaClosure ];
+      postVM = ''
+        ${if format == "raw" then ''
+          mv $diskImage $out/${filename}
+        '' else ''
+          ${pkgs.qemu}/bin/qemu-img convert -f raw -O ${format} ${compress} $diskImage $out/${filename}
+        ''}
+        diskImage=$out/${filename}
+        ${postVM}
+      '';
       memSize = 1024;
     }
     ''
       ${if partitioned then ''
-        # Create a single / partition.
-        parted /dev/vda mklabel msdos
-        parted /dev/vda -- mkpart primary ext2 1M -1s
-        . /sys/class/block/vda1/uevent
-        mknod /dev/vda1 b $MAJOR $MINOR
         rootDisk=/dev/vda1
       '' else ''
         rootDisk=/dev/vda
       ''}
 
-      # Create an empty filesystem and mount it.
-      mkfs.${fsType} -L nixos $rootDisk
-      ${optionalString (fsType == "ext4") ''
-        tune2fs -c 0 -i 0 $rootDisk
-      ''}
-      mkdir /mnt
-      mount $rootDisk /mnt
+      # Some tools assume these exist
+      ln -s vda /dev/xvda
+      ln -s vda /dev/sda
 
-      # The initrd expects these directories to exist.
-      mkdir /mnt/dev /mnt/proc /mnt/sys
+      mountPoint=/mnt
+      mkdir $mountPoint
+      mount $rootDisk $mountPoint
 
-      mount -o bind /proc /mnt/proc
-      mount -o bind /dev /mnt/dev
-      mount -o bind /sys /mnt/sys
-
-      # Copy all paths in the closure to the filesystem.
-      storePaths=$(perl ${pkgs.pathsFromGraph} /tmp/xchg/closure)
-
-      mkdir -p /mnt/nix/store
-      echo "copying everything (will take a while)..."
-      set -f
-      cp -prd $storePaths /mnt/nix/store/
-
-      # Register the paths in the Nix database.
-      printRegistration=1 perl ${pkgs.pathsFromGraph} /tmp/xchg/closure | \
-          chroot /mnt ${config.nix.package}/bin/nix-store --load-db --option build-users-group ""
-
-      # Add missing size/hash fields to the database. FIXME:
-      # exportReferencesGraph should provide these directly.
-      chroot /mnt ${config.nix.package}/bin/nix-store --verify --check-contents
-
-      # Create the system profile to allow nixos-rebuild to work.
-      chroot /mnt ${config.nix.package}/bin/nix-env --option build-users-group "" \
-          -p /nix/var/nix/profiles/system --set ${config.system.build.toplevel}
-
-      # `nixos-rebuild' requires an /etc/NIXOS.
-      mkdir -p /mnt/etc
-      touch /mnt/etc/NIXOS
-
-      # `switch-to-configuration' requires a /bin/sh
-      mkdir -p /mnt/bin
-      ln -s ${config.system.build.binsh}/bin/sh /mnt/bin/sh
-
-      # Install a configuration.nix.
+      # Install a configuration.nix
       mkdir -p /mnt/etc/nixos
       ${optionalString (configFile != null) ''
         cp ${configFile} /mnt/etc/nixos/configuration.nix
       ''}
 
-      # Generate the GRUB menu.
-      ln -s vda /dev/xvda
-      ln -s vda /dev/sda
-      chroot /mnt ${config.system.build.toplevel}/bin/switch-to-configuration boot
+      mount --rbind /dev  $mountPoint/dev
+      mount --rbind /proc $mountPoint/proc
+      mount --rbind /sys  $mountPoint/sys
 
-      umount /mnt/proc /mnt/dev /mnt/sys
-      umount /mnt
+      # Set up core system link, GRUB, etc.
+      NIXOS_INSTALL_BOOTLOADER=1 chroot $mountPoint /nix/var/nix/profiles/system/bin/switch-to-configuration boot
 
-      # Do a fsck to make sure resize2fs works.
-      fsck.${fsType} -f -y $rootDisk
+      # TODO: figure out if I should activate, but for now I won't
+      # chroot $mountPoint /nix/var/nix/profiles/system/activate
+
+      # The above scripts will generate a random machine-id and we don't want to bake a single ID into all our images
+      rm -f $mountPoint/etc/machine-id
+
+      umount -R /mnt
+
+      # Make sure resize2fs works. Note that resize2fs has stricter criteria for resizing than a normal
+      # mount, so the `-c 0` and `-i 0` don't affect it. Setting it to `now` doesn't produce deterministic
+      # output, of course, but we can fix that when/if we start making images deterministic.
+      ${optionalString (fsType == "ext4") ''
+        tune2fs -T now -c 0 -i 0 $rootDisk
+      ''}
     ''
 )

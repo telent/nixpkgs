@@ -1,47 +1,89 @@
-{stdenv, glibc, fetchFromGitHub, llvm, makeWrapper, openssl, pcre2 }:
+{ stdenv, fetchFromGitHub, llvm, makeWrapper, pcre2, coreutils, which, libressl,
+  cc ? stdenv.cc, lto ? !stdenv.isDarwin }:
 
-stdenv.mkDerivation {
-  name = "ponyc-0.2.1";
+stdenv.mkDerivation ( rec {
+  name = "ponyc-${version}";
+  version = "0.21.0";
 
   src = fetchFromGitHub {
-    owner = "CausalityLtd";
+    owner = "ponylang";
     repo = "ponyc";
-    rev = "0.2.1";
-    sha256 = "1wmvqrj9v2kjqha9fcs10vfnhdxhc3rf67wpn36ldhs1hq0k25jy";
+    rev = version;
+    sha256 = "0kpnmgxhha22nhl2bmch47cpr0d9h5718h3w9h7qqwd994xcfk9z";
   };
 
-  buildInputs = [ llvm makeWrapper ];
+  buildInputs = [ llvm makeWrapper which ];
+  propagatedBuildInputs = [ cc ];
 
-  makeFlags = [ "config=release" ];
-  doCheck = true;
-  checkTarget = "test";
-
-  patchPhase = ''
-    sed 's|/usr/lib/x86_64-linux-gnu/|${glibc}/lib/|g' -i src/libponyc/codegen/genexe.c
-    sed 's|/lib/x86_64-linux-gnu/|${stdenv.cc.cc}/lib/|g' -i src/libponyc/codegen/genexe.c
-  '';
+  # Disable problematic networking tests
+  patches = [ ./disable-tests.patch ];
 
   preBuild = ''
-      export LLVM_CONFIG=${llvm}/bin/llvm-config
-    '';
+    # Fix tests
+    substituteInPlace packages/process/_test.pony \
+        --replace '"/bin/' '"${coreutils}/bin/'
+    substituteInPlace packages/process/_test.pony \
+        --replace '=/bin' "${coreutils}/bin"
+
+
+    # Fix llvm-ar check for darwin
+    substituteInPlace Makefile \
+        --replace "llvm-ar-3.8" "llvm-ar"
+
+    # Remove impure system refs
+    substituteInPlace src/libponyc/pkg/package.c \
+        --replace "/usr/local/lib" ""
+    substituteInPlace src/libponyc/pkg/package.c \
+        --replace "/opt/local/lib" ""
+
+    for file in `grep -irl '/usr/local/opt/libressl/lib' ./*`; do
+      substituteInPlace $file  --replace '/usr/local/opt/libressl/lib' "${stdenv.lib.getLib libressl}/lib"
+    done
+
+    # Fix ponypath issue
+    substituteInPlace Makefile \
+        --replace "PONYPATH=." "PONYPATH=.:\$(PONYPATH)"
+
+    export LLVM_CONFIG=${llvm}/bin/llvm-config
+  '' + stdenv.lib.optionalString ((!stdenv.isDarwin) && (!cc.isClang) && lto) ''
+    export LTO_PLUGIN=`find ${cc.cc}/ -name liblto_plugin.so`
+  '' + stdenv.lib.optionalString ((!stdenv.isDarwin) && (cc.isClang) && lto) ''
+    export LTO_PLUGIN=`find ${cc.cc}/ -name LLVMgold.so`
+  '';
+
+  makeFlags = [ "config=release" ] ++ stdenv.lib.optionals stdenv.isDarwin [ "bits=64" ]
+              ++ stdenv.lib.optionals (stdenv.isDarwin && (!lto)) [ "lto=no" ];
+
+  enableParallelBuilding = true;
+
+  doCheck = true;
+
+  checkTarget = "test-ci";
 
   preCheck = ''
-    export LIBRARY_PATH="$out/lib:${openssl}/lib:${pcre2}/lib"
+    export PONYPATH="$out/lib:${stdenv.lib.makeLibraryPath [ pcre2 libressl ]}"
   '';
 
   installPhase = ''
-    make config=release prefix=$out install
+    make config=release prefix=$out ''
+    + stdenv.lib.optionalString stdenv.isDarwin '' bits=64 ''
+    + stdenv.lib.optionalString (stdenv.isDarwin && (!lto)) '' lto=no ''
+    + '' install
     mv $out/bin/ponyc $out/bin/ponyc.wrapped
     makeWrapper $out/bin/ponyc.wrapped $out/bin/ponyc \
-      --prefix LIBRARY_PATH : "$out/lib" \
-      --prefix LIBRARY_PATH : "${openssl}/lib" \
-      --prefix LIBRARY_PATH : "${pcre2}/lib"
+      --prefix PONYPATH : "$out/lib" \
+      --prefix PONYPATH : "${stdenv.lib.getLib pcre2}/lib" \
+      --prefix PONYPATH : "${stdenv.lib.getLib libressl}/lib"
   '';
 
-  meta = {
+  # Stripping breaks linking for ponyc
+  dontStrip = true;
+
+  meta = with stdenv.lib; {
     description = "Pony is an Object-oriented, actor-model, capabilities-secure, high performance programming language";
     homepage = http://www.ponylang.org;
-    license = stdenv.lib.licenses.bsd2;
-    maintainers = [ stdenv.lib.maintainers.doublec ];
+    license = licenses.bsd2;
+    maintainers = with maintainers; [ doublec kamilchm patternspandemic ];
+    platforms = subtractLists platforms.i686 platforms.unix;
   };
-}
+})

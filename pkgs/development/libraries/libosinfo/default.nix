@@ -1,5 +1,5 @@
 { stdenv, fetchurl, pkgconfig, intltool, gobjectIntrospection, libsoup
-, libxslt, check, vala ? null
+, libxslt, check, vala_0_23 ? null
 }:
 
 stdenv.mkDerivation rec {
@@ -10,8 +10,9 @@ stdenv.mkDerivation rec {
     sha256 = "1vcg8ylh7q69s9y6hj94dqfffwfbann3i28yqgfc01navf6yl07s";
   };
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    pkgconfig intltool gobjectIntrospection libsoup libxslt check vala
+    intltool gobjectIntrospection libsoup libxslt check vala_0_23
   ];
 
   meta = with stdenv.lib; {

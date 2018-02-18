@@ -1,37 +1,37 @@
-{ stdenv, fetchgit, cmake, llvm, openssl, clang, writeScript, bash }:
+{ stdenv, lib, fetchgit, cmake, llvmPackages, openssl, writeScript, apple_sdk, bash, emacs, pkgconfig }:
 
-let llvm-config-wrapper = writeScript "llvm-config" ''
-      #! ${bash}/bin/bash
-      if [[ "$1" = "--cxxflags" ]]; then
-        echo $(${llvm}/bin/llvm-config "$@") -isystem ${clang.cc}/include
-      else
-        ${llvm}/bin/llvm-config "$@"
-      fi
-    '';
-
-in stdenv.mkDerivation rec {
+stdenv.mkDerivation rec {
   name = "rtags-${version}";
-  rev = "9fed420d20935faf55770765591fc2de02eeee28";
-  version = "${stdenv.lib.strings.substring 0 7 rev}";
+  version = "2.16";
 
-  buildInputs = [ cmake llvm openssl clang ];
-
-  preConfigure = ''
-    export LIBCLANG_LLVM_CONFIG_EXECUTABLE=${llvm-config-wrapper}
-  '';
+  nativeBuildInputs = [ cmake pkgconfig ];
+  buildInputs = [ llvmPackages.llvm openssl emacs ]
+    ++ lib.optionals stdenv.cc.isGNU [ llvmPackages.clang-unwrapped ]
+    ++ lib.optionals stdenv.isDarwin [ apple_sdk.libs.xpc apple_sdk.frameworks.CoreServices ];
 
   src = fetchgit {
-    inherit rev;
+    rev = "refs/tags/v${version}";
     fetchSubmodules = true;
     url = "https://github.com/andersbakken/rtags.git";
-    sha256 = "1sb6wfknhvrgirqp65paz7kihv4zgg8g5f7a7i14i10sysalxbif";
+    sha256 = "15qmwkajw2zzfnw9hnv08p0asa6prg88nvqlxmv56c0dyhldjpkm";
+    # unicode file names lead to different checksums on HFS+ vs. other
+    # filesystems because of unicode normalisation
+    postFetch = ''
+      rm $out/src/rct/tests/testfile_*.txt
+    '';
   };
+
+  preConfigure = ''
+    export LIBCLANG_CXXFLAGS="-isystem ${llvmPackages.clang.cc}/include $(llvm-config --cxxflags) -fexceptions" \
+           LIBCLANG_LIBDIR="${llvmPackages.clang.cc}/lib"
+  '';
+
+  enableParallelBuilding = true;
 
   meta = {
     description = "C/C++ client-server indexer based on clang";
-
     homepage = https://github.com/andersbakken/rtags;
-
     license = stdenv.lib.licenses.gpl3;
+    platforms = stdenv.lib.platforms.allBut [ "i686-linux" ];
   };
 }

@@ -1,107 +1,90 @@
-{ stdenv, cacert, git, cargo, rustRegistry }:
-{ name, depsSha256
+{ fetchurl, stdenv, path, cacert, git, rust }:
+let
+  cargoVendor = import ./cargo-vendor.nix {
+    inherit fetchurl stdenv;
+  };
+
+  fetchcargo = import ./fetchcargo.nix {
+    inherit stdenv cacert git rust cargoVendor;
+  };
+in
+{ name, cargoSha256
 , src ? null
 , srcs ? null
 , sourceRoot ? null
+, logLevel ? ""
 , buildInputs ? []
 , cargoUpdateHook ? ""
+, cargoDepsHook ? ""
+, cargoBuildFlags ? []
 , ... } @ args:
 
 let
-  fetchDeps = import ./fetchcargo.nix {
-    inherit stdenv cacert git cargo rustRegistry;
-  };
+  lib = stdenv.lib;
 
-  cargoDeps = fetchDeps {
+  cargoDeps = fetchcargo {
     inherit name src srcs sourceRoot cargoUpdateHook;
-    sha256 = depsSha256;
+    sha256 = cargoSha256;
   };
 
 in stdenv.mkDerivation (args // {
-  inherit cargoDeps rustRegistry;
+  inherit cargoDeps;
 
   patchRegistryDeps = ./patch-registry-deps;
 
-  buildInputs = [ git cargo cargo.rustc ] ++ buildInputs;
+  buildInputs = [ git rust.cargo rust.rustc ] ++ buildInputs;
 
-  configurePhase = args.configurePhase or "true";
+  configurePhase = args.configurePhase or ''
+    runHook preConfigure
+    # noop
+    runHook postConfigure
+  '';
 
   postUnpack = ''
-    echo "Using cargo deps from $cargoDeps"
+    eval "$cargoDepsHook"
 
-    cp -r "$cargoDeps" deps
-    chmod +w deps -R
+    unpackFile "$cargoDeps"
+    cargoDepsCopy=$(stripHash $(basename $cargoDeps))
+    chmod -R +w "$cargoDepsCopy"
 
-    # It's OK to use /dev/null as the URL because by the time we do this, cargo
-    # won't attempt to update the registry anymore, so the URL is more or less
-    # irrelevant
+    mkdir .cargo
+    cat >.cargo/config <<-EOF
+      [source.crates-io]
+      registry = 'https://github.com/rust-lang/crates.io-index'
+      replace-with = 'vendored-sources'
 
-    cat <<EOF > deps/config
-    [registry]
-    index = "file:///dev/null"
+      [source.vendored-sources]
+      directory = '$(pwd)/$cargoDepsCopy'
     EOF
 
-    export CARGO_HOME="$(realpath deps)"
+    unset cargoDepsCopy
 
-    # Let's find out which $indexHash cargo uses for file:///dev/null
-    (cd $sourceRoot && cargo fetch &>/dev/null) || true
-    cd deps
-    indexHash="$(basename $(echo registry/index/*))"
-
-    echo "Using indexHash '$indexHash'"
-
-    rm -rf -- "registry/cache/$indexHash" \
-              "registry/index/$indexHash"
-
-    mv registry/cache/HASH "registry/cache/$indexHash"
-
-    echo "Using rust registry from $rustRegistry"
-    ln -s "$rustRegistry" "registry/index/$indexHash"
-
-    # Retrieved the Cargo.lock file which we saved during the fetch
-    cd ..
-    mv deps/Cargo.lock $sourceRoot/
-
-    (
-        cd $sourceRoot
-
-        cargo fetch
-        cargo clean
-    )
+    export RUST_LOG=${logLevel}
+    export SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
   '' + (args.postUnpack or "");
 
-  prePatch = ''
-    # Patch registry dependencies, using the scripts in $patchRegistryDeps
-    (
-        set -euo pipefail
-
-        cd ../deps/registry/src/*
-
-        for script in $patchRegistryDeps/*; do
-          # Run in a subshell so that directory changes and shell options don't
-          # affect any following commands
-
-          ( . $script)
-        done
-    )
-  '' + (args.prePatch or "");
-
-  buildPhase = args.buildPhase or ''
-    echo "Running cargo build --release"
-    cargo build --release
+  buildPhase = with builtins; args.buildPhase or ''
+    runHook preBuild
+    echo "Running cargo build --release ${concatStringsSep " " cargoBuildFlags}"
+    cargo build --release --frozen ${concatStringsSep " " cargoBuildFlags}
+    runHook postBuild
   '';
 
   checkPhase = args.checkPhase or ''
+    runHook preCheck
     echo "Running cargo test"
     cargo test
+    runHook postCheck
   '';
 
   doCheck = args.doCheck or true;
 
   installPhase = args.installPhase or ''
+    runHook preInstall
     mkdir -p $out/bin
-    for f in $(find target/release -maxdepth 1 -type f); do
-      cp $f $out/bin
-    done;
+    find target/release -maxdepth 1 -executable -exec cp "{}" $out/bin \;
+    runHook postInstall
   '';
+
+  passthru = { inherit cargoDeps; } // (args.passthru or {});
 })

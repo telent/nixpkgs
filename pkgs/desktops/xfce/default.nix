@@ -5,23 +5,25 @@ let
 callPackage = newScope (deps // xfce_self);
 
 deps = { # xfce-global dependency overrides should be here
-  inherit (pkgs.gnome) libglade libwnck vte gtksourceview;
+  inherit (pkgs.gnome2) libglade libwnck vte gtksourceview;
   inherit (pkgs.gnome3) dconf;
   inherit (pkgs.perlPackages) URI;
+  gtk = pkgs.gtk2;
 };
 
 xfce_self = rec { # the lines are very long but it seems better than the even-odd line approach
 
   #### NixOS support
 
-  inherit (pkgs) gvfs;
+  gvfs = pkgs.gvfs.override { samba = null; }; # samba is a rather heavy dependency
   xinitrc = "${xfce4session}/etc/xdg/xfce4/xinitrc";
 
   #### CORE                 from "mirror://xfce/src/xfce/${p_name}/${ver_maj}/${name}.tar.bz2"
 
   exo             = callPackage ./core/exo.nix { };
   garcon          = callPackage ./core/garcon.nix { };
-  gtk_xfce_engine = callPackage ./core/gtk-xfce-engine.nix { }; # ToDo: when should be used?
+  gtk_xfce_engine = callPackage ./core/gtk-xfce-engine.nix
+    { withGtk3 = false; }; # = true; was completely breaking GTK3 app layout
   libxfce4ui      = callPackage ./core/libxfce4ui.nix { };
   libxfce4ui_gtk3 = libxfce4ui.override { withGtk3 = true; };
   libxfce4util    = callPackage ./core/libxfce4util.nix { };
@@ -30,9 +32,9 @@ xfce_self = rec { # the lines are very long but it seems better than the even-od
   thunar          = callPackage ./core/thunar.nix { };
   thunarx-2-dev   = thunar-build; # Plugins need only the `thunarx-2` part of the package. Awaiting multiple outputs.
   thunar_volman   = callPackage ./core/thunar-volman.nix { }; # ToDo: probably inside Thunar now
-  thunar-archive-plugin 
+  thunar-archive-plugin
                   = callPackage ./thunar-plugins/archive { };
-  thunar-dropbox-plugin 
+  thunar-dropbox-plugin
                   = callPackage ./thunar-plugins/dropbox { };
   tumbler         = callPackage ./core/tumbler.nix { };
   xfce4panel      = callPackage ./core/xfce4-panel.nix { }; # ToDo: impure plugins from /run/current-system/sw/lib/xfce4
@@ -40,6 +42,7 @@ xfce_self = rec { # the lines are very long but it seems better than the even-od
   xfce4session    = callPackage ./core/xfce4-session.nix { };
   xfce4settings   = callPackage ./core/xfce4-settings.nix { };
   xfce4_power_manager = callPackage ./core/xfce4-power-manager.nix { };
+  xfce4_power_manager_gtk3 = callPackage ./core/xfce4-power-manager.nix { withGtk3 = true; };
   xfconf          = callPackage ./core/xfconf.nix { };
   xfdesktop       = callPackage ./core/xfdesktop.nix { };
   xfwm4           = callPackage ./core/xfwm4.nix { };
@@ -51,6 +54,7 @@ xfce_self = rec { # the lines are very long but it seems better than the even-od
 
   gigolo          = callPackage ./applications/gigolo.nix { };
   mousepad        = callPackage ./applications/mousepad.nix { };
+  orage           = callPackage ./applications/orage.nix { };
   parole          = callPackage ./applications/parole.nix { };
   ristretto       = callPackage ./applications/ristretto.nix { };
   terminal        = xfce4terminal; # it has changed its name
@@ -60,7 +64,7 @@ xfce_self = rec { # the lines are very long but it seems better than the even-od
   xfce4notifyd    = callPackage ./applications/xfce4-notifyd.nix { };
   xfce4taskmanager= callPackage ./applications/xfce4-taskmanager.nix { };
   xfce4terminal   = callPackage ./applications/terminal.nix { };
-  xfce4screenshooter   = callPackage ./applications/xfce4-screenshooter.nix { };
+  xfce4-screenshooter = callPackage ./applications/xfce4-screenshooter.nix { };
   xfce4volumed    = let
     gst = callPackage ./applications/xfce4-volumed.nix { };
     pulse = callPackage ./applications/xfce4-volumed-pulse.nix { };
@@ -69,31 +73,37 @@ xfce_self = rec { # the lines are very long but it seems better than the even-od
   #### ART                  from "mirror://xfce/src/art/${p_name}/${ver_maj}/${name}.tar.bz2"
 
   xfce4icontheme  = callPackage ./art/xfce4-icon-theme.nix { };
+  xfwm4themes     = callPackage ./art/xfwm4-themes.nix { };
 
   #### PANEL PLUGINS        from "mirror://xfce/src/panel-plugins/${p_name}/${ver_maj}/${name}.tar.{bz2,gz}"
 
-  xfce4_battery_plugin     = callPackage ./panel-plugins/xfce4-battery-plugin.nix     { };
-  xfce4_clipman_plugin     = callPackage ./panel-plugins/xfce4-clipman-plugin.nix     { };
-  xfce4_cpufreq_plugin     = callPackage ./panel-plugins/xfce4-cpufreq-plugin.nix     { };
-  xfce4_cpugraph_plugin    = callPackage ./panel-plugins/xfce4-cpugraph-plugin.nix    { };
-  xfce4_datetime_plugin    = callPackage ./panel-plugins/xfce4-datetime-plugin.nix    { };
-  xfce4_dict_plugin        = callPackage ./panel-plugins/xfce4-dict-plugin.nix        { };
-  xfce4_embed_plugin       = callPackage ./panel-plugins/xfce4-embed-plugin.nix       { };
-  xfce4_eyes_plugin        = callPackage ./panel-plugins/xfce4-eyes-plugin.nix        { };
-  xfce4_fsguard_plugin     = callPackage ./panel-plugins/xfce4-fsguard-plugin.nix     { };
-  xfce4_genmon_plugin      = callPackage ./panel-plugins/xfce4-genmon-plugin.nix      { };
-  xfce4_netload_plugin     = callPackage ./panel-plugins/xfce4-netload-plugin.nix     { };
-  xfce4_notes_plugin       = callPackage ./panel-plugins/xfce4-notes-plugin.nix       { };
-  xfce4_systemload_plugin  = callPackage ./panel-plugins/xfce4-systemload-plugin.nix  { };
-  xfce4_verve_plugin       = callPackage ./panel-plugins/xfce4-verve-plugin.nix       { };
-  xfce4_xkb_plugin         = callPackage ./panel-plugins/xfce4-xkb-plugin.nix         { };
-  xfce4_whiskermenu_plugin = callPackage ./panel-plugins/xfce4-whiskermenu-plugin.nix { };
-  xfce4_pulseaudio_plugin  = callPackage ./panel-plugins/xfce4-pulseaudio-plugin.nix  { };
+  xfce4_battery_plugin          = callPackage ./panel-plugins/xfce4-battery-plugin.nix          { };
+  xfce4_clipman_plugin          = callPackage ./panel-plugins/xfce4-clipman-plugin.nix          { };
+  xfce4_cpufreq_plugin          = callPackage ./panel-plugins/xfce4-cpufreq-plugin.nix          { };
+  xfce4_cpugraph_plugin         = callPackage ./panel-plugins/xfce4-cpugraph-plugin.nix         { };
+  xfce4_datetime_plugin         = callPackage ./panel-plugins/xfce4-datetime-plugin.nix         { };
+  xfce4_dict_plugin             = callPackage ./panel-plugins/xfce4-dict-plugin.nix             { };
+  xfce4_dockbarx_plugin         = callPackage ./panel-plugins/xfce4-dockbarx-plugin.nix         { };
+  xfce4_embed_plugin            = callPackage ./panel-plugins/xfce4-embed-plugin.nix            { };
+  xfce4_eyes_plugin             = callPackage ./panel-plugins/xfce4-eyes-plugin.nix             { };
+  xfce4_fsguard_plugin          = callPackage ./panel-plugins/xfce4-fsguard-plugin.nix          { };
+  xfce4_genmon_plugin           = callPackage ./panel-plugins/xfce4-genmon-plugin.nix           { };
+  xfce4-hardware-monitor-plugin = callPackage ./panel-plugins/xfce4-hardware-monitor-plugin.nix { };
+  xfce4_namebar_plugin          = callPackage ./panel-plugins/xfce4-namebar-plugin.nix          { };
+  xfce4_netload_plugin          = callPackage ./panel-plugins/xfce4-netload-plugin.nix          { };
+  xfce4_notes_plugin            = callPackage ./panel-plugins/xfce4-notes-plugin.nix            { };
+  xfce4_mailwatch_plugin        = callPackage ./panel-plugins/xfce4-mailwatch-plugin.nix        { };
+  xfce4_mpc_plugin              = callPackage ./panel-plugins/xfce4-mpc-plugin.nix              { };
+  xfce4-sensors-plugin          = callPackage ./panel-plugins/xfce4-sensors-plugin.nix          { };
+  xfce4_systemload_plugin       = callPackage ./panel-plugins/xfce4-systemload-plugin.nix       { };
+  xfce4_timer_plugin            = callPackage ./panel-plugins/xfce4-timer-plugin.nix            { };
+  xfce4_verve_plugin            = callPackage ./panel-plugins/xfce4-verve-plugin.nix            { };
+  xfce4_xkb_plugin              = callPackage ./panel-plugins/xfce4-xkb-plugin.nix              { };
+  xfce4_weather_plugin          = callPackage ./panel-plugins/xfce4-weather-plugin.nix          { };
+  xfce4_whiskermenu_plugin      = callPackage ./panel-plugins/xfce4-whiskermenu-plugin.nix      { };
+  xfce4_windowck_plugin         = callPackage ./panel-plugins/xfce4-windowck-plugin.nix         { };
+  xfce4_pulseaudio_plugin       = callPackage ./panel-plugins/xfce4-pulseaudio-plugin.nix       { };
 
 }; # xfce_self
 
 in xfce_self
-
-
-
-

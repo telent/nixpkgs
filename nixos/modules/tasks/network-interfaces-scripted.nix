@@ -9,6 +9,12 @@ let
   interfaces = attrValues cfg.interfaces;
   hasVirtuals = any (i: i.virtual) interfaces;
 
+  slaves = concatMap (i: i.interfaces) (attrValues cfg.bonds)
+    ++ concatMap (i: i.interfaces) (attrValues cfg.bridges)
+    ++ concatMap (i: i.interfaces) (attrValues cfg.vswitches)
+    ++ concatMap (i: [i.interface]) (attrValues cfg.macvlans)
+    ++ concatMap (i: [i.interface]) (attrValues cfg.vlans);
+
   # We must escape interfaces due to the systemd interpretation
   subsystemDevice = interface:
     "sys-subsystem-net-devices-${escapeSystemdPath interface}.device";
@@ -37,14 +43,44 @@ let
     ip link del "${i}" 2>/dev/null || true
   '';
 
-in
+  # warn that these attributes are deprecated (2017-2-2)
+  # Should be removed in the release after next
+  bondDeprecation = rec {
+    deprecated = [ "lacp_rate" "miimon" "mode" "xmit_hash_policy" ];
+    filterDeprecated = bond: (filterAttrs (attrName: attr:
+                         elem attrName deprecated && attr != null) bond);
+  };
 
-{
+  bondWarnings =
+    let oneBondWarnings = bondName: bond:
+          mapAttrsToList (bondText bondName) (bondDeprecation.filterDeprecated bond);
+        bondText = bondName: optName: _:
+          "${bondName}.${optName} is deprecated, use ${bondName}.driverOptions";
+    in {
+      warnings = flatten (mapAttrsToList oneBondWarnings cfg.bonds);
+    };
 
-  config = mkIf (!cfg.useNetworkd) {
+  normalConfig = {
 
     systemd.services =
       let
+
+        deviceDependency = dev:
+          # Use systemd service if we manage device creation, else
+          # trust udev when not in a container
+          if (hasAttr dev (filterAttrs (k: v: v.virtual) cfg.interfaces)) ||
+             (hasAttr dev cfg.bridges) ||
+             (hasAttr dev cfg.bonds) ||
+             (hasAttr dev cfg.macvlans) ||
+             (hasAttr dev cfg.sits) ||
+             (hasAttr dev cfg.vlans) ||
+             (hasAttr dev cfg.vswitches) ||
+             (hasAttr dev cfg.wlanInterfaces)
+          then [ "${dev}-netdev.service" ]
+          else optional (dev != null && dev != "lo" && !config.boot.isContainer) (subsystemDevice dev);
+
+        hasDefaultGatewaySet = (cfg.defaultGateway != null && cfg.defaultGateway.address != "")
+                            || (cfg.defaultGateway6 != null && cfg.defaultGateway6.address != "");
 
         networkLocalCommands = {
           after = [ "network-setup.service" ];
@@ -54,16 +90,23 @@ in
         networkSetup =
           { description = "Networking Setup";
 
-            after = [ "network-interfaces.target" "network-pre.target" ];
-            before = [ "network.target" ];
-            wantedBy = [ "network.target" ];
+            after = [ "network-pre.target" "systemd-udevd.service" "systemd-sysctl.service" ];
+            before = [ "network.target" "shutdown.target" ];
+            wants = [ "network.target" ];
+            partOf = map (i: "network-addresses-${i.name}.service") interfaces;
+            conflicts = [ "shutdown.target" ];
+            wantedBy = [ "multi-user.target" ] ++ optional hasDefaultGatewaySet "network-online.target";
 
             unitConfig.ConditionCapability = "CAP_NET_ADMIN";
 
             path = [ pkgs.iproute ];
 
-            serviceConfig.Type = "oneshot";
-            serviceConfig.RemainAfterExit = true;
+            serviceConfig = {
+              Type = "oneshot";
+              RemainAfterExit = true;
+            };
+
+            unitConfig.DefaultDependencies = false;
 
             script =
               ''
@@ -79,17 +122,33 @@ in
                 EOF
 
                 # Set the default gateway.
-                ${optionalString (cfg.defaultGateway != null && cfg.defaultGateway != "") ''
-                  # FIXME: get rid of "|| true" (necessary to make it idempotent).
-                  ip route add default via "${cfg.defaultGateway}" ${
+                ${optionalString (cfg.defaultGateway != null && cfg.defaultGateway.address != "") ''
+                  ${optionalString (cfg.defaultGateway.interface != null) ''
+                    ip route replace ${cfg.defaultGateway.address} dev ${cfg.defaultGateway.interface} ${optionalString (cfg.defaultGateway.metric != null)
+                      "metric ${toString cfg.defaultGateway.metric}"
+                    } proto static
+                  ''}
+                  ip route replace default ${optionalString (cfg.defaultGateway.metric != null)
+                      "metric ${toString cfg.defaultGateway.metric}"
+                    } via "${cfg.defaultGateway.address}" ${
                     optionalString (cfg.defaultGatewayWindowSize != null)
-                      "window ${toString cfg.defaultGatewayWindowSize}"} || true
+                      "window ${toString cfg.defaultGatewayWindowSize}"} ${
+                    optionalString (cfg.defaultGateway.interface != null)
+                      "dev ${cfg.defaultGateway.interface}"} proto static
                 ''}
-                ${optionalString (cfg.defaultGateway6 != null && cfg.defaultGateway6 != "") ''
-                  # FIXME: get rid of "|| true" (necessary to make it idempotent).
-                  ip -6 route add ::/0 via "${cfg.defaultGateway6}" ${
+                ${optionalString (cfg.defaultGateway6 != null && cfg.defaultGateway6.address != "") ''
+                  ${optionalString (cfg.defaultGateway6.interface != null) ''
+                    ip -6 route replace ${cfg.defaultGateway6.address} dev ${cfg.defaultGateway6.interface} ${optionalString (cfg.defaultGateway6.metric != null)
+                      "metric ${toString cfg.defaultGateway6.metric}"
+                    } proto static
+                  ''}
+                  ip -6 route replace default ${optionalString (cfg.defaultGateway6.metric != null)
+                      "metric ${toString cfg.defaultGateway6.metric}"
+                    } via "${cfg.defaultGateway6.address}" ${
                     optionalString (cfg.defaultGatewayWindowSize != null)
-                      "window ${toString cfg.defaultGatewayWindowSize}"} || true
+                      "window ${toString cfg.defaultGatewayWindowSize}"} ${
+                    optionalString (cfg.defaultGateway6.interface != null)
+                      "dev ${cfg.defaultGateway6.interface}"} proto static
                 ''}
               '';
           };
@@ -108,62 +167,63 @@ in
           in
           nameValuePair "network-addresses-${i.name}"
           { description = "Address configuration of ${i.name}";
-            wantedBy = [ "network-interfaces.target" ];
-            before = [ "network-interfaces.target" ];
-            bindsTo = [ (subsystemDevice i.name) ];
-            after = [ (subsystemDevice i.name) "network-pre.target" ];
+            wantedBy = [
+              "network-setup.service"
+              "network-link-${i.name}.service"
+              "network.target"
+            ];
+            # order before network-setup because the routes that are configured
+            # there may need ip addresses configured
+            before = [ "network-setup.service" ];
+            bindsTo = deviceDependency i.name;
+            after = [ "network-pre.target" ] ++ (deviceDependency i.name);
             serviceConfig.Type = "oneshot";
             serviceConfig.RemainAfterExit = true;
+            # Restart rather than stop+start this unit to prevent the
+            # network from dying during switch-to-configuration.
+            stopIfChanged = false;
             path = [ pkgs.iproute ];
             script =
               ''
+                # FIXME: shouldn't this be done in network-link?
                 echo "bringing up interface..."
                 ip link set "${i.name}" up
 
-                restart_network_interfaces=false
+                state="/run/nixos/network/addresses/${i.name}"
+
+                mkdir -p $(dirname "$state")
+
               '' + flip concatMapStrings (ips) (ip:
                 let
                   address = "${ip.address}/${toString ip.prefixLength}";
                 in
                 ''
-                  echo "checking ip ${address}..."
+                  echo "${address}" >> $state
                   if out=$(ip addr add "${address}" dev "${i.name}" 2>&1); then
-                    echo "added ip ${address}..."
-                    restart_network_setup=true
+                    echo "added ip ${address}"
                   elif ! echo "$out" | grep "File exists" >/dev/null 2>&1; then
                     echo "failed to add ${address}"
                     exit 1
                   fi
-                '')
-              + optionalString (ips != [ ])
-                ''
-                  if [ "$restart_network_setup" = "true" ]; then
-                    # Ensure that the default gateway remains set.
-                    # (Flushing this interface may have removed it.)
-                    ${config.systemd.package}/bin/systemctl try-restart --no-block network-setup.service
-                  fi
-                  ${config.systemd.package}/bin/systemctl start ip-up.target
-                '';
-            preStop =
-              ''
-                echo "releasing configured ip's..."
-              '' + flip concatMapStrings (ips) (ip:
-                let
-                  address = "${ip.address}/${toString ip.prefixLength}";
-                in
-                ''
-                  echo -n "Deleting ${address}..."
-                  ip addr del "${address}" dev "${i.name}" >/dev/null 2>&1 || echo -n " Failed"
-                  echo ""
                 '');
+            preStop = ''
+              state="/run/nixos/network/addresses/${i.name}"
+              while read address; do
+                echo -n "deleting $address..."
+                ip addr del "$address" dev "${i.name}" >/dev/null 2>&1 || echo -n " Failed"
+                echo ""
+              done < "$state"
+              rm -f "$state"
+            '';
           };
 
         createTunDevice = i: nameValuePair "${i.name}-netdev"
           { description = "Virtual Network Interface ${i.name}";
-            requires = [ "dev-net-tun.device" ];
+            bindsTo = [ "dev-net-tun.device" ];
             after = [ "dev-net-tun.device" "network-pre.target" ];
-            wantedBy = [ "network.target" (subsystemDevice i.name) ];
-            before = [ "network-interfaces.target" (subsystemDevice i.name) ];
+            wantedBy = [ "network-setup.service" (subsystemDevice i.name) ];
+            partOf = [ "network-setup.service" ];
+            before = [ "network-setup.service" ];
             path = [ pkgs.iproute ];
             serviceConfig = {
               Type = "oneshot";
@@ -175,21 +235,21 @@ in
               user "${i.virtualOwner}"
             '';
             postStop = ''
-              ip link del ${i.name}
+              ip link del ${i.name} || true
             '';
           };
 
         createBridgeDevice = n: v: nameValuePair "${n}-netdev"
           (let
-            deps = map subsystemDevice v.interfaces;
+            deps = concatLists (map deviceDependency v.interfaces);
           in
           { description = "Bridge Interface ${n}";
-            wantedBy = [ "network.target" (subsystemDevice n) ];
+            wantedBy = [ "network-setup.service" (subsystemDevice n) ];
             bindsTo = deps ++ optional v.rstp "mstpd.service";
-            partOf = optional v.rstp "mstpd.service";
-            after = [ "network-pre.target" "mstpd.service" ] ++ deps
+            partOf = [ "network-setup.service" ] ++ optional v.rstp "mstpd.service";
+            after = [ "network-pre.target" ] ++ deps ++ optional v.rstp "mstpd.service"
               ++ concatMap (i: [ "network-addresses-${i}.service" "network-link-${i}.service" ]) v.interfaces;
-            before = [ "network-interfaces.target" (subsystemDevice n) ];
+            before = [ "network-setup.service" ];
             serviceConfig.Type = "oneshot";
             serviceConfig.RemainAfterExit = true;
             path = [ pkgs.iproute ];
@@ -206,6 +266,10 @@ in
                 ip link set "${i}" master "${n}"
                 ip link set "${i}" up
               '')}
+              # Save list of enslaved interfaces
+              echo "${flip concatMapStrings v.interfaces (i: ''
+                ${i}
+              '')}" > /run/${n}.interfaces
 
               # Enable stp on the interface
               ${optionalString v.rstp ''
@@ -217,20 +281,41 @@ in
             postStop = ''
               ip link set "${n}" down || true
               ip link del "${n}" || true
+              rm -f /run/${n}.interfaces
             '';
+            reload = ''
+              # Un-enslave child interfaces (old list of interfaces)
+              for interface in `cat /run/${n}.interfaces`; do
+                ip link set "$interface" nomaster up
+              done
+
+              # Enslave child interfaces (new list of interfaces)
+              ${flip concatMapStrings v.interfaces (i: ''
+                ip link set "${i}" master "${n}"
+                ip link set "${i}" up
+              '')}
+              # Save list of enslaved interfaces
+              echo "${flip concatMapStrings v.interfaces (i: ''
+                ${i}
+              '')}" > /run/${n}.interfaces
+
+              # (Un-)set stp on the bridge
+              echo ${if v.rstp then "2" else "0"} > /sys/class/net/${n}/bridge/stp_state
+            '';
+            reloadIfChanged = true;
           });
 
         createVswitchDevice = n: v: nameValuePair "${n}-netdev"
           (let
-            deps = map subsystemDevice v.interfaces;
+            deps = concatLists (map deviceDependency v.interfaces);
             ofRules = pkgs.writeText "vswitch-${n}-openFlowRules" v.openFlowRules;
           in
           { description = "Open vSwitch Interface ${n}";
-            wantedBy = [ "network.target" "vswitchd.service" ] ++ deps;
+            wantedBy = [ "network-setup.service" "vswitchd.service" ] ++ deps;
             bindsTo =  [ "vswitchd.service" (subsystemDevice n) ] ++ deps;
-            partOf = [ "vswitchd.service" ];
+            partOf = [ "network-setup.service" "vswitchd.service" ];
             after = [ "network-pre.target" "vswitchd.service" ] ++ deps;
-            before = [ "network-interfaces.target" ];
+            before = [ "network-setup.service" ];
             serviceConfig.Type = "oneshot";
             serviceConfig.RemainAfterExit = true;
             path = [ pkgs.iproute config.virtualisation.vswitch.package ];
@@ -255,14 +340,15 @@ in
 
         createBondDevice = n: v: nameValuePair "${n}-netdev"
           (let
-            deps = map subsystemDevice v.interfaces;
+            deps = concatLists (map deviceDependency v.interfaces);
           in
           { description = "Bond Interface ${n}";
-            wantedBy = [ "network.target" (subsystemDevice n) ];
+            wantedBy = [ "network-setup.service" (subsystemDevice n) ];
             bindsTo = deps;
+            partOf = [ "network-setup.service" ];
             after = [ "network-pre.target" ] ++ deps
               ++ concatMap (i: [ "network-addresses-${i}.service" "network-link-${i}.service" ]) v.interfaces;
-            before = [ "network-interfaces.target" (subsystemDevice n) ];
+            before = [ "network-setup.service" ];
             serviceConfig.Type = "oneshot";
             serviceConfig.RemainAfterExit = true;
             path = [ pkgs.iproute pkgs.gawk ];
@@ -272,10 +358,11 @@ in
 
               echo "Creating new bond ${n}..."
               ip link add name "${n}" type bond \
-                ${optionalString (v.mode != null) "mode ${toString v.mode}"} \
-                ${optionalString (v.miimon != null) "miimon ${toString v.miimon}"} \
-                ${optionalString (v.xmit_hash_policy != null) "xmit_hash_policy ${toString v.xmit_hash_policy}"} \
-                ${optionalString (v.lacp_rate != null) "lacp_rate ${toString v.lacp_rate}"}
+              ${let opts = (mapAttrs (const toString)
+                             (bondDeprecation.filterDeprecated v))
+                           // v.driverOptions;
+                 in concatStringsSep "\n"
+                      (mapAttrsToList (set: val: "  ${set} ${val} \\") opts)}
 
               # !!! There must be a better way to wait for the interface
               while [ ! -d "/sys/class/net/${n}" ]; do sleep 0.1; done;
@@ -292,13 +379,14 @@ in
 
         createMacvlanDevice = n: v: nameValuePair "${n}-netdev"
           (let
-            deps = [ (subsystemDevice v.interface) ];
+            deps = deviceDependency v.interface;
           in
           { description = "Vlan Interface ${n}";
-            wantedBy = [ "network.target" (subsystemDevice n) ];
+            wantedBy = [ "network-setup.service" (subsystemDevice n) ];
             bindsTo = deps;
+            partOf = [ "network-setup.service" ];
             after = [ "network-pre.target" ] ++ deps;
-            before = [ "network-interfaces.target" (subsystemDevice n) ];
+            before = [ "network-setup.service" ];
             serviceConfig.Type = "oneshot";
             serviceConfig.RemainAfterExit = true;
             path = [ pkgs.iproute ];
@@ -310,19 +398,20 @@ in
               ip link set "${n}" up
             '';
             postStop = ''
-              ip link delete "${n}"
+              ip link delete "${n}" || true
             '';
           });
 
         createSitDevice = n: v: nameValuePair "${n}-netdev"
           (let
-            deps = optional (v.dev != null) (subsystemDevice v.dev);
+            deps = deviceDependency v.dev;
           in
           { description = "6-to-4 Tunnel Interface ${n}";
-            wantedBy = [ "network.target" (subsystemDevice n) ];
+            wantedBy = [ "network-setup.service" (subsystemDevice n) ];
             bindsTo = deps;
+            partOf = [ "network-setup.service" ];
             after = [ "network-pre.target" ] ++ deps;
-            before = [ "network-interfaces.target" (subsystemDevice n) ];
+            before = [ "network-setup.service" ];
             serviceConfig.Type = "oneshot";
             serviceConfig.RemainAfterExit = true;
             path = [ pkgs.iproute ];
@@ -337,19 +426,20 @@ in
               ip link set "${n}" up
             '';
             postStop = ''
-              ip link delete "${n}"
+              ip link delete "${n}" || true
             '';
           });
 
         createVlanDevice = n: v: nameValuePair "${n}-netdev"
           (let
-            deps = [ (subsystemDevice v.interface) ];
+            deps = deviceDependency v.interface;
           in
           { description = "Vlan Interface ${n}";
-            wantedBy = [ "network.target" (subsystemDevice n) ];
+            wantedBy = [ "network-setup.service" (subsystemDevice n) ];
             bindsTo = deps;
+            partOf = [ "network-setup.service" ];
             after = [ "network-pre.target" ] ++ deps;
-            before = [ "network-interfaces.target" (subsystemDevice n) ];
+            before = [ "network-setup.service" ];
             serviceConfig.Type = "oneshot";
             serviceConfig.RemainAfterExit = true;
             path = [ pkgs.iproute ];
@@ -360,7 +450,7 @@ in
               ip link set "${n}" up
             '';
             postStop = ''
-              ip link delete "${n}"
+              ip link delete "${n}" || true
             '';
           });
 
@@ -383,6 +473,17 @@ in
         KERNEL=="tun", TAG+="systemd"
       '';
 
+
   };
 
+in
+
+{
+  config = mkMerge [
+    bondWarnings
+    (mkIf (!cfg.useNetworkd) normalConfig)
+    { # Ensure slave interfaces are brought up
+      networking.interfaces = genAttrs slaves (i: {});
+    }
+  ];
 }

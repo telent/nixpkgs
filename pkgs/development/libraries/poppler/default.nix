@@ -1,12 +1,17 @@
 { stdenv, lib, fetchurl, fetchpatch, pkgconfig, libiconv, libintlOrEmpty
 , zlib, curl, cairo, freetype, fontconfig, lcms, libjpeg, openjpeg
-, minimal ? false, qt4Support ? false, qt4 ? null, qt5Support ? false, qtbase ? null
-, utils ? false, suffix ? "glib"
+, withData ? true, poppler_data
+, qt4Support ? false, qt4 ? null
+, qt5Support ? false, qtbase ? null
+, introspectionSupport ? false, gobjectIntrospection ? null
+, utils ? false
+, minimal ? false, suffix ? "glib"
+, hostPlatform
 }:
 
-let # beware: updates often break cups_filters build
-  version = "0.36.0"; # even major numbers are stable
-  sha256 = "13i440kv873wgmw50rs4d1v05cj0r7bqnghd70hp9vy44dxhdk4k";
+let # beware: updates often break cups-filters build
+  version = "0.56.0";
+  sha256 = "0wviayidfv2ix2ql0d4nl9r1ia6qi5kc1nybd9vjx27dk7gvm7c6";
 in
 stdenv.mkDerivation rec {
   name = "poppler-${suffix}-${version}";
@@ -16,32 +21,47 @@ stdenv.mkDerivation rec {
     inherit sha256;
   };
 
-  outputs = [ "out" ] ++ lib.optional (!minimal) "doc";
+  outputs = [ "out" "dev" ];
 
-  patches = [ ./datadir_env.patch ];
+  buildInputs = [ libiconv ] ++ libintlOrEmpty ++ lib.optional withData poppler_data;
 
   # TODO: reduce propagation to necessary libs
   propagatedBuildInputs = with lib;
-    [ zlib freetype fontconfig libjpeg lcms curl openjpeg ]
-    ++ optional (!minimal) cairo
+    [ zlib freetype fontconfig libjpeg openjpeg ]
+    ++ optionals (!minimal) [ cairo lcms curl ]
     ++ optional qt4Support qt4
-    ++ optional qt5Support qtbase;
+    ++ optional qt5Support qtbase
+    ++ optional introspectionSupport gobjectIntrospection;
 
-  nativeBuildInputs = [ pkgconfig libiconv ] ++ libintlOrEmpty;
+  nativeBuildInputs = [ pkgconfig ];
+
+  NIX_CFLAGS_COMPILE = [ "-DQT_NO_DEBUG" ];
+
+  CXXFLAGS = lib.optional qt5Support "-std=c++11";
 
   configureFlags = with lib;
     [
       "--enable-xpdf-headers"
       "--enable-libcurl"
       "--enable-zlib"
+      "--enable-build-type=release"
     ]
-    ++ optionals minimal [ "--disable-poppler-glib" "--disable-poppler-cpp" ]
-    ++ optional (!utils) "--disable-utils";
+    ++ optionals minimal [
+      "--disable-poppler-glib" "--disable-poppler-cpp"
+      "--disable-libcurl"
+    ]
+    ++ optional (!utils) "--disable-utils"
+    ++ optional introspectionSupport "--enable-introspection";
 
   enableParallelBuilding = true;
 
+  crossAttrs.postPatch =
+    # there are tests using `strXXX_s` functions that are missing apparently
+    stdenv.lib.optionalString (hostPlatform.libc or null == "msvcrt")
+      "sed '/^SUBDIRS =/s/ test / /' -i Makefile.in";
+
   meta = with lib; {
-    homepage = http://poppler.freedesktop.org/;
+    homepage = https://poppler.freedesktop.org/;
     description = "A PDF rendering library";
 
     longDescription = ''

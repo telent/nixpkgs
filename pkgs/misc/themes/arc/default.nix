@@ -1,27 +1,41 @@
-{ stdenv, autoconf, automake, fetchFromGitHub, gnome3, gtk, gtk-engine-murrine, pkgconfig}:
+{ stdenv, fetchFromGitHub, autoreconfHook, pkgconfig, gnome3, gtk-engine-murrine }:
 
-stdenv.mkDerivation rec {
-  version = "2015-10-21";
-  name = "arc-gtk-theme-git-${version}";
+let
+  # treat versions newer than 3.22 as 3.22
+  gnomeVersion = if stdenv.lib.versionOlder "3.22" gnome3.version then "3.22" else gnome3.version;
+  pname = "arc-theme";
+
+in stdenv.mkDerivation rec {
+  name = "${pname}-${version}";
+  version = "2017-05-12";
+
   src = fetchFromGitHub {
-    owner = "horst3180";
-    repo = "arc-theme";
-    sha256 = "09s452ysg5ys5i3ahb2dgdmr9j64b92hy9rgfvbgw6r5kdrnb60s";
-    rev = "f4c71247cf9470037d052ae4a12b86073d0001ff";
+    owner  = "horst3180";
+    repo   = pname;
+    rev    = "8290cb813f157a22e64ae58ac3dfb5983b0416e6";
+    sha256 = "1lxiw5iq9n62xzs0fks572c5vkz202jigndxaankxb44wcgn9zyf";
   };
+
+  nativeBuildInputs = [ autoreconfHook pkgconfig ];
+
+  buildInputs = [ gtk-engine-murrine gnome3.gtk ];
 
   preferLocalBuild = true;
 
-  buildInputs = [ autoconf automake gtk-engine-murrine pkgconfig ];
+  configureFlags = [ "--disable-unity" "--with-gnome=${gnomeVersion}" ];
 
-  configureScript = "./autogen.sh";
-  configureFlags = "--with-gnome=${gnome3.version}";
+  postInstall = ''
+    mkdir -p $out/share/plank/themes
+    cp -r extra/*-Plank $out/share/plank/themes
+    install -Dm644 -t $out/share/doc/${pname}/Chrome extra/Chrome/*.crx
+    install -Dm644 -t $out/share/doc/${pname}        AUTHORS *.md
+  '';
 
   meta = with stdenv.lib; {
     description = "A flat theme with transparent elements for GTK 3, GTK 2 and Gnome-Shell";
-    homepage = "https://github.com/horst3180/Arc-theme";
-    license = licenses.gpl3;
-    maintainers = [ maintainers.simonvandel ];
-    platforms = platforms.linux;
+    homepage    = https://github.com/horst3180/arc-theme;
+    license     = licenses.gpl3;
+    maintainers = with maintainers; [ simonvandel romildo ];
+    platforms   = platforms.unix;
   };
 }

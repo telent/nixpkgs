@@ -39,14 +39,17 @@ tryDownload() {
           curlexit=$?;
        fi
     done
-    stopNest
 }
 
 
 finish() {
     set +o noglob
+
+    if [[ $executable == "1" ]]; then
+      chmod +x $downloadedFile
+    fi
+
     runHook postFetch
-    stopNest
     exit 0
 }
 

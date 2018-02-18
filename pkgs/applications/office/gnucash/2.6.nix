@@ -1,7 +1,9 @@
-{ fetchurl, stdenv, pkgconfig, libxml2, libxslt, perl, perlPackages, gconf, guile
-, intltool, glib, gtk, libofx, aqbanking, gwenhywfar, libgnomecanvas, goffice
-, webkit, glibcLocales, gsettings_desktop_schemas, makeWrapper, dconf, file
-, gettext, swig, slibGuile, enchant, bzip2, isocodes
+{ fetchurl, fetchpatch, stdenv, intltool, pkgconfig, file, makeWrapper
+, libxml2, libxslt, perl, perlPackages, gconf, guile
+, glib, gtk2, libofx, aqbanking, gwenhywfar, libgnomecanvas, goffice
+, webkit, glibcLocales, gsettings_desktop_schemas, dconf
+, gettext, swig, slibGuile, enchant, bzip2, isocodes, libdbi, libdbiDrivers
+, pango, gdk_pixbuf
 }:
 
 /*
@@ -12,19 +14,29 @@ Two cave-ats right now:
 */
 
 stdenv.mkDerivation rec {
-  name = "gnucash-2.6.9";
+  name = "gnucash-2.6.18-1";
 
   src = fetchurl {
     url = "mirror://sourceforge/gnucash/${name}.tar.bz2";
-    sha256 = "0iw25l1kv60cg6fd2vg11mcvzmjqnc5p9lp3rjy06ghkjfrn3and";
+    sha256 = "1794qi7lkn1kbnhzk08wawacfcphbln3ngdl3q0qax5drv7hnwv8";
   };
+
+  patches = [
+    (fetchpatch {
+     sha256 = "11nlf9j7jm1i37mfcmmnkplxr3nlf257fxd01095vd65i2rn1m8h";
+     name = "fix-brittle-test.patch";
+     url = "https://github.com/Gnucash/gnucash/commit/42ac55e03a1a84739f4a5b7a247c31d91c0adc4a.patch";
+    })
+  ];
+
+  nativeBuildInputs = [ intltool pkgconfig file makeWrapper ];
 
   buildInputs = [
     # general
-    intltool pkgconfig libxml2 libxslt glibcLocales file gettext swig enchant
+    libxml2 libxslt glibcLocales gettext swig enchant
     bzip2 isocodes
     # glib, gtk...
-    glib gtk goffice webkit
+    glib gtk2 goffice webkit
     # gnome...
     dconf gconf libgnomecanvas gsettings_desktop_schemas
     # financial
@@ -33,16 +45,22 @@ stdenv.mkDerivation rec {
     perl perlPackages.FinanceQuote perlPackages.DateManip
     # guile
     guile slibGuile
-    # build
-    makeWrapper
+    # database backends
+    libdbi libdbiDrivers
   ];
 
-  patchPhase = ''
-  patchShebangs ./src
+  postPatch = ''
+    patchShebangs ./src
   '';
 
-  configureFlags = "CFLAGS=-O3 CXXFLAGS=-O3 --disable-dbi --enable-ofx --enable-aqbanking";
-
+  configureFlags = [
+    "CFLAGS=-O3"
+    "CXXFLAGS=-O3"
+    "--enable-dbi"
+    "--with-dbi-dbd-dir=${libdbiDrivers}/lib/dbd/"
+    "--enable-ofx"
+    "--enable-aqbanking"
+  ];
 
   postInstall = ''
     # Auto-updaters don't make sense in Nix.
@@ -62,15 +80,15 @@ stdenv.mkDerivation rec {
         --prefix PERL5LIB ":" "$PERL5LIB"                               \
         --set GCONF_CONFIG_SOURCE 'xml::~/.gconf'                       \
         --prefix XDG_DATA_DIRS : "$GSETTINGS_SCHEMAS_PATH:$out/share/gsettings-schemas/${name}" \
-        --prefix GIO_EXTRA_MODULES : "${dconf}/lib/gio/modules"  \
-        --prefix PATH ":" "$out/bin:${perl}/bin:${gconf}/bin"
+        --prefix GIO_EXTRA_MODULES : "${stdenv.lib.getLib dconf}/lib/gio/modules"  \
+        --prefix PATH ":" "$out/bin:${stdenv.lib.makeBinPath [ perl gconf ]}"
     done
 
     rm $out/share/icons/hicolor/icon-theme.cache
   '';
 
   # The following settings fix failures in the test suite. It's not required otherwise.
-  NIX_LDFLAGS = "-rpath=${guile}/lib -rpath=${glib}/lib";
+  LD_LIBRARY_PATH = stdenv.lib.makeLibraryPath [ guile glib gtk2 pango gdk_pixbuf ];
   preCheck = "export GNC_DOT_DIR=$PWD/dot-gnucash";
   doCheck = true;
 
@@ -82,7 +100,7 @@ stdenv.mkDerivation rec {
     longDescription = ''
       GnuCash is personal and small-business financial-accounting software,
       freely licensed under the GNU GPL and available for GNU/Linux, BSD,
-      Solaris, Mac OS X and Microsoft Windows.
+      Solaris, macOS and Microsoft Windows.
 
       Designed to be easy to use, yet powerful and flexible, GnuCash allows
       you to track bank accounts, stocks, income and expenses.  As quick and
@@ -94,7 +112,7 @@ stdenv.mkDerivation rec {
 
     homepage = http://www.gnucash.org/;
 
-    maintainers = [ stdenv.lib.maintainers.simons stdenv.lib.maintainers.iElectric ];
+    maintainers = [ stdenv.lib.maintainers.peti stdenv.lib.maintainers.domenkozar ];
     platforms = stdenv.lib.platforms.gnu;
   };
 }

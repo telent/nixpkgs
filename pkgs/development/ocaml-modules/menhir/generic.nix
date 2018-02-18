@@ -1,4 +1,4 @@
-{ version, sha256, stdenv, fetchurl, ocaml, findlib }:
+{ version, sha256, stdenv, fetchurl, ocaml, findlib, ocamlbuild }:
 
 stdenv.mkDerivation {
   name = "menhir-${version}";
@@ -8,21 +8,19 @@ stdenv.mkDerivation {
     inherit sha256;
   };
 
-  buildInputs = [ ocaml findlib ];
+  buildInputs = [ ocaml findlib ocamlbuild ];
 
   createFindlibDestdir = true;
 
   preBuild = ''
-    #Fix makefiles.
+    # fix makefiles.
     RM=$(type -p rm)
     CHMOD=$(type -p chmod)
-    ENV=$(type -p env)
-    for f in src/Makefile demos/OMakefile* demos/Makefile* demos/ocamldep.wrapper
+    for f in src/Makefile demos/OMakefile* demos/Makefile*
     do
       substituteInPlace $f \
         --replace /bin/rm $RM \
-	--replace /bin/chmod $CHMOD \
-	--replace /usr/bin/env $ENV
+        --replace /bin/chmod $CHMOD
     done
 
     export PREFIX=$out
@@ -38,10 +36,10 @@ stdenv.mkDerivation {
       and Yann Régis-Gianas.
     '';
     license = with licenses; [
-      qpl /* generator */
+      (if versionAtLeast version "20170418" then gpl2 else qpl) /* generator */
       lgpl2 /* library */
     ];
-    platforms = ocaml.meta.platforms;
+    platforms = ocaml.meta.platforms or [];
     maintainers = with maintainers; [ z77z ];
   };
 }

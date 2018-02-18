@@ -16,7 +16,8 @@ let recentAdvCmds = fetchzip {
 };
 
 in appleDerivation {
-  buildInputs = [ bsdmake perl yacc flex ];
+  nativeBuildInputs = [ bsdmake perl yacc flex ];
+  buildInputs = [ flex ];
 
   patchPhase = ''
     substituteInPlace BSDmakefile \
@@ -73,15 +74,15 @@ in appleDerivation {
 
     install -d 0755 $ps/bin
     install ps $ps/bin/ps
+    touch "$out"
   '';
 
   outputs = [
+    "out"
     "ps"
     "locale"
   ];
-
-  # ps uses this syscall to get process info
-  propagatedSandboxProfile = stdenv.lib.sandbox.allow "mach-priv-task-port";
+  setOutputFlags = false;
 
   meta = {
     platforms = stdenv.lib.platforms.darwin;

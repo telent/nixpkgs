@@ -1,14 +1,26 @@
-{ stdenv, fetchurl, libiconv, pkgconfig, libffi, libtasn1 }:
+{ stdenv, fetchFromGitHub, autoreconfHook, which, pkgconfig, libiconv
+, libffi, libtasn1 }:
 
 stdenv.mkDerivation rec {
-  name = "p11-kit-0.23.1";
+  name = "p11-kit-${version}";
+  version = "0.23.7";
 
-  src = fetchurl {
-    url = "${meta.homepage}releases/${name}.tar.gz";
-    sha256 = "1i3a1wdpagm0p3y1bwaz5x5rjhcpqbcrnhkcp10p259vkxk72wz5";
+  src = fetchFromGitHub {
+    owner = "p11-glue";
+    repo = "p11-kit";
+    rev = version;
+    sha256 = "1l8sg0g74k2mk0y6vz19hc103dzizxa0h579gdhvxifckglb01hy";
   };
 
-  buildInputs = [ pkgconfig libffi libtasn1 libiconv ];
+  outputs = [ "out" "dev"];
+  outputBin = "dev";
+
+  nativeBuildInputs = [ autoreconfHook which pkgconfig ];
+  buildInputs = [ libffi libtasn1 libiconv ];
+
+  autoreconfPhase = ''
+    NOCONFIGURE=1 ./autogen.sh
+  '';
 
   configureFlags = [
     "--sysconfdir=/etc"
@@ -19,9 +31,9 @@ stdenv.mkDerivation rec {
   installFlags = [ "exampledir=\${out}/etc/pkcs11" ];
 
   meta = with stdenv.lib; {
-    homepage = http://p11-glue.freedesktop.org/;
+    homepage = https://p11-glue.freedesktop.org/;
     platforms = platforms.all;
-    maintainers = with maintainers; [ urkud wkennington ];
+    maintainers = with maintainers; [ wkennington ];
     license = licenses.mit;
   };
 }

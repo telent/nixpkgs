@@ -1,8 +1,10 @@
 { stdenv, fetchurl, unzip, jdk, makeWrapper }:
 
 rec {
-  gradleGen = {name, src} : stdenv.mkDerivation rec {
-    inherit name src;
+  gradleGen = {name, src, nativeVersion} : stdenv.mkDerivation rec {
+    inherit name src nativeVersion;
+
+    dontBuild = true;
 
     installPhase = ''
       mkdir -pv $out/lib/gradle/
@@ -15,7 +17,21 @@ rec {
         --add-flags "-classpath $gradle_launcher_jar org.gradle.launcher.GradleMain"
     '';
 
-    phases = "unpackPhase installPhase";
+    fixupPhase = if (!stdenv.isLinux) then ":" else
+      let arch = if stdenv.is64bit then "amd64" else "i386"; in ''
+        mkdir patching
+        pushd patching
+        jar xf $out/lib/gradle/lib/native-platform-linux-${arch}-${nativeVersion}.jar
+        patchelf --set-rpath "${stdenv.cc.cc.lib}/lib:${stdenv.cc.cc.lib}/lib64" net/rubygrapefruit/platform/linux-${arch}/libnative-platform.so
+        jar cf native-platform-linux-${arch}-${nativeVersion}.jar .
+        mv native-platform-linux-${arch}-${nativeVersion}.jar $out/lib/gradle/lib/
+        popd
+
+        # The scanner doesn't pick up the runtime dependency in the jar.
+        # Manually add a reference where it will be found.
+        mkdir $out/nix-support
+        echo ${stdenv.cc.cc} > $out/nix-support/manual-runtime-dependencies
+      '';
 
     buildInputs = [ unzip jdk makeWrapper ];
 
@@ -31,20 +47,43 @@ rec {
       '';
       homepage = http://www.gradle.org/;
       license = stdenv.lib.licenses.asl20;
+      platforms = stdenv.lib.platforms.unix;
     };
   };
 
-  gradleLatest = gradleGen rec {
-    name = "gradle-2.10";
+  gradle_latest = gradleGen rec {
+    name = "gradle-4.4";
+    nativeVersion = "0.14";
 
     src = fetchurl {
       url = "http://services.gradle.org/distributions/${name}-bin.zip";
-      sha256 = "66406247f745fc6f05ab382d3f8d3e120c339f34ef54b86f6dc5f6efc18fbb13";
+      sha256 = "0bqaksrxrshqjwba0wj72gbcxvcchjavlj39xh18qpkz5jp76j7s";
     };
   };
 
-  gradle25 = gradleGen rec {
+  gradle_3_5 = gradleGen rec {
+    name = "gradle-3.5";
+    nativeVersion = "0.14";
+
+    src = fetchurl {
+      url = "http://services.gradle.org/distributions/${name}-bin.zip";
+      sha256 = "046i268zkg89ps7c1sq8yx9lbn9kighh4gcskxmzf3qriiwm0x0b";
+    };
+  };
+
+  gradle_2_14 = gradleGen rec {
+    name = "gradle-2.14.1";
+    nativeVersion = "0.10";
+
+    src = fetchurl {
+      url = "http://services.gradle.org/distributions/${name}-bin.zip";
+      sha256 = "0fggjxpsnakdaviw7bn2jmsl06997phlqr1251bjmlgjf7d1xing";
+    };
+  };
+
+  gradle_2_5 = gradleGen rec {
     name = "gradle-2.5";
+    nativeVersion = "0.10";
 
     src = fetchurl {
       url = "http://services.gradle.org/distributions/${name}-bin.zip";

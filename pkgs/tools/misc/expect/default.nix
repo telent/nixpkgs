@@ -12,6 +12,8 @@ stdenv.mkDerivation rec {
   buildInputs = [ tcl ];
   nativeBuildInputs = [ makeWrapper ];
 
+  hardeningDisable = [ "format" ];
+
   patchPhase = ''
     sed -i "s,/bin/stty,$(type -p stty),g" configure
   '';
@@ -33,7 +35,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "A tool for automating interactive applications";
-    homepage = http://expect.nist.gov/;
+    homepage = http://expect.sourceforge.net/;
     license = "Expect";
     platforms = platforms.unix;
     maintainers = with maintainers; [ wkennington ];

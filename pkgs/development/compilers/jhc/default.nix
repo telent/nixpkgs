@@ -16,12 +16,17 @@ stdenv.mkDerivation rec {
 
   buildInputs = [ perl ghc ];
 
+  preConfigure = ''
+    configureFlagsArray+=("CC=cc")
+    configureFlagsArray+=("--with-hsc2hs=${ghc}/bin/hsc2hs --cc=cc")
+  '';
+
   meta = {
     description = "Whole-program, globally optimizing Haskell compiler";
-    homepage = "http://repetae.net/computer/jhc/";
+    homepage = http://repetae.net/computer/jhc/;
     license = stdenv.lib.licenses.bsd3;
-    platforms = stdenv.lib.platforms.linux;
-    maintainers = with stdenv.lib.maintainers;
-      [ aforemny simons thoughtpolice ];
+    platforms = ["x86_64-linux"]; # 32 bit builds are broken
+    maintainers = with stdenv.lib.maintainers; [ aforemny thoughtpolice ];
+    broken = true; # https://hydra.nixos.org/build/61700723
   };
 }

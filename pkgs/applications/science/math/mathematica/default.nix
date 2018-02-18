@@ -3,6 +3,7 @@
 , patchelf
 , requireFile
 , alsaLib
+, dbus
 , fontconfig
 , freetype
 , gcc
@@ -12,6 +13,7 @@
 , opencv
 , openssl
 , unixODBC
+, xkeyboard_config
 , xorg
 , zlib
 , libxml2
@@ -26,7 +28,7 @@ let
       throw "Mathematica requires i686-linux or x86_64 linux";
 in
 stdenv.mkDerivation rec {
-  version = "10.0.2";
+  version = "11.2.0";
 
   name = "mathematica-${version}";
 
@@ -37,7 +39,7 @@ stdenv.mkDerivation rec {
       already part of the store. Find the file on your Mathematica CD
       and add it to the nix store with nix-store --add-fixed sha256 <FILE>.
     '';
-    sha256 = "1d2yaiaikzcacjamlw64g3xkk81m3pb4vz4an12cv8nb7kb20x9l";
+    sha256 = "4a1293cc1c404303aa1cab1bd273c7be151d37ac5ed928fbbb18e9c5ab2d8df9";
   };
 
   buildInputs = [
@@ -45,6 +47,7 @@ stdenv.mkDerivation rec {
     patchelf
     alsaLib
     coreutils
+    dbus
     fontconfig
     freetype
     gcc.cc
@@ -54,8 +57,10 @@ stdenv.mkDerivation rec {
     opencv
     openssl
     unixODBC
+    xkeyboard_config
     libxml2
     libuuid
+    zlib
   ] ++ (with xorg; [
     libX11
     libXext
@@ -73,7 +78,7 @@ stdenv.mkDerivation rec {
 
   ldpath = stdenv.lib.makeLibraryPath buildInputs
     + stdenv.lib.optionalString (stdenv.system == "x86_64-linux")
-      (":" + stdenv.lib.makeSearchPath "lib64" buildInputs);
+      (":" + stdenv.lib.makeSearchPathOutput "lib" "lib64" buildInputs);
 
   phases = "unpackPhase installPhase fixupPhase";
 
@@ -89,9 +94,22 @@ stdenv.mkDerivation rec {
     cd Installer
     # don't restrict PATH, that has already been done
     sed -i -e 's/^PATH=/# PATH=/' MathInstaller
+    sed -i -e 's/\/bin\/bash/\/bin\/sh/' MathInstaller
 
     echo "=== Running MathInstaller ==="
-    ./MathInstaller -auto -createdir=y -execdir=$out/bin -targetdir=$out/libexec/Mathematica -platforms=${platform} -silent
+    ./MathInstaller -auto -createdir=y -execdir=$out/bin -targetdir=$out/libexec/Mathematica -silent
+
+    # Fix library paths
+    cd $out/libexec/Mathematica/Executables
+    for path in mathematica MathKernel Mathematica WolframKernel wolfram math; do
+      sed -i -e 's#export LD_LIBRARY_PATH$#export LD_LIBRARY_PATH=${zlib}/lib:\''${LD_LIBRARY_PATH}#' $path
+    done
+
+    # Fix xkeyboard config path for Qt
+    for path in mathematica Mathematica; do
+      line=$(grep -n QT_PLUGIN_PATH $path | sed 's/:.*//')
+      sed -i -e "$line iexport QT_XKB_CONFIG_ROOT=\"${xkeyboard_config}/share/X11/xkb\"" $path
+    done
   '';
 
   preFixup = ''
@@ -132,7 +150,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Wolfram Mathematica computational software system";
-    homepage = "http://www.wolfram.com/mathematica/";
+    homepage = http://www.wolfram.com/mathematica/;
     license = stdenv.lib.licenses.unfree;
   };
 }

@@ -48,10 +48,16 @@ let
     # NAT from external ports to internal ports.
     ${concatMapStrings (fwd: ''
       iptables -w -t nat -A nixos-nat-pre \
-        -i ${cfg.externalInterface} -p tcp \
+        -i ${cfg.externalInterface} -p ${fwd.proto} \
         --dport ${builtins.toString fwd.sourcePort} \
         -j DNAT --to-destination ${fwd.destination}
     '') cfg.forwardPorts}
+
+    ${optionalString (cfg.dmzHost != null) ''
+      iptables -w -t nat -A nixos-nat-pre \
+        -i ${cfg.externalInterface} -j DNAT \
+	--to-destination ${cfg.dmzHost}
+    ''}
 
     # Append our chains to the nat tables
     iptables -w -t nat -A PREROUTING -j nixos-nat-pre
@@ -122,27 +128,45 @@ in
     };
 
     networking.nat.forwardPorts = mkOption {
-      type = types.listOf types.optionSet;
+      type = with types; listOf (submodule {
+        options = {
+          sourcePort = mkOption {
+            type = types.either types.int (types.strMatching "[[:digit:]]+:[[:digit:]]+");
+            example = 8080;
+            description = "Source port of the external interface; to specify a port range, use a string with a colon (e.g. \"60000:61000\")";
+          };
+
+          destination = mkOption {
+            type = types.str;
+            example = "10.0.0.1:80";
+            description = "Forward connection to destination ip:port; to specify a port range, use ip:start-end";
+          };
+
+          proto = mkOption {
+            type = types.str;
+            default = "tcp";
+            example = "udp";
+            description = "Protocol of forwarded connection";
+          };
+        };
+      });
       default = [];
-      example = [ { sourcePort = 8080; destination = "10.0.0.1:80"; } ];
-      options = {
-        sourcePort = mkOption {
-          type = types.int;
-          example = 8080;
-          description = "Source port of the external interface";
-        };
-
-        destination = mkOption {
-          type = types.str;
-          example = "10.0.0.1:80";
-          description = "Forward tcp connection to destination ip:port";
-        };
-      };
-
+      example = [ { sourcePort = 8080; destination = "10.0.0.1:80"; proto = "tcp"; } ];
       description =
         ''
           List of forwarded ports from the external interface to
           internal destinations by using DNAT.
+        '';
+    };
+
+    networking.nat.dmzHost = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "10.0.0.1";
+      description =
+        ''
+          The local IP address to which all traffic that does not match any
+          forwarding rule is forwarded.
         '';
     };
 
@@ -151,38 +175,41 @@ in
 
   ###### implementation
 
-  config = mkIf config.networking.nat.enable {
+  config = mkMerge [
+    { networking.firewall.extraCommands = mkBefore flushNat; }
+    (mkIf config.networking.nat.enable {
 
-    environment.systemPackages = [ pkgs.iptables ];
+      environment.systemPackages = [ pkgs.iptables ];
 
-    boot = {
-      kernelModules = [ "nf_nat_ftp" ];
-      kernel.sysctl = {
-        "net.ipv4.conf.all.forwarding" = mkOverride 99 true;
-        "net.ipv4.conf.default.forwarding" = mkOverride 99 true;
-      };
-    };
-
-    networking.firewall = mkIf config.networking.firewall.enable {
-      extraCommands = mkMerge [ (mkBefore flushNat) setupNat ];
-      extraStopCommands = flushNat;
-    };
-
-    systemd.services = mkIf (!config.networking.firewall.enable) { nat = {
-      description = "Network Address Translation";
-      wantedBy = [ "network.target" ];
-      after = [ "network-interfaces.target" "systemd-modules-load.service" ];
-      path = [ pkgs.iptables ];
-      unitConfig.ConditionCapability = "CAP_NET_ADMIN";
-
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
+      boot = {
+        kernelModules = [ "nf_nat_ftp" ];
+        kernel.sysctl = {
+          "net.ipv4.conf.all.forwarding" = mkOverride 99 true;
+          "net.ipv4.conf.default.forwarding" = mkOverride 99 true;
+        };
       };
 
-      script = flushNat + setupNat;
+      networking.firewall = mkIf config.networking.firewall.enable {
+        extraCommands = setupNat;
+        extraStopCommands = flushNat;
+      };
 
-      postStop = flushNat;
-    }; };
-  };
+      systemd.services = mkIf (!config.networking.firewall.enable) { nat = {
+        description = "Network Address Translation";
+        wantedBy = [ "network.target" ];
+        after = [ "network-pre.target" "systemd-modules-load.service" ];
+        path = [ pkgs.iptables ];
+        unitConfig.ConditionCapability = "CAP_NET_ADMIN";
+
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+
+        script = flushNat + setupNat;
+
+        postStop = flushNat;
+      }; };
+    })
+  ];
 }

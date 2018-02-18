@@ -1,39 +1,30 @@
-{ stdenv, fetchurl, perl
+{ stdenv, fetchurl, fetchpatch, perl, libiconv, zlib, popt
 , enableACLs ? true, acl ? null
 , enableCopyDevicesPatch ? false
 }:
 
 assert enableACLs -> acl != null;
 
+let
+  base = import ./base.nix { inherit stdenv fetchurl fetchpatch; };
+in
 stdenv.mkDerivation rec {
-  name = "rsync-${version}";
-  version = "3.1.2";
+  name = "rsync-${base.version}";
 
-  mainSrc = fetchurl {
-    # signed with key 0048 C8B0 26D4 C96F 0E58  9C2F 6C85 9FB1 4B96 A8C5
-    url = "mirror://samba/rsync/src/rsync-${version}.tar.gz";
-    sha256 = "1hm1q04hz15509f0p9bflw4d6jzfvpm1d36dxjwihk1wzakn5ypc";
-  };
+  mainSrc = base.src;
 
-  patchesSrc = fetchurl {
-    # signed with key 0048 C8B0 26D4 C96F 0E58  9C2F 6C85 9FB1 4B96 A8C5
-    url = "mirror://samba/rsync/rsync-patches-${version}.tar.gz";
-    sha256 = "09i3dcl37p22dp75vlnsvx7bm05ggafnrf1zwhf2kbij4ngvxvpd";
-  };
+  patchesSrc = base.patches;
 
   srcs = [mainSrc] ++ stdenv.lib.optional enableCopyDevicesPatch patchesSrc;
   patches = stdenv.lib.optional enableCopyDevicesPatch "./patches/copy-devices.diff";
 
-  buildInputs = stdenv.lib.optional enableACLs acl;
+  buildInputs = [libiconv zlib popt] ++ stdenv.lib.optional enableACLs acl;
   nativeBuildInputs = [perl];
 
-  configureFlags = "--with-nobody-group=nogroup";
+  configureFlags = ["--with-nobody-group=nogroup"];
 
-  meta = with stdenv.lib; {
-    homepage = http://rsync.samba.org/;
+  meta = base.meta // {
     description = "A fast incremental file transfer utility";
-    license = licenses.gpl3Plus;
-    platforms = platforms.unix;
-    maintainers = with maintainers; [ simons ehmry ];
+    maintainers = with stdenv.lib.maintainers; [ peti ehmry kampfschlaefer ];
   };
 }

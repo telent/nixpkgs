@@ -1,23 +1,38 @@
-{ stdenv, fetchurl, pkgconfig, glib, fuse }:
+{ stdenv, fetchFromGitHub, meson, pkgconfig, ninja, glib, fuse3
+, buildManPages ? true, docutils
+}:
 
-stdenv.mkDerivation rec {
-  name = "sshfs-fuse-2.5";
-  
-  src = fetchurl {
-    url = "mirror://sourceforge/fuse/${name}.tar.gz";
-    sha256 = "0gp6qr33l2p0964j0kds0dfmvyyf5lpgsn11daf0n5fhwm9185z9";
+let
+  inherit (stdenv.lib) optional;
+in stdenv.mkDerivation rec {
+  version = "3.3.1";
+  name = "sshfs-fuse-${version}";
+
+  src = fetchFromGitHub {
+    owner = "libfuse";
+    repo = "sshfs";
+    rev = "sshfs-${version}";
+    sha256 = "15z1mlad09llckkadvjfzmbv14fbq218xmb4axkmi7kzixbi41hv";
   };
-  
-  buildInputs = [ pkgconfig glib fuse ];
+
+  patches = optional buildManPages ./build-man-pages.patch;
+
+  nativeBuildInputs = [ meson pkgconfig ninja ];
+  buildInputs = [ fuse3 glib ] ++ optional buildManPages docutils;
+
+  NIX_CFLAGS_COMPILE = stdenv.lib.optional
+    (stdenv.system == "i686-linux")
+    "-D_FILE_OFFSET_BITS=64";
+
   postInstall = ''
     mkdir -p $out/sbin
     ln -sf $out/bin/sshfs $out/sbin/mount.sshfs
   '';
 
   meta = with stdenv.lib; {
-    homepage = http://fuse.sourceforge.net/sshfs.html;
+    inherit (src.meta) homepage;
     description = "FUSE-based filesystem that allows remote filesystems to be mounted over SSH";
     platforms = platforms.linux;
-    maintainers = with maintainers; [ jgeerds ];
+    maintainers = with maintainers; [ primeos ];
   };
 }

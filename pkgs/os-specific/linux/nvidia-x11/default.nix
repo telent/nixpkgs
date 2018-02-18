@@ -1,70 +1,74 @@
-{ stdenv, fetchurl, kernel ? null, xorg, zlib, perl
-, gtk, atk, pango, glib, gdk_pixbuf, cairo, nukeReferences
-, # Whether to build the libraries only (i.e. not the kernel module or
-  # nvidia-settings).  Used to support 32-bit binaries on 64-bit
-  # Linux.
-  libsOnly ? false
-}:
-
-with stdenv.lib;
-
-assert (!libsOnly) -> kernel != null;
+{ lib, callPackage, fetchurl, fetchpatch }:
 
 let
+  generic = args: callPackage (import ./generic.nix args) { };
+  kernel = callPackage # a hacky way of extracting parameters from callPackage
+    ({ kernel, libsOnly ? false }: if libsOnly then { } else kernel) { };
 
-  versionNumber = "352.63";
-
-  # Policy: use the highest stable version as the default (on our master).
-  inherit (stdenv.lib) makeLibraryPath;
-
+  maybePatch_drm_legacy =
+    lib.optional (lib.versionOlder "4.14" (kernel.version or "0"))
+      (fetchurl {
+        url = "https://raw.githubusercontent.com/MilhouseVH/LibreELEC.tv/b5d2d6a1"
+            + "/packages/x11/driver/xf86-video-nvidia-legacy/patches/"
+            + "xf86-video-nvidia-legacy-0010-kernel-4.14.patch";
+        sha256 = "18clfpw03g8dxm61bmdkmccyaxir3gnq451z6xqa2ilm3j820aa5";
+      });
 in
-
-stdenv.mkDerivation {
-  name = "nvidia-x11-${versionNumber}${optionalString (!libsOnly) "-${kernel.version}"}";
-
-  builder = ./builder.sh;
-
-  src =
-    if stdenv.system == "i686-linux" then
-      fetchurl {
-        url = "http://us.download.nvidia.com/XFree86/Linux-x86/${versionNumber}/NVIDIA-Linux-x86-${versionNumber}.run";
-        sha256 = "0vxrx2hmycvhyp32mapf1vv01ddlghliwsvkhsg29hv3a7fl4i28";
-      }
-    else if stdenv.system == "x86_64-linux" then
-      fetchurl {
-        url = "http://us.download.nvidia.com/XFree86/Linux-x86_64/${versionNumber}/NVIDIA-Linux-x86_64-${versionNumber}-no-compat32.run";
-        sha256 = "11dgvsygavdsgbgq87d3d2sj3dc85f2yarr71qczkgiqa030yb1k";
-      }
-    else throw "nvidia-x11 does not support platform ${stdenv.system}";
-
-  patches = [ ./nvidia-4.2.patch ];
-
-  inherit versionNumber libsOnly;
-  inherit (stdenv) system;
-
-  kernel = if libsOnly then null else kernel.dev;
-
-  dontStrip = true;
-
-  glPath      = makeLibraryPath [xorg.libXext xorg.libX11 xorg.libXrandr];
-  cudaPath    = makeLibraryPath [zlib stdenv.cc.cc];
-  openclPath  = makeLibraryPath [zlib];
-  allLibPath  = makeLibraryPath [xorg.libXext xorg.libX11 xorg.libXrandr zlib stdenv.cc.cc];
-
-  gtkPath = optionalString (!libsOnly) (makeLibraryPath
-    [ gtk atk pango glib gdk_pixbuf cairo ] );
-  programPath = makeLibraryPath [ xorg.libXv ];
-
-  buildInputs = [ perl nukeReferences ];
-
-  disallowedReferences = if libsOnly then [] else [ kernel.dev ];
-
-  meta = with stdenv.lib.meta; {
-    homepage = http://www.nvidia.com/object/unix.html;
-    description = "X.org driver and kernel module for NVIDIA graphics cards";
-    license = licenses.unfreeRedistributable;
-    platforms = platforms.linux;
-    maintainers = [ maintainers.vcunat ];
-    priority = 4; # resolves collision with xorg-server's "lib/xorg/modules/extensions/libglx.so"
+{
+  # Policy: use the highest stable version as the default (on our master).
+  stable = generic {
+    version = "387.34";
+    sha256_32bit = "1haqk5h1fcmwp7kn9644k280wn409kh0xbivrj1ks8r8f4nbvfmq";
+    sha256_64bit = "06w8dw6hb40ymz6ax7v82j29ihmp3d7yxsi8ah9ch10jldl973z4";
+    settingsSha256 = "0dpm22ggpr93ypz24ap9vgx43ik7lw6cxcb29v8ys2iinhs7zm7s";
+    persistencedSha256 = "02lf9b6j85amc1vr84lj98q74a680nrx4fmpxj17cz597yq8s200";
   };
+
+  beta = generic {
+    version = "381.22";
+    sha256_32bit = "024x3c6hrivg2bkbzv1xd0585hvpa2kbn1y2gwvca7c73kpdczbv";
+    sha256_64bit = "13fj9ndy5rmh410d0vi2b0crfl7rbsm6rn7cwms0frdzkyhshghs";
+    settingsSha256 = "1gls187zfd201b29qfvwvqvl5gvp5wl9lq966vd28crwqh174jrh";
+    persistencedSha256 = "08315rb9l932fgvy758an5vh3jgks0qc4g36xip4l32pkxd9k963";
+  };
+
+
+  legacy_340 = generic {
+    version = "340.104";
+    sha256_32bit = "1l8w95qpxmkw33c4lsf5ar9w2fkhky4x23rlpqvp1j66wbw1b473";
+    sha256_64bit = "18k65gx6jg956zxyfz31xdp914sq3msn665a759bdbryksbk3wds";
+    settingsSha256 = "1vvpqimvld2iyfjgb9wvs7ca0b0f68jzfdpr0icbyxk4vhsq7sxk";
+    persistencedSha256 = "0zqws2vsrxbxhv6z0nn2galnghcsilcn3s0f70bpm6jqj9wzy7x8";
+    useGLVND = false;
+
+    patches = maybePatch_drm_legacy ++ [ ./vm_operations_struct-fault.patch ];
+  };
+
+  legacy_304 = generic {
+    version = "304.137";
+    sha256_32bit = "1y34c2gvmmacxk2c72d4hsysszncgfndc4s1nzldy2q9qagkg66a";
+    sha256_64bit = "1qp3jv6279k83k3z96p6vg3dd35y9bhmlyyyrkii7sib7bdmc7zb";
+    settingsSha256 = "0i5znfq6jkabgi8xpcy12pdpww6a67i8mq60z1kjq36mmnb25pmi";
+    persistencedSha256 = null;
+    useGLVND = false;
+    useProfiles = false;
+
+    prePatch = let
+      debPatches = fetchurl {
+        url = "mirror://debian/pool/non-free/n/nvidia-graphics-drivers-legacy-304xx/"
+            + "nvidia-graphics-drivers-legacy-304xx_304.135-2.debian.tar.xz";
+        sha256 = "0mhji0ssn7075q5a650idigs48kzf11pzj2ca2n07rwxg3vj6pdr";
+      };
+      prefix = "debian/module/debian/patches";
+      applyPatches = pnames: if pnames == [] then null else
+        ''
+          tar xf '${debPatches}'
+          sed 's|^\([+-]\{3\} [ab]\)/|\1/kernel/|' -i ${prefix}/*.patch
+          patches="$patches ${lib.concatMapStringsSep " " (pname: "${prefix}/${pname}.patch") pnames}"
+        '';
+    in applyPatches [ "fix-typos" ];
+    patches = maybePatch_drm_legacy;
+  };
+
+  legacy_173 = callPackage ./legacy173.nix { };
 }

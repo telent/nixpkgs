@@ -1,19 +1,29 @@
-{ composableDerivation, fetchurl, pkgconfig, xlibsWrapper, inputproto, libXi
-, freeglut, mesa, libjpeg, zlib, libXinerama, libXft, libpng }:
+{ stdenv, composableDerivation, fetchurl, pkgconfig, xlibsWrapper, inputproto, libXi
+, freeglut, mesa, libjpeg, zlib, libXinerama, libXft, libpng
+, cfg ? {}
+, darwin, libtiff, freetype
+}:
 
 let inherit (composableDerivation) edf; in
 
-composableDerivation.composableDerivation {} rec {
-  name = "fltk-2.0.x-alpha-r9296";
+let version = "1.3.4"; in
+composableDerivation.composableDerivation {} {
+  name = "fltk-${version}";
 
   src = fetchurl {
-    url = "ftp://ftp.easysw.com/pub/fltk/snapshots/${name}.tar.bz2";
-    sha256 = "0353ngb7gpyklc9mdz8629big2na3c73akfwhis8fhqp7jkbs9ih";
+    url = "http://fltk.org/pub/fltk/${version}/fltk-${version}-source.tar.gz";
+    sha256 = "13y57pnayrkfzm8azdfvysm8b77ysac8zhhdsh8kxmb0x3203ay8";
   };
 
-  propagatedBuildInputs = [ xlibsWrapper inputproto libXi freeglut ];
+  patches = stdenv.lib.optionals stdenv.isDarwin [ ./nsosv.patch ];
 
-  buildInputs = [ pkgconfig ];
+  nativeBuildInputs = [ pkgconfig ];
+  propagatedBuildInputs = [ inputproto ]
+    ++ (if stdenv.isDarwin
+        then (with darwin.apple_sdk.frameworks; [Cocoa AGL GLUT freetype libtiff])
+        else [ xlibsWrapper libXi freeglut ]);
+
+  enableParallelBuilding = true;
 
   flags =
     # this could be tidied up (?).. eg why does it require freeglut without glSupport?
@@ -39,10 +49,14 @@ composableDerivation.composableDerivation {} rec {
     localpngSupport = false;
     sharedSupport = true;
     threadsSupport = true;
-  };
+    xftSupport = true;
+  } // cfg;
 
   meta = {
-    description = "a C++ cross platform lightweight gui library binding";
+    description = "A C++ cross-platform lightweight GUI library";
     homepage = http://www.fltk.org;
+    platforms = stdenv.lib.platforms.linux ++ stdenv.lib.platforms.darwin;
+    license = stdenv.lib.licenses.gpl2;
   };
+
 }

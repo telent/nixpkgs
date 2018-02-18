@@ -1,49 +1,72 @@
-{ stdenv, fetchurl, buildEnv, makeDesktopItem, makeWrapper, zlib, glib, alsaLib
-, dbus, gtk, atk, pango, freetype, fontconfig, libgnome_keyring3, gdk_pixbuf
-, cairo, cups, expat, libgpgerror, nspr, gconf, nss, xorg, libcap, unzip
-, systemd, libnotify
-}:
+{ stdenv, lib, libXScrnSaver, makeWrapper, fetchurl, unzip, atomEnv }:
+
 let
-  atomEnv = buildEnv {
-    name = "env-atom";
-    paths = [
-      stdenv.cc.cc zlib glib dbus gtk atk pango freetype libgnome_keyring3
-      fontconfig gdk_pixbuf cairo cups expat libgpgerror alsaLib nspr gconf nss
-      xorg.libXrender xorg.libX11 xorg.libXext xorg.libXdamage xorg.libXtst
-      xorg.libXcomposite xorg.libXi xorg.libXfixes xorg.libXrandr
-      xorg.libXcursor libcap systemd libnotify
-    ];
-  };
-in stdenv.mkDerivation rec {
+  version = "1.7.9";
   name = "electron-${version}";
-  version = "0.36.2";
-
-  src = fetchurl {
-    url = "https://github.com/atom/electron/releases/download/v${version}/electron-v${version}-linux-x64.zip";
-    sha256 = "01d78j8dfrdygm1r141681b3bfz1f1xqg9vddz7j52z1mlfv9f1d";
-    name = "${name}.zip";
-  };
-
-  buildInputs = [ atomEnv makeWrapper unzip ];
-
-  phases = [ "installPhase" "fixupPhase" ];
-
-  unpackCmd = "unzip";
-
-  installPhase = ''
-    mkdir -p $out/bin
-    unzip -d $out/bin $src
-    patchelf --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
-    $out/bin/electron
-    wrapProgram $out/bin/electron \
-    --prefix "LD_LIBRARY_PATH" : "${atomEnv}/lib:${atomEnv}/lib64"
-  '';
 
   meta = with stdenv.lib; {
     description = "Cross platform desktop application shell";
-    homepage = https://github.com/atom/electron;
+    homepage = https://github.com/electron/electron;
     license = licenses.mit;
     maintainers = [ maintainers.travisbhartwell ];
-    platforms = [ "x86_64-linux" ];
+    platforms = [ "x86_64-darwin" "x86_64-linux" "i686-linux" "armv7l-linux" ];
   };
-}
+
+  linux = {
+    inherit name version meta;
+
+    src = {
+      i686-linux = fetchurl {
+        url = "https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-linux-ia32.zip";
+        sha256 = "0m87n7hqimg93z3m8pa1ggs69f3h5mjrsrrl7x80hxmp3w142krc";
+      };
+      x86_64-linux = fetchurl {
+        url = "https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-linux-x64.zip";
+        sha256 = "17ii0x6326mwjd0x5dj2693r67y0jra88hkqcpddcq08vf1knr2f";
+      };
+      armv7l-linux = fetchurl {
+        url = "https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-linux-armv7l.zip";
+        sha256 = "17jkma50d6az8dbyrym8z2lsw2n0r6jhdlm8pb5c928bzgshryqm";
+      };
+    }.${stdenv.system};
+
+    buildInputs = [ unzip makeWrapper ];
+
+    buildCommand = ''
+      mkdir -p $out/lib/electron $out/bin
+      unzip -d $out/lib/electron $src
+      ln -s $out/lib/electron/electron $out/bin
+
+      fixupPhase
+
+      patchelf \
+        --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
+        --set-rpath "${atomEnv.libPath}:$out/lib/electron" \
+        $out/lib/electron/electron
+
+      wrapProgram $out/lib/electron/electron \
+        --prefix LD_PRELOAD : ${stdenv.lib.makeLibraryPath [ libXScrnSaver ]}/libXss.so.1
+    '';
+  };
+
+  darwin = {
+    inherit name version meta;
+
+    src = fetchurl {
+      url = "https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-darwin-x64.zip";
+      sha256 = "1s8kslp101xyaffb3rf8p5cw3p6zij2mn19fa68ykx4naykkwaly";
+    };
+
+    buildInputs = [ unzip ];
+
+    buildCommand = ''
+      mkdir -p $out/Applications
+      unzip $src
+      mv Electron.app $out/Applications
+      mkdir -p $out/bin
+      ln -s $out/Applications/Electron.app/Contents/MacOs/Electron $out/bin/electron
+    '';
+  };
+in
+
+  stdenv.mkDerivation (if stdenv.isDarwin then darwin else linux)

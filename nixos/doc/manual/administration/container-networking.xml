@@ -13,7 +13,7 @@ create</literal>, it gets it own private IPv4 address in the range
 address as follows:
 
 <screen>
-$ nixos-container show-ip foo
+# nixos-container show-ip foo
 10.233.4.2
 
 $ ping -c1 10.233.4.2
@@ -46,5 +46,13 @@ networking.nat.externalInterface = "eth0";
 where <literal>eth0</literal> should be replaced with the desired
 external interface. Note that <literal>ve-+</literal> is a wildcard
 that matches all container interfaces.</para>
+
+<para>If you are using Network Manager, you need to explicitly prevent
+it from managing container interfaces:
+
+<programlisting>
+networking.networkmanager.unmanaged = [ "interface-name:ve-*" ];
+</programlisting>
+</para>
 
 </section>

@@ -2,21 +2,23 @@
 , gsettings_desktop_schemas }:
 
 let
-  ver_maj = "2.44";
-  ver_min = "0";
+  ver_maj = "2.54";
+  ver_min = "1";
 in
 stdenv.mkDerivation rec {
   name = "glib-networking-${ver_maj}.${ver_min}";
 
   src = fetchurl {
     url = "mirror://gnome/sources/glib-networking/${ver_maj}/${name}.tar.xz";
-    sha256 = "8f8a340d3ba99bfdef38b653da929652ea6640e27969d29f7ac51fbbe11a4346";
+    sha256 = "0bq16m9nh3gcz9x2fvygr0iwxd2pxcbrm3lj3kihsnh1afv8g9za";
   };
+
+  outputs = [ "out" "dev" ]; # to deal with propagatedBuildInputs
 
   configureFlags = "--with-ca-certificates=/etc/ssl/certs/ca-certificates.crt";
 
   preBuild = ''
-    sed -e "s@${glib}/lib/gio/modules@$out/lib/gio/modules@g" -i $(find . -name Makefile)
+    sed -e "s@${glib.out}/lib/gio/modules@$out/lib/gio/modules@g" -i $(find . -name Makefile)
   '';
 
   nativeBuildInputs = [ pkgconfig intltool ];

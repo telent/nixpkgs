@@ -1,6 +1,6 @@
-{ stdenv, buildEnv, fetchgit, fetchurl, makeWrapper, bundlerEnv, bundler_HEAD
+{ stdenv, fetchgit, fetchurl, makeWrapper, bundlerEnv, bundler
 , ruby, libxslt, libxml2, sqlite, openssl, docker
-, dataDir ? "/var/lib/panamax-api" }:
+, dataDir ? "/var/lib/panamax-api" }@args:
 
 with stdenv.lib;
 
@@ -11,12 +11,10 @@ stdenv.mkDerivation rec {
   env = bundlerEnv {
     name = "panamax-api-gems-${version}";
     inherit ruby;
-    gemset = ./gemset.nix;
-    gemfile = ./Gemfile;
-    lockfile = ./Gemfile.lock;
-    buildInputs = [ openssl ];
+    gemdir = ./.;
   };
-  bundler = bundler_HEAD.override { inherit ruby; };
+
+  bundler = args.bundler.override { inherit ruby; };
 
   database_yml = builtins.toFile "database.yml" ''
     production:
@@ -28,7 +26,7 @@ stdenv.mkDerivation rec {
   src = fetchgit {
     rev = "refs/tags/v${version}";
     url = "git://github.com/CenturyLinkLabs/panamax-api";
-    sha256 = "1g75y25asj33gcczpb9iwnk6f7afm1xjqyw803rr3y2h7dm6jivy";
+    sha256 = "0dqg0fbmy5cgjh0ql8yqlybhjyyrslgghjrc24wjhd1rghjn2qi6";
   };
 
   buildInputs = [ makeWrapper sqlite openssl env.ruby bundler ];
@@ -62,7 +60,6 @@ stdenv.mkDerivation rec {
       --prefix "PATH" : "$out/share/panamax-api/bin:${env.ruby}/bin:$PATH" \
       --prefix "HOME" : "$out/share/panamax-api" \
       --prefix "GEM_HOME" : "${env}/${env.ruby.gemPath}" \
-      --prefix "SSL_CERT_FILE" : /etc/ssl/certs/ca-certificates.crt \
       --prefix "GEM_PATH" : "$out/share/panamax-api:${bundler}/${env.ruby.gemPath}"
   '';
 

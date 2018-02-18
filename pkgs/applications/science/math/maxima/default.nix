@@ -1,22 +1,25 @@
-{ stdenv, fetchurl, sbcl, texinfo, perl, makeWrapper, rlwrap ? null, tk ? null, gnuplot ? null }:
+{ stdenv, fetchurl, sbcl, texinfo, perl, python, makeWrapper, rlwrap ? null,
+tk ? null, gnuplot ? null, ecl ? null, ecl-fasl ? false
+}:
 
 let
   name    = "maxima";
-  version = "5.36.1";
+  version = "5.41.0";
 
   searchPath =
-    stdenv.lib.makeSearchPath "bin"
-      (stdenv.lib.filter (x: x != null) [ sbcl rlwrap tk gnuplot ]);
+    stdenv.lib.makeBinPath
+      (stdenv.lib.filter (x: x != null) [ sbcl ecl rlwrap tk gnuplot ]);
 in
-stdenv.mkDerivation {
+stdenv.mkDerivation ({
   name = "${name}-${version}";
 
   src = fetchurl {
     url = "mirror://sourceforge/${name}/${name}-${version}.tar.gz";
-    sha256 = "0x1rk659sn3cq0n5c90848ilzr1gb1wf0072fl6jhkdq00qgh2s0";
+    sha256 = "0x0n81z0s4pl8nwpf7ivlsbvsdphm9w42250g7qdkizl0132by6s";
   };
 
-  buildInputs = [sbcl texinfo perl makeWrapper];
+  buildInputs = stdenv.lib.filter (x: x != null)
+    [sbcl ecl texinfo perl python makeWrapper];
 
   postInstall = ''
     # Make sure that maxima can find its runtime dependencies.
@@ -27,7 +30,11 @@ stdenv.mkDerivation {
     mkdir -p $out/share/emacs $out/share/doc
     ln -s ../maxima/${version}/emacs $out/share/emacs/site-lisp
     ln -s ../maxima/${version}/doc $out/share/doc/maxima
-  '';
+  ''
+   + (stdenv.lib.optionalString ecl-fasl ''
+     cp src/binary-ecl/maxima.fas* "$out/lib/maxima/${version}/binary-ecl/"
+   '')
+  ;
 
   # Failures in the regression test suite won't abort the build process. We run
   # the suite only so that potential errors show up in the build log. See also:
@@ -38,7 +45,7 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Computer algebra system";
-    homepage = "http://maxima.sourceforge.net";
+    homepage = http://maxima.sourceforge.net;
     license = stdenv.lib.licenses.gpl2;
 
     longDescription = ''
@@ -49,6 +56,11 @@ stdenv.mkDerivation {
     '';
 
     platforms = stdenv.lib.platforms.unix;
-    maintainers = [ stdenv.lib.maintainers.simons ];
+    maintainers = [ stdenv.lib.maintainers.peti ];
+    broken = ecl != null;
   };
-}
+} // (stdenv.lib.optionalAttrs ecl-fasl {
+  preConfigure = ''
+    sed -e '/c::build-program "binary-ecl\/maxima"/i(c::build-fasl "binary-ecl\/maxima.fasl" :lisp-files obj :ld-flags (let ((x (symbol-value (find-symbol "*AUTOCONF-LD-FLAGS*" (find-package "MAXIMA"))))) (if (and x (not (string= x ""))) (list x))))' -i src/maxima.system
+  '';
+}))

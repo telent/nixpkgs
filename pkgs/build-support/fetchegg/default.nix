@@ -4,25 +4,22 @@
 { stdenv, chicken }:
 { name, version, md5 ? "", sha256 ? "" }:
 
+if md5 != "" then
+  throw "fetchegg does not support md5 anymore, please use sha256"
+else
 stdenv.mkDerivation {
   name = "chicken-${name}-export";
   builder = ./builder.sh;
   buildInputs = [ chicken ];
 
-  outputHashAlgo = if sha256 == "" then "md5" else "sha256";
+  outputHashAlgo = "sha256";
   outputHashMode = "recursive";
-  outputHash = if sha256 == "" then md5 else sha256;
+  outputHash = sha256;
 
   inherit version;
 
   eggName = name;
 
-  impureEnvVars = [
-    # We borrow these environment variables from the caller to allow
-    # easy proxy configuration.  This is impure, but a fixed-output
-    # derivation like fetchurl is allowed to do so since its result is
-    # by definition pure.
-    "http_proxy" "https_proxy" "ftp_proxy" "all_proxy" "no_proxy"
-  ];
+  impureEnvVars = stdenv.lib.fetchers.proxyImpureEnvVars;
 }
 

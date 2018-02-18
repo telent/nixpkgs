@@ -1,16 +1,18 @@
-{ stdenv, fetchurl, gdk_pixbuf, scons, pkgconfig, gtk, glib,
-  pcre, cfitsio, perl, gob2, vala, libtiff, json_glib }:
+{ stdenv, fetchFromGitHub, gdk_pixbuf, scons, pkgconfig, gtk2, glib,
+  pcre, cfitsio, perl, gob2, vala_0_23, libtiff, json_glib }:
 
 stdenv.mkDerivation rec {
-  name = "giv-0.9.22";
+  name = "giv-${version}";
+  version = "0.9.26";
 
-  src = fetchurl {
-    url = "mirror://sourceforge/giv/${name}.tar.gz";
-    sha256 = "1q0806b66ajppxbv1i71wx5d3ydc1h3hsz23m6g4g80dhiai7dly";
+  src = fetchFromGitHub {
+    owner = "dov";
+    repo = "giv";
+    rev = "v${version}";
+    sha256 = "1sfm8j3hvqij6z3h8xz724d7hjqqbzljl2a6pp4yjpnnrxksnic2";
   };
 
-  # It built code to be put in a shared object without -fPIC
-  NIX_CFLAGS_COMPILE = "-fPIC";
+  hardeningDisable = [ "format" ];
 
   prePatch = ''
     sed -i s,/usr/bin/perl,${perl}/bin/perl, doc/eperl
@@ -23,7 +25,8 @@ stdenv.mkDerivation rec {
 
   installPhase = "scons install";
 
-  buildInputs = [ gdk_pixbuf pkgconfig gtk glib scons pcre cfitsio perl gob2 vala libtiff
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ gdk_pixbuf gtk2 glib scons pcre cfitsio perl gob2 vala_0_23 libtiff
     json_glib ];
 
   meta = {

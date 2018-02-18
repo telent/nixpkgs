@@ -3,7 +3,7 @@
 # the modules necessary to mount the root file system, then calls the
 # init in the root file system to start the second boot stage.
 
-{ config, lib, pkgs, ... }:
+{ config, lib, utils, pkgs, ... }:
 
 with lib;
 
@@ -23,15 +23,20 @@ let
   };
 
 
+  # The initrd only has to mount `/` or any FS marked as necessary for
+  # booting (such as the FS containing `/nix/store`, or an FS needed for
+  # mounting `/`, like `/` on a loopback).
+  fileSystems = filter utils.fsNeededForBoot config.system.build.fileSystems;
+
+
   # Some additional utilities needed in stage 1, like mount, lvm, fsck
   # etc.  We don't want to bring in all of those packages, so we just
   # copy what we need.  Instead of using statically linked binaries,
   # we just copy what we need from Glibc and use patchelf to make it
   # work.
-  extraUtils = pkgs.runCommand "extra-utils"
+  extraUtils = pkgs.runCommandCC "extra-utils"
     { buildInputs = [pkgs.nukeReferences];
       allowedReferences = [ "out" ]; # prevent accidents like glibc being included in the initrd
-      doublePatchelf = pkgs.stdenv.isArm;
     }
     ''
       set +o pipefail
@@ -58,6 +63,7 @@ let
 
       # Add RAID mdadm tool.
       copy_bin_and_libs ${pkgs.mdadm}/sbin/mdadm
+      copy_bin_and_libs ${pkgs.mdadm}/sbin/mdmon
 
       # Copy udev.
       copy_bin_and_libs ${udev}/lib/systemd/systemd-udevd
@@ -71,31 +77,38 @@ let
       ln -sf kmod $out/bin/modprobe
 
       # Copy resize2fs if needed.
-      ${optionalString (any (fs: fs.autoResize) (attrValues config.fileSystems)) ''
+      ${optionalString (any (fs: fs.autoResize) fileSystems) ''
         # We need mke2fs in the initrd.
         copy_bin_and_libs ${pkgs.e2fsprogs}/sbin/resize2fs
       ''}
 
+      # Copy secrets if needed.
+      ${optionalString (!config.boot.loader.supportsInitrdSecrets)
+          (concatStringsSep "\n" (mapAttrsToList (dest: source:
+             let source' = if source == null then dest else source; in
+               ''
+                  mkdir -p $(dirname "$out/secrets/${dest}")
+                  cp -a ${source'} "$out/secrets/${dest}"
+                ''
+          ) config.boot.initrd.secrets))
+       }
+
       ${config.boot.initrd.extraUtilsCommands}
 
       # Copy ld manually since it isn't detected correctly
-      cp -pv ${pkgs.glibc}/lib/ld*.so.? $out/lib
+      cp -pv ${pkgs.glibc.out}/lib/ld*.so.? $out/lib
 
-      # Copy all of the needed libraries for the binaries
-      for BIN in $(find $out/{bin,sbin} -type f); do
-        echo "Copying libs for bin $BIN"
+      # Copy all of the needed libraries
+      find $out/bin $out/lib -type f | while read BIN; do
+        echo "Copying libs for executable $BIN"
         LDD="$(ldd $BIN)" || continue
         LIBS="$(echo "$LDD" | awk '{print $3}' | sed '/^$/d')"
         for LIB in $LIBS; do
-          [ ! -f "$out/lib/$(basename $LIB)" ] && cp -pdv $LIB $out/lib
-          while [ "$(readlink $LIB)" != "" ]; do
-            LINK="$(readlink $LIB)"
-            if [ "${LINK:0:1}" != "/" ]; then
-              LINK="$(dirname $LIB)/$LINK"
-            fi
-            LIB="$LINK"
-            [ ! -f "$out/lib/$(basename $LIB)" ] && cp -pdv $LIB $out/lib
-          done
+          TGT="$out/lib/$(basename $LIB)"
+          if [ ! -f "$TGT" ]; then
+            SRC="$(readlink -e $LIB)"
+            cp -pdv "$SRC" "$TGT"
+          fi
         done
       done
 
@@ -104,16 +117,17 @@ let
       stripDirs "lib bin" "-s"
 
       # Run patchelf to make the programs refer to the copied libraries.
-      for i in $out/bin/* $out/lib/*; do if ! test -L $i; then nuke-refs -e $out $i; fi; done
+      find $out/bin $out/lib -type f | while read i; do
+        if ! test -L $i; then
+          nuke-refs -e $out $i
+        fi
+      done
 
-      for i in $out/bin/*; do
-          if ! test -L $i; then
-              echo "patching $i..."
-              patchelf --set-interpreter $out/lib/ld*.so.? --set-rpath $out/lib $i || true
-              if [ -n "$doublePatchelf" ]; then
-                  patchelf --set-interpreter $out/lib/ld*.so.? --set-rpath $out/lib $i || true
-              fi
-          fi
+      find $out/bin -type f | while read i; do
+        if ! test -L $i; then
+          echo "patching $i..."
+          patchelf --set-interpreter $out/lib/ld*.so.? --set-rpath $out/lib $i || true
+        fi
       done
 
       # Make sure that the patchelf'ed binaries still work.
@@ -121,7 +135,7 @@ let
       $out/bin/ash -c 'echo hello world' | grep "hello world"
       export LD_LIBRARY_PATH=$out/lib
       $out/bin/mount --help 2>&1 | grep -q "BusyBox"
-      $out/bin/blkid --help 2>&1 | grep -q 'libblkid'
+      $out/bin/blkid -V 2>&1 | grep -q 'libblkid'
       $out/bin/udevadm --version
       $out/bin/dmsetup --version 2>&1 | tee -a log | grep -q "version:"
       LVM_SYSTEM_DIR=$out $out/bin/lvm version 2>&1 | tee -a log | grep -q "LVM"
@@ -131,17 +145,9 @@ let
     ''; # */
 
 
-  # The initrd only has to mount / or any FS marked as necessary for
-  # booting (such as the FS containing /nix/store, or an FS needed for
-  # mounting /, like / on a loopback).
-  fileSystems = filter
-    (fs: fs.neededForBoot || elem fs.mountPoint [ "/" "/nix" "/nix/store" "/var" "/var/log" "/var/lib" "/etc" ])
-    (attrValues config.fileSystems);
-
-
-  udevRules = pkgs.stdenv.mkDerivation {
-    name = "udev-rules";
-    buildCommand = ''
+  udevRules = pkgs.runCommand "udev-rules"
+    { allowedReferences = [ extraUtils ]; }
+    ''
       mkdir -p $out
 
       echo 'ENV{LD_LIBRARY_PATH}="${extraUtils}/lib"' > $out/00-env.rules
@@ -161,7 +167,10 @@ let
             --replace /sbin/blkid ${extraUtils}/bin/blkid \
             --replace ${pkgs.lvm2}/sbin ${extraUtils}/bin \
             --replace /sbin/mdadm ${extraUtils}/bin/mdadm \
-            --replace /bin/sh ${extraUtils}/bin/sh
+            --replace ${pkgs.bash}/bin/sh ${extraUtils}/bin/sh \
+            --replace /usr/bin/readlink ${extraUtils}/bin/readlink \
+            --replace /usr/bin/basename ${extraUtils}/bin/basename \
+            --replace ${udev}/bin/udevadm ${extraUtils}/bin/udevadm
       done
 
       # Work around a bug in QEMU, which doesn't implement the "READ
@@ -177,16 +186,6 @@ let
       substituteInPlace $out/60-persistent-storage.rules \
         --replace ID_CDROM_MEDIA_TRACK_COUNT_DATA ID_CDROM_MEDIA
     ''; # */
-  };
-
-
-  # The binary keymap for busybox to load at boot.
-  busyboxKeymap = pkgs.runCommand "boottime-keymap"
-    { preferLocalBuild = true; }
-    ''
-      ${pkgs.kbd}/bin/loadkeys -qb "${config.i18n.consoleKeyMap}" > $out ||
-        ${pkgs.kbd}/bin/loadkeys -qbu "${config.i18n.consoleKeyMap}" > $out
-    '';
 
 
   # The init script of boot stage 1 (loading kernel modules for
@@ -198,18 +197,23 @@ let
 
     isExecutable = true;
 
-    inherit udevRules extraUtils modulesClosure busyboxKeymap;
+    inherit udevRules extraUtils modulesClosure;
 
-    inherit (config.boot) resumeDevice devSize runSize;
+    inherit (config.boot) resumeDevice;
+
+    inherit (config.system.build) earlyMountScript;
 
     inherit (config.boot.initrd) checkJournalingFS
-      preLVMCommands preDeviceCommands postEarlyDeviceCommands postDeviceCommands postMountCommands kernelModules;
+      preLVMCommands preDeviceCommands postDeviceCommands postMountCommands preFailCommands kernelModules;
 
     resumeDevices = map (sd: if sd ? device then sd.device else "/dev/disk/by-label/${sd.label}")
-                    (filter (sd: (sd ? label || hasPrefix "/dev/" sd.device) && !sd.randomEncryption) config.swapDevices);
+                    (filter (sd: hasPrefix "/dev/" sd.device && !sd.randomEncryption.enable
+                             # Don't include zram devices
+                             && !(hasPrefix "/dev/zram" sd.device)
+                            ) config.swapDevices);
 
     fsInfo =
-      let f = fs: [ fs.mountPoint (if fs.device != null then fs.device else "/dev/disk/by-label/${fs.label}") fs.fsType fs.options ];
+      let f = fs: [ fs.mountPoint (if fs.device != null then fs.device else "/dev/disk/by-label/${fs.label}") fs.fsType (builtins.concatStringsSep "," fs.options) ];
       in pkgs.writeText "initrd-fsinfo" (concatStringsSep "\n" (concatMap f fileSystems));
 
     setHostId = optionalString (config.networking.hostId != null) ''
@@ -235,16 +239,12 @@ let
         { object = pkgs.writeText "mdadm.conf" config.boot.initrd.mdadmConf;
           symlink = "/etc/mdadm.conf";
         }
-        { object = pkgs.stdenv.mkDerivation {
-            name = "initrd-kmod-blacklist-ubuntu";
-            builder = pkgs.writeText "builder.sh" ''
-              source $stdenv/setup
+        { object = pkgs.runCommand "initrd-kmod-blacklist-ubuntu"
+            { src = "${pkgs.kmod-blacklist-ubuntu}/modprobe.conf"; }
+            ''
               target=$out
-
               ${pkgs.perl}/bin/perl -0pe 's/## file: iwlwifi.conf(.+?)##/##/s;' $src > $out
             '';
-            src = "${pkgs.kmod-blacklist-ubuntu}/modprobe.conf";
-          };
           symlink = "/etc/modprobe.d/ubuntu.conf";
         }
         { object = pkgs.kmod-debian-aliases;
@@ -252,6 +252,52 @@ let
         }
       ];
   };
+
+  # Script to add secret files to the initrd at bootloader update time
+  initialRamdiskSecretAppender =
+    pkgs.writeScriptBin "append-initrd-secrets"
+      ''
+        #!${pkgs.bash}/bin/bash -e
+        function usage {
+          echo "USAGE: $0 INITRD_FILE" >&2
+          echo "Appends this configuration's secrets to INITRD_FILE" >&2
+        }
+
+        if [ $# -ne 1 ]; then
+          usage
+          exit 1
+        fi
+
+        if [ "$1"x = "--helpx" ]; then
+          usage
+          exit 0
+        fi
+
+        ${lib.optionalString (config.boot.initrd.secrets == {})
+            "exit 0"}
+
+        export PATH=${pkgs.coreutils}/bin:${pkgs.cpio}/bin:${pkgs.gzip}/bin:${pkgs.findutils}/bin
+
+        function cleanup {
+          if [ -n "$tmp" -a -d "$tmp" ]; then
+            rm -fR "$tmp"
+          fi
+        }
+        trap cleanup EXIT
+
+        tmp=$(mktemp -d initrd-secrets.XXXXXXXXXX)
+
+        ${lib.concatStringsSep "\n" (mapAttrsToList (dest: source:
+            let source' = if source == null then dest else toString source; in
+              ''
+                mkdir -p $(dirname "$tmp/${dest}")
+                cp -a ${source'} "$tmp/${dest}"
+              ''
+          ) config.boot.initrd.secrets)
+         }
+
+        (cd "$tmp" && find . | cpio -H newc -o) | gzip >>"$1"
+      '';
 
 in
 
@@ -322,20 +368,20 @@ in
       '';
     };
 
-    boot.initrd.postEarlyDeviceCommands = mkOption {
-      default = "";
-      type = types.lines;
-      description = ''
-        Shell commands to be executed early after creation of device nodes.
-      '';
-    };
-
     boot.initrd.postMountCommands = mkOption {
       default = "";
       type = types.lines;
       description = ''
         Shell commands to be executed immediately after the stage 1
         filesystems have been mounted.
+      '';
+    };
+
+    boot.initrd.preFailCommands = mkOption {
+      default = "";
+      type = types.lines;
+      description = ''
+        Shell commands to be executed before the failure prompt is shown.
       '';
     };
 
@@ -381,12 +427,43 @@ in
       example = "xz";
     };
 
+    boot.initrd.secrets = mkOption
+      { internal = true;
+        default = {};
+        type = types.attrsOf (types.nullOr types.path);
+        description =
+          ''
+            Secrets to append to the initrd. The attribute name is the
+            path the secret should have inside the initrd, the value
+            is the path it should be copied from (or null for the same
+            path inside and out).
+          '';
+        example = literalExample
+          ''
+            { "/etc/dropbear/dropbear_rsa_host_key" =
+                ./secret-dropbear-key;
+            }
+          '';
+      };
+
     boot.initrd.supportedFilesystems = mkOption {
       default = [ ];
       example = [ "btrfs" ];
       type = types.listOf types.str;
       description = "Names of supported filesystem types in the initial ramdisk.";
     };
+
+    boot.loader.supportsInitrdSecrets = mkOption
+      { internal = true;
+        default = false;
+        type = types.bool;
+        description =
+          ''
+            Whether the bootloader setup runs append-initrd-secrets.
+            If not, any needed secrets must be copied into the initrd
+            and thus added to the store.
+          '';
+      };
 
     fileSystems = mkOption {
       options.neededForBoot = mkOption {
@@ -404,9 +481,8 @@ in
   };
 
   config = mkIf (!config.boot.isContainer) {
-
     assertions = [
-      { assertion = any (fs: fs.mountPoint == "/") (attrValues config.fileSystems);
+      { assertion = any (fs: fs.mountPoint == "/") fileSystems;
         message = "The ‘fileSystems’ option does not specify your root file system.";
       }
       { assertion = let inherit (config.boot) resumeDevice; in
@@ -416,9 +492,8 @@ in
       }
     ];
 
-    system.build.bootStage1 = bootStage1;
-    system.build.initialRamdisk = initialRamdisk;
-    system.build.extraUtils = extraUtils;
+    system.build =
+      { inherit bootStage1 initialRamdisk initialRamdiskSecretAppender extraUtils; };
 
     system.requiredKernelConfig = with config.lib.kernelConfig; [
       (isYes "TMPFS")

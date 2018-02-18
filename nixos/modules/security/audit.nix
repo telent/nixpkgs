@@ -4,12 +4,20 @@ with lib;
 
 let
   cfg = config.security.audit;
+  enabled = cfg.enable == "lock" || cfg.enable;
 
   failureModes = {
     silent = 0;
     printk = 1;
     panic  = 2;
   };
+
+  disableScript = pkgs.writeScript "audit-disable" ''
+    #!${pkgs.stdenv.shell} -eu
+    # Explicitly disable everything, as otherwise journald might start it.
+    auditctl -D
+    auditctl -e 0 -a task,never
+  '';
 
   # TODO: it seems like people like their rules to be somewhat secret, yet they will not be if
   # put in the store like this. At the same time, it doesn't feel like a huge deal and working
@@ -47,7 +55,7 @@ in {
     security.audit = {
       enable = mkOption {
         type        = types.enum [ false true "lock" ];
-        default     = true; # The kernel seems to enable it by default with no rules anyway
+        default     = false;
         description = ''
           Whether to enable the Linux audit system. The special `lock' value can be used to
           enable auditing and prevent disabling it until a restart. Be careful about locking
@@ -91,18 +99,24 @@ in {
     };
   };
 
-  config = mkIf (cfg.enable == "lock" || cfg.enable) {
+  config = {
     systemd.services.audit = {
-      description = "pseudo-service representing the kernel audit state";
+      description = "Kernel Auditing";
       wantedBy = [ "basic.target" ];
+
+      unitConfig = {
+        ConditionVirtualization = "!container";
+        ConditionSecurity = [ "audit" ];
+      };
+
 
       path = [ pkgs.audit ];
 
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        ExecStart = "@${startScript} audit-start";
-        ExecStop  = "@${stopScript}  audit-stop";
+        ExecStart = "@${if enabled then startScript else disableScript} audit-start";
+        ExecStop  = "@${stopScript} audit-stop";
       };
     };
   };

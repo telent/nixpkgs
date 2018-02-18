@@ -1,8 +1,8 @@
-{ stdenv, fetchurl, libgcrypt, libnl, pkgconfig, pythonPackages, wireless-regdb }:
+{ stdenv, fetchurl, libgcrypt, libnl, pkgconfig, python2Packages, wireless-regdb }:
 
-let version = "3.18"; in
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "crda-${version}";
+  version = "3.18";
 
   src = fetchurl {
     sha256 = "1gydiqgb08d9gbx4l6gv98zg3pljc984m50hmn3ysxcbkxkvkz23";
@@ -11,7 +11,7 @@ stdenv.mkDerivation {
 
   buildInputs = [ libgcrypt libnl ];
   nativeBuildInputs = [
-    pkgconfig pythonPackages.m2crypto pythonPackages.python
+    pkgconfig python2Packages.m2crypto python2Packages.python
   ];
 
   postPatch = ''
@@ -29,6 +29,8 @@ stdenv.mkDerivation {
     "REG_BIN=${wireless-regdb}/lib/crda/regulatory.bin"
   ];
 
+  NIX_CFLAGS_COMPILE = "-Wno-error=unused-const-variable";
+
   buildFlags = [ "all_noverify" ];
   enableParallelBuilding = true;
 
@@ -36,12 +38,17 @@ stdenv.mkDerivation {
   checkTarget = "verify";
 
   meta = with stdenv.lib; {
-    inherit version;
     description = "Linux wireless Central Regulatory Domain Agent";
     longDescription = ''
       CRDA acts as the udev helper for communication between the kernel and
       userspace for regulatory compliance. It relies on nl80211 for communication.
+
       CRDA is intended to be run only through udev communication from the kernel.
+      To use it under NixOS, add
+
+        services.udev.packages = [ pkgs.crda ];
+
+      to the system configuration.
     '';
     homepage = http://drvbp1.linux-foundation.org/~mcgrof/rel-html/crda/;
     license = licenses.free; # "copyleft-next 0.3.0", as yet without a web site

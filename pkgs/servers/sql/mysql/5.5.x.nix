@@ -1,14 +1,15 @@
-{ stdenv, fetchurl, cmake, bison, ncurses, openssl, readline, zlib, perl }:
+{ stdenv, fetchurl, cmake, bison, ncurses, openssl, readline, zlib, perl
+, cctools, CoreServices }:
 
 # Note: zlib is not required; MySQL can use an internal zlib.
 
 stdenv.mkDerivation rec {
   name = "mysql-${version}";
-  version = "5.5.45";
+  version = "5.5.58";
 
   src = fetchurl {
     url = "mirror://mysql/MySQL-5.5/${name}.tar.gz";
-    sha256 = "0clkr3r44j8nsgmjzv6r09pb0vjangn5hpyjxgg5ynr674ygskkl";
+    sha256 = "1f890376ld1qapl038sjh2ialdizys3sj96vfn4mqmb1ybx14scv";
   };
 
   patches = if stdenv.isCygwin then [
@@ -22,7 +23,7 @@ stdenv.mkDerivation rec {
   '';
 
   buildInputs = [ cmake bison ncurses openssl readline zlib ]
-     ++ stdenv.lib.optional stdenv.isDarwin perl;
+     ++ stdenv.lib.optionals stdenv.isDarwin [ perl cctools CoreServices ];
 
   enableParallelBuilding = true;
 
@@ -63,5 +64,6 @@ stdenv.mkDerivation rec {
   meta = {
     homepage = http://www.mysql.com/;
     description = "The world's most popular open source database";
+    platforms = stdenv.lib.platforms.unix;
   };
 }

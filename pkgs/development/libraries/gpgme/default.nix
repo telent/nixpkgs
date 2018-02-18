@@ -1,34 +1,47 @@
-{ stdenv, fetchurl, libgpgerror, gnupg, pkgconfig, glib, pth, libassuan
-, useGnupg1 ? false, gnupg1 ? null }:
+{ stdenv, fetchurl, fetchpatch, libgpgerror, gnupg, pkgconfig, glib, pth, libassuan
+, qtbase ? null }:
 
-assert useGnupg1 -> gnupg1 != null;
-assert !useGnupg1 -> gnupg != null;
+let inherit (stdenv) lib system; in
 
-let
-  gpgPath = if useGnupg1 then
-    "${gnupg1}/bin/gpg"
-  else
-    "${gnupg}/bin/gpg2";
-in
 stdenv.mkDerivation rec {
-  name = "gpgme-1.6.0";
+  name = "gpgme-1.10.0";
 
   src = fetchurl {
     url = "mirror://gnupg/gpgme/${name}.tar.bz2";
-    sha256 = "17892sclz3yg45wbyqqrzzpq3l0icbnfl28f101b3062g8cy97dh";
+    sha256 = "14q619lxbk64vz7lih5gjb928qm28jrnn1h3yhsrrff3jw8yv3qs";
   };
 
-  propagatedBuildInputs = [ libgpgerror glib libassuan pth ];
+  outputs = [ "out" "dev" "info" ];
+  outputBin = "dev"; # gpgme-config; not so sure about gpgme-tool
+
+  propagatedBuildInputs =
+    [ libgpgerror glib libassuan pth ]
+    ++ lib.optional (qtbase != null) qtbase;
 
   nativeBuildInputs = [ pkgconfig gnupg ];
 
-  configureFlags = "--with-gpg=${gpgPath}";
+  configureFlags = [
+    "--enable-fixed-path=${gnupg}/bin"
+  ];
 
-  meta = {
-    homepage = "http://www.gnupg.org/related_software/gpgme";
+  NIX_CFLAGS_COMPILE =
+    # qgpgme uses Q_ASSERT which retains build inputs at runtime unless
+    # debugging is disabled
+    lib.optional (qtbase != null) "-DQT_NO_DEBUG"
+    # https://www.gnupg.org/documentation/manuals/gpgme/Largefile-Support-_0028LFS_0029.html
+    ++ lib.optional (system == "i686-linux") "-D_FILE_OFFSET_BITS=64";
+
+  meta = with stdenv.lib; {
+    homepage = https://gnupg.org/software/gpgme/index.html;
     description = "Library for making GnuPG easier to use";
-    license = stdenv.lib.licenses.gpl2;
-    platforms = stdenv.lib.platforms.unix;
-    maintainers = with stdenv.lib.maintainers; [ fuuzetsu ];
+    longDescription = ''
+      GnuPG Made Easy (GPGME) is a library designed to make access to GnuPG
+      easier for applications. It provides a High-Level Crypto API for
+      encryption, decryption, signing, signature verification and key
+      management.
+    '';
+    license = with licenses; [ lgpl21Plus gpl3Plus ];
+    platforms = platforms.unix;
+    maintainers = with maintainers; [ fuuzetsu primeos ];
   };
 }

@@ -1,14 +1,16 @@
 { stdenv, fetchurl }:
 
 stdenv.mkDerivation rec {
-  name = "xz-5.2.2";
+  name = "xz-5.2.3";
 
   src = fetchurl {
     url = "http://tukaani.org/xz/${name}.tar.bz2";
-    sha256 = "1da071wyx921pyx3zkxlnbpp14p6km98pnp66mg1arwi9dxgbxbg";
+    sha256 = "1ha08wxcldgcl81021x5nhknr47s1p95ljfkka4sqah5w5ns377x";
   };
 
-  doCheck = true;
+  outputs = [ "bin" "dev" "out" "man" "doc" ];
+
+  doCheck = stdenv.buildPlatform == stdenv.hostPlatform;
 
   # In stdenv-linux, prevent a dependency on bootstrap-tools.
   preConfigure = "unset CONFIG_SHELL";

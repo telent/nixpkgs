@@ -9,16 +9,27 @@ let
   cfg = dmcfg.sddm;
   xEnv = config.systemd.services."display-manager".environment;
 
-  sddm = pkgs.sddm.override { inherit (cfg) themes; };
+  inherit (pkgs) sddm;
 
   xserverWrapper = pkgs.writeScript "xserver-wrapper" ''
     #!/bin/sh
     ${concatMapStrings (n: "export ${n}=\"${getAttr n xEnv}\"\n") (attrNames xEnv)}
-    exec ${dmcfg.xserverBin} ${dmcfg.xserverArgs} "$@"
+    exec systemd-cat ${dmcfg.xserverBin} ${toString dmcfg.xserverArgs} "$@"
   '';
 
   Xsetup = pkgs.writeScript "Xsetup" ''
     #!/bin/sh
+
+    # Prior to Qt 5.9.2, there is a QML cache invalidation bug which sometimes
+    # strikes new Plasma 5 releases. If the QML cache is not invalidated, SDDM
+    # will segfault without explanation. We really tore our hair out for awhile
+    # before finding the bug:
+    # https://bugreports.qt.io/browse/QTBUG-62302
+    # We work around the problem by deleting the QML cache before startup. It
+    # will be regenerated, causing a small but perceptible delay when SDDM
+    # starts.
+    rm -fr /var/lib/sddm/.cache/sddm-greeter/qmlcache
+
     ${cfg.setupScript}
   '';
 
@@ -31,21 +42,24 @@ let
     [General]
     HaltCommand=${pkgs.systemd}/bin/systemctl poweroff
     RebootCommand=${pkgs.systemd}/bin/systemctl reboot
+    ${optionalString cfg.autoNumlock ''
+    Numlock=on
+    ''}
 
     [Theme]
     Current=${cfg.theme}
-    ThemeDir=${sddm}/share/sddm/themes
-    FacesDir=${sddm}/share/sddm/faces
+    ThemeDir=/run/current-system/sw/share/sddm/themes
+    FacesDir=/run/current-system/sw/share/sddm/faces
 
     [Users]
     MaximumUid=${toString config.ids.uids.nixbld}
     HideUsers=${concatStringsSep "," dmcfg.hiddenUsers}
     HideShells=/run/current-system/sw/bin/nologin
 
-    [XDisplay]
-    MinimumVT=${toString xcfg.tty}
+    [X11]
+    MinimumVT=${toString (if xcfg.tty != null then xcfg.tty else 7)}
     ServerPath=${xserverWrapper}
-    XephyrPath=${pkgs.xorg.xorgserver}/bin/Xephyr
+    XephyrPath=${pkgs.xorg.xorgserver.out}/bin/Xephyr
     SessionCommand=${dmcfg.session.script}
     SessionDir=${dmcfg.session.desktops}
     XauthPath=${pkgs.xorg.xauth}/bin/xauth
@@ -56,7 +70,7 @@ let
     [Autologin]
     User=${cfg.autoLogin.user}
     Session=${defaultSessionName}.desktop
-    Relogin=${if cfg.autoLogin.relogin then "true" else "false"}
+    Relogin=${boolToString cfg.autoLogin.relogin}
     ''}
 
     ${cfg.extraConfig}
@@ -66,7 +80,7 @@ let
     let
       dm = xcfg.desktopManager.default;
       wm = xcfg.windowManager.default;
-    in dm + optionalString (wm != "none") (" + " + wm);
+    in dm + optionalString (wm != "none") ("+" + wm);
 
 in
 {
@@ -82,7 +96,7 @@ in
       };
 
       extraConfig = mkOption {
-        type = types.str;
+        type = types.lines;
         default = "";
         example = ''
           [Autologin]
@@ -96,17 +110,17 @@ in
 
       theme = mkOption {
         type = types.str;
-        default = "maui";
+        default = "";
         description = ''
           Greeter theme to use.
         '';
       };
 
-      themes = mkOption {
-        type = types.listOf types.package;
-        default = [];
+      autoNumlock = mkOption {
+        type = types.bool;
+        default = false;
         description = ''
-          Extra packages providing themes.
+          Enable numlock at login.
         '';
       };
 
@@ -143,7 +157,7 @@ in
               type = types.bool;
               default = false;
               description = ''
-                Automatically log in as the sepecified <option>autoLogin.user</option>.
+                Automatically log in as <option>autoLogin.user</option>.
               '';
             };
 
@@ -151,7 +165,7 @@ in
               type = types.nullOr types.str;
               default = null;
               description = ''
-                User to be used for the autologin.
+                User to be used for the automatic login.
               '';
             };
 
@@ -159,8 +173,8 @@ in
               type = types.bool;
               default = false;
               description = ''
-                If true automatic login will kick in again on session exit, otherwise it
-                will work only the first time.
+                If true automatic login will kick in again on session exit (logout), otherwise it
+                will only log in automatically when the display-manager is started.
               '';
             };
           };
@@ -191,9 +205,17 @@ in
     services.xserver.displayManager.slim.enable = false;
 
     services.xserver.displayManager.job = {
-      logsXsession = true;
+      logToFile = true;
 
-      execCmd = "exec ${sddm}/bin/sddm";
+      environment = {
+        # Load themes from system environment
+        QT_PLUGIN_PATH = "/run/current-system/sw/" + pkgs.qt5.qtbase.qtPluginPrefix;
+        QML2_IMPORT_PATH = "/run/current-system/sw/" + pkgs.qt5.qtbase.qtQmlPrefix;
+
+        XDG_DATA_DIRS = "/run/current-system/sw/share";
+      };
+
+      execCmd = "exec /run/current-system/sw/bin/sddm";
     };
 
     security.pam.services = {
@@ -242,5 +264,11 @@ in
 
     users.extraGroups.sddm.gid = config.ids.gids.sddm;
 
+    environment.systemPackages = [ sddm ];
+    services.dbus.packages = [ sddm ];
+
+    # To enable user switching, allow sddm to allocate TTYs/displays dynamically.
+    services.xserver.tty = null;
+    services.xserver.display = null;
   };
 }

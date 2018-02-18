@@ -3,15 +3,16 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "tevent-0.9.26";
+  name = "tevent-0.9.30";
 
   src = fetchurl {
     url = "mirror://samba/tevent/${name}.tar.gz";
-    sha256 = "1gbh6d2m49j1v2hkaiyrh8bj02i5wxd4hqayzk2g44yyivbi8b16";
+    sha256 = "1gccqiibf6ia129xhqrg18anax3sxwfbwm8h4pvsga3ndxg931ap";
   };
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    python pkgconfig readline talloc libxslt docbook_xsl docbook_xml_dtd_42
+    python readline talloc libxslt docbook_xsl docbook_xml_dtd_42
   ];
 
   preConfigure = ''

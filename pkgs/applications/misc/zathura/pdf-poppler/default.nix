@@ -1,17 +1,18 @@
 { stdenv, lib, fetchurl, pkgconfig, zathura_core, girara, poppler }:
 
 stdenv.mkDerivation rec {
-  version = "0.2.5";
+  version = "0.2.6";
   name = "zathura-pdf-poppler-${version}";
 
   src = fetchurl {
     url = "http://pwmt.org/projects/zathura/plugins/download/${name}.tar.gz";
-    sha256 = "1b0chsds8iwjm4g629p6a67nb6wgra65pw2vvngd7g35dmcjgcv0";
+    sha256 = "1maqiv7yv8d8hymlffa688c5z71v85kbzmx2j88i8z349xx0rsyi";
   };
 
-  buildInputs = [ pkgconfig poppler zathura_core girara ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ poppler zathura_core girara ];
 
-  makeFlags = "PREFIX=$(out) PLUGINDIR=$(out)/lib";
+  makeFlags = [ "PREFIX=$(out)" "PLUGINDIR=$(out)/lib" ];
 
   meta = with lib; {
     homepage = http://pwmt.org/projects/zathura/;

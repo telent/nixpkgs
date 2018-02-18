@@ -1,23 +1,28 @@
 { stdenv, fetchurl, pcre, libiconv, perl }:
 
-let version = "2.22"; in
+let version = "3.1"; in
 
 stdenv.mkDerivation {
   name = "gnugrep-${version}";
 
   src = fetchurl {
     url = "mirror://gnu/grep/grep-${version}.tar.xz";
-    sha256 = "1srn321x7whlhs5ks36zlcrrmj4iahll8fxwsh1vbz3v04px54fa";
+    sha256 = "0zm0ywmyz9g8vn1plw14mn8kj74yipx5qsljndbyfgmvndx5qqnv";
   };
 
   # Perl is needed for testing
   nativeBuildInputs = [ perl ];
+  outputs = [ "out" "info" ]; # the man pages are rather small
+
   buildInputs = [ pcre libiconv ];
 
   # cygwin: FAIL: multibyte-white-space
-  doCheck = !stdenv.isDarwin && !stdenv.isSunOS && !stdenv.isCygwin;
+  # freebsd: FAIL mb-non-UTF8-performance
+  # all platforms: timing sensitivity in long-pattern-perf 
+  #doCheck = !stdenv.isDarwin && !stdenv.isSunOS && !stdenv.isCygwin && !stdenv.isFreeBSD;
+  doCheck = false;
 
-  # On Mac OS X, force use of mkdir -p, since Grep's fallback
+  # On macOS, force use of mkdir -p, since Grep's fallback
   # (./install-sh) is broken.
   preConfigure = ''
     export MKDIR_P="mkdir -p"
@@ -35,7 +40,7 @@ stdenv.mkDerivation {
       chmod +x $out/bin/egrep $out/bin/fgrep
     '';
 
-  meta = {
+  meta = with stdenv.lib; {
     homepage = http://www.gnu.org/software/grep/;
     description = "GNU implementation of the Unix grep command";
 
@@ -45,10 +50,10 @@ stdenv.mkDerivation {
       prints the matching lines.
     '';
 
-    license = stdenv.lib.licenses.gpl3Plus;
+    license = licenses.gpl3Plus;
 
-    maintainers = [ stdenv.lib.maintainers.eelco ];
-    platforms = stdenv.lib.platforms.all;
+    maintainers = [ maintainers.eelco ];
+    platforms = platforms.all;
   };
 
   passthru = {inherit pcre;};

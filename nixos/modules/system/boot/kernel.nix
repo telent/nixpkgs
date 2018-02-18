@@ -4,7 +4,9 @@ with lib;
 
 let
 
-  kernel = config.boot.kernelPackages.kernel;
+  inherit (config.boot) kernelPatches;
+
+  inherit (config.boot.kernelPackages) kernel;
 
   kernelModulesConf = pkgs.writeText "nixos.conf"
     ''
@@ -21,6 +23,11 @@ in
 
     boot.kernelPackages = mkOption {
       default = pkgs.linuxPackages;
+      apply = kernelPackages: kernelPackages.extend (self: super: {
+        kernel = super.kernel.override {
+          kernelPatches = super.kernel.kernelPatches ++ kernelPatches;
+        };
+      });
       # We don't want to evaluate all of linuxPackages for the manual
       # - some of it might not even evaluate correctly.
       defaultText = "pkgs.linuxPackages";
@@ -37,6 +44,13 @@ in
         then it also needs to contain an attribute
         <varname>nvidia_x11</varname>.
       '';
+    };
+
+    boot.kernelPatches = mkOption {
+      type = types.listOf types.attrs;
+      default = [];
+      example = literalExample "[ pkgs.kernelPatches.ubuntu_fan_4_4 ]";
+      description = "A list of additional patches to apply to the kernel.";
     };
 
     boot.kernelParams = mkOption {
@@ -63,7 +77,7 @@ in
     };
 
     boot.extraModulePackages = mkOption {
-      type = types.listOf types.path;
+      type = types.listOf types.package;
       default = [];
       example = literalExample "[ pkgs.linuxPackages.nvidia_x11 ]";
       description = "A list of additional packages supplying kernel modules.";
@@ -162,7 +176,7 @@ in
 
     boot.initrd.availableKernelModules =
       [ # Note: most of these (especially the SATA/PATA modules)
-        # shouldn't be included by default since nixos-hardware-scan
+        # shouldn't be included by default since nixos-generate-config
         # detects them, but I'm keeping them for now for backwards
         # compatibility.
 
@@ -179,10 +193,8 @@ in
         "sd_mod"
         "sr_mod"
 
-        # Standard IDE stuff.
-        "ide_cd"
-        "ide_disk"
-        "ide_generic"
+        # SD cards and internal eMMC drives.
+        "mmc_block"
 
         # Support USB keyboards, in case the boot fails and we only have
         # a USB keyboard.
@@ -194,17 +206,10 @@ in
         "xhci_hcd"
         "xhci_pci"
         "usbhid"
-        "hid_generic" "hid_lenovo"
-        "hid_apple" "hid_logitech_dj" "hid_lenovo_tpkbd" "hid_roccat"
+        "hid_generic" "hid_lenovo" "hid_apple" "hid_roccat"
 
-        # Unix domain sockets (needed by udev).
-        "unix"
-
-        # Misc. stuff.
-        "pcips2" "atkbd"
-
-        # To wait for SCSI devices to appear.
-        "scsi_wait_scan"
+        # Misc. keyboard stuff.
+        "pcips2" "atkbd" "i8042"
 
         # Needed by the stage 2 init script.
         "rtc_cmos"
@@ -228,7 +233,6 @@ in
     systemd.services."systemd-modules-load" =
       { wantedBy = [ "multi-user.target" ];
         restartTriggers = [ kernelModulesConf ];
-        environment.MODULE_DIR = "/run/booted-system/kernel-modules/lib/modules";
         serviceConfig =
           { # Ignore failed module loads.  Typically some of the
             # modules in ‘boot.kernelModules’ are "nice to have but
@@ -236,10 +240,6 @@ in
             # barf on those.
             SuccessExitStatus = "0 1";
           };
-      };
-
-    systemd.services.kmod-static-nodes =
-      { environment.MODULE_DIR = "/run/booted-system/kernel-modules/lib/modules";
       };
 
     lib.kernelConfig = {

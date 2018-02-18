@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, zlib }:
+{ stdenv, fetchurl, zlib, libiconv }:
 
 stdenv.mkDerivation rec {
   name = "odt2txt-0.4";
@@ -10,13 +10,15 @@ stdenv.mkDerivation rec {
 
   configurePhase="export makeFlags=\"DESTDIR=$out\"";
 
-  buildInputs = [ zlib ];
+  buildInputs = [ zlib libiconv ];
+
+  NIX_LDFLAGS = stdenv.lib.optionalString stdenv.isDarwin "-liconv";
 
   meta = {
     description = "Simple .odt to .txt converter";
     homepage = http://stosberg.net/odt2txt;
     platforms = stdenv.lib.platforms.all;
-    lincense = stdenv.lib.licenses.gpl2;
-    maintainers = [ stdenv.lib.maintainers.urkud ];
+    license = stdenv.lib.licenses.gpl2;
+    maintainers = [ ];
   };
 }

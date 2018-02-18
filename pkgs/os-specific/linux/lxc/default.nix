@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, autoreconfHook, pkgconfig, perl, docbook2x
+{ stdenv, fetchurl, fetchpatch, autoreconfHook, pkgconfig, perl, docbook2x
 , docbook_xml_dtd_45, python3Packages
 
 # Optional Dependencies
@@ -12,11 +12,11 @@ in
 with stdenv.lib;
 stdenv.mkDerivation rec {
   name = "lxc-${version}";
-  version = "1.1.4";
+  version = "2.1.0";
 
   src = fetchurl {
     url = "https://linuxcontainers.org/downloads/lxc/lxc-${version}.tar.gz";
-    sha256 = "1p75ff4lnkm7hq26zq09nqbdypl508csk0ix024l7j8v02i2w1wg";
+    sha256 = "1qld0gi19mximxm0qyr6vzav32gymhc7fvp0bzwv37j0b8q0fi1r";
   };
 
   nativeBuildInputs = [
@@ -24,17 +24,36 @@ stdenv.mkDerivation rec {
   ];
   buildInputs = [
     libapparmor gnutls libselinux libseccomp cgmanager libnih dbus libcap
-    python3Packages.python systemd
+    python3Packages.python python3Packages.setuptools systemd
   ];
 
-  patches = [ ./support-db2x.patch ];
+  patches = [
+    ./support-db2x.patch
+    # Fix build error against glibc 2.26
+    (fetchpatch {
+      url = "https://github.com/lxc/lxc/commit/"
+          + "180c477a326ce85632249ff16990e8c29db1b6fa.patch";
+      sha256 = "05jkiiixxk9ibj1fwzmy56rkkign28bd9mrmgiz12g92r2qahm2z";
+    })
+  ];
+
+  postPatch = ''
+    sed -i '/chmod u+s/d' src/lxc/Makefile.am
+  '';
 
   XML_CATALOG_FILES = "${docbook_xml_dtd_45}/xml/dtd/docbook/catalog.xml";
+
+  # FIXME
+  # glibc 2.25 moved major()/minor() to <sys/sysmacros.h>.
+  # this commit should detect this: https://github.com/lxc/lxc/pull/1388/commits/af6824fce9c9536fbcabef8d5547f6c486f55fdf
+  # However autotools checks if mkdev is still defined in <sys/types.h> runs before
+  # checking if major()/minor() is defined there. The mkdev check succeeds with
+  # a warning and the check which should set MAJOR_IN_SYSMACROS is skipped.
+  NIX_CFLAGS_COMPILE = [ "-DMAJOR_IN_SYSMACROS" ];
 
   configureFlags = [
     "--localstatedir=/var"
     "--sysconfdir=/etc"
-    "--enable-doc"
     "--disable-api-docs"
     "--with-init-script=none"
     "--with-distro=nixos" # just to be sure it is "unknown"
@@ -57,6 +76,7 @@ stdenv.mkDerivation rec {
     "localstatedir=\${TMPDIR}"
     "sysconfdir=\${out}/etc"
     "sysconfigdir=\${out}/etc/default"
+    "bashcompdir=\${out}/share/bash-completion/completions"
     "READMEdir=\${TMPDIR}/var/lib/lxc/rootfs"
     "LXCPATH=\${TMPDIR}/var/lib/lxc"
   ];
@@ -66,8 +86,8 @@ stdenv.mkDerivation rec {
   '';
 
   meta = {
-    homepage = "http://lxc.sourceforge.net";
-    description = "userspace tools for Linux Containers, a lightweight virtualization system";
+    homepage = https://linuxcontainers.org/;
+    description = "Userspace tools for Linux Containers, a lightweight virtualization system";
     license = licenses.lgpl21Plus;
 
     longDescription = ''
@@ -79,6 +99,6 @@ stdenv.mkDerivation rec {
     '';
 
     platforms = platforms.linux;
-    maintainers = with maintainers; [ simons wkennington globin ];
+    maintainers = with maintainers; [ wkennington globin fpletz ];
   };
 }

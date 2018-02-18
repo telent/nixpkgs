@@ -29,9 +29,12 @@ stdenv.mkDerivation rec {
     sha256 = "11b83qazc8h0iidyj1rprnnjdivj1lpphvpa08y53n42bfa36pn5";
   };
 
+  # Fixup build with icu-59
+  postPatch = "sed '1i#include <unicode/unistr.h>' -i src/utils.cpp";
+
   buildInputs = with stdenv.lib;
   [ pkgconfig intltool libX11 wxGTK fontconfig freetype mesa
-    libass fftw ffms ffmpeg zlib icu boost boost.lib libiconv
+    libass fftw ffms ffmpeg zlib icu boost boost.out libiconv
   ]
     ++ optional spellcheckSupport hunspell
     ++ optional automationSupport lua
@@ -42,6 +45,8 @@ stdenv.mkDerivation rec {
     ;
 
   enableParallelBuilding = true;
+
+  hardeningDisable = [ "bindnow" "relro" ];
 
   postInstall = "ln -s $out/bin/aegisub-* $out/bin/aegisub";
 

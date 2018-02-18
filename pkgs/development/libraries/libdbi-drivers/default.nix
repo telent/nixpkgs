@@ -26,16 +26,14 @@ stdenv.mkDerivation rec {
     "--with-dbi-libdir=${libdbi}/lib"
   ] ++ optionals (libmysql != null) [
     "--with-mysql"
-    "--with-mysql-incdir=${libmysql}/include/mysql"
-    "--with-mysql-libdir=${libmysql}/lib/mysql"
   ] ++ optionals (postgresql != null) [
     "--with-pgsql"
     "--with-pgsql_incdir=${postgresql}/include"
-    "--with-pgsql_libdir=${postgresql}/lib"
+    "--with-pgsql_libdir=${postgresql.lib}/lib"
   ] ++ optionals (sqlite != null) [
     "--with-sqlite3"
-    "--with-sqlite3-incdir=${sqlite}/include/sqlite"
-    "--with-sqlite3-libdir=${sqlite}/lib/sqlite"
+    "--with-sqlite3-incdir=${sqlite.dev}/include/sqlite"
+    "--with-sqlite3-libdir=${sqlite.out}/lib/sqlite"
   ];
 
   installFlags = [ "DESTDIR=\${out}" ];

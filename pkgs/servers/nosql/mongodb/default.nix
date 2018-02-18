@@ -1,51 +1,73 @@
-{ stdenv, fetchurl, scons, boost, gperftools, pcre, snappy
-, zlib, libyamlcpp, sasl, openssl, libpcap, wiredtiger
+{ stdenv, fetchurl, fetchpatch, scons, boost, gperftools, pcre-cpp, snappy
+, zlib, libyamlcpp, sasl, openssl, libpcap, wiredtiger, Security
 }:
+
+# Note:
+# The command line tools are written in Go as part of a different package (mongodb-tools)
 
 with stdenv.lib;
 
-let version = "3.0.7";
+let version = "3.4.2";
     system-libraries = [
       "pcre"
+      #"asio" -- XXX use package?
       #"wiredtiger"
       "boost"
       "snappy"
       "zlib"
-      # "v8"
-      # "stemmer" -- not nice to package yet (no versioning, no makefile, no shared libs)
+      #"valgrind" -- mongodb only requires valgrind.h, which is vendored in the source.
+      #"stemmer"  -- not nice to package yet (no versioning, no makefile, no shared libs).
       "yaml"
     ] ++ optionals stdenv.isLinux [ "tcmalloc" ];
+
     buildInputs = [
-      sasl boost gperftools pcre snappy
-      zlib libyamlcpp sasl openssl libpcap
-    ]; # ++ optional stdenv.is64bit wiredtiger;
+      sasl boost gperftools pcre-cpp snappy
+      zlib libyamlcpp sasl openssl.dev openssl.out libpcap
+    ] ++ stdenv.lib.optionals stdenv.isDarwin [ Security ];
 
     other-args = concatStringsSep " " ([
-      # these are opt-in, lol
-      "--cc-use-shell-environment"
-      "--cxx-use-shell-environment"
-
-      "--c++11=on"
       "--ssl"
       #"--rocksdb" # Don't have this packaged yet
       "--wiredtiger=${if stdenv.is64bit then "on" else "off"}"
-      "--js-engine=v8-3.25"
+      "--js-engine=mozjs"
       "--use-sasl-client"
       "--disable-warnings-as-errors"
-      "--variant-dir=nixos" # Needed so we don't produce argument lists that are too long for gcc / ld
-      "--extrapath=${concatStringsSep "," buildInputs}"
+      "VARIANT_DIR=nixos" # Needed so we don't produce argument lists that are too long for gcc / ld
+      "CC=$CC"
+      "CXX=$CXX"
+      "CCFLAGS=\"${concatStringsSep " " (map (input: "-I${input}/include") buildInputs)}\""
+      "LINKFLAGS=\"${concatStringsSep " " (map (input: "-L${input}/lib") buildInputs)}\""
     ] ++ map (lib: "--use-system-${lib}") system-libraries);
 
 in stdenv.mkDerivation rec {
   name = "mongodb-${version}";
 
   src = fetchurl {
-    url = "http://downloads.mongodb.org/src/mongodb-src-r${version}.tar.gz";
-    sha256 = "1rx7faqsq733vdriavdfmvx75nhjq9nm5bgwd3hw1cxzqgkvl99d";
+    url = "https://fastdl.mongodb.org/src/mongodb-src-r${version}.tar.gz";
+    sha256 = "0n8vspccrpd2z9xk3yjpz4gprd730dfacw914ksjzz9iadn0zdi9";
   };
 
   nativeBuildInputs = [ scons ];
   inherit buildInputs;
+
+  patches =
+    [
+      # MongoDB keeps track of its build parameters, which tricks nix into
+      # keeping dependencies to build inputs in the final output.
+      # We remove the build flags from buildInfo data.
+      ./forget-build-dependencies.patch
+      (fetchpatch {
+        url = https://projects.archlinux.org/svntogit/community.git/plain/trunk/boost160.patch?h=packages/mongodb;
+        name = "boost160.patch";
+        sha256 = "0bvsf3499zj55pzamwjmsssr6x63w434944w76273fr5rxwzcmh8";
+      })
+      # probably not needed for > 3.4.10
+      (fetchpatch {
+        url = https://github.com/mongodb/mongo/commit/218a7b1d4ea3d3b.diff;
+        name = "pcre-8.41.patch";
+        sha256 = "1dra51gw130bq78l2yfkdaj0jkha95ikpv4ig21rapbl63ip3znj";
+      })
+    ];
 
   postPatch = ''
     # fix environment variable reading
@@ -58,7 +80,14 @@ in stdenv.mkDerivation rec {
     substituteInPlace src/third_party/s2/s2cap.cc --replace drem remainder
     substituteInPlace src/third_party/s2/s2latlng.cc --replace drem remainder
     substituteInPlace src/third_party/s2/s2latlngrect.cc --replace drem remainder
+  '' + stdenv.lib.optionalString stdenv.isi686 ''
+
+    # don't fail by default on i686
+    substituteInPlace src/mongo/db/storage/storage_options.h \
+      --replace 'engine("wiredTiger")' 'engine("mmapv1")'
   '';
+
+  NIX_CFLAGS_COMPILE = stdenv.lib.optional stdenv.cc.isClang "-Wno-unused-command-line-argument";
 
   buildPhase = ''
     scons -j $NIX_BUILD_CORES core --release ${other-args}
@@ -71,12 +100,14 @@ in stdenv.mkDerivation rec {
 
   enableParallelBuilding = true;
 
+  hardeningEnable = [ "pie" ];
+
   meta = {
-    description = "a scalable, high-performance, open source NoSQL database";
+    description = "A scalable, high-performance, open source NoSQL database";
     homepage = http://www.mongodb.org;
     license = licenses.agpl3;
 
-    maintainers = with maintainers; [ bluescreen303 offline wkennington ];
+    maintainers = with maintainers; [ bluescreen303 offline wkennington cstrahan ];
     platforms = platforms.unix;
   };
 }

@@ -1,14 +1,16 @@
-{ stdenv, lib, fetchurl, writeScript, ncurses, gzip, flex, bison }:
+{ stdenv, lib, fetchurl, writeScript, coreutils, ncurses, gzip, flex, bison, less }:
 
 let
   platform =
     if lib.elem stdenv.system lib.platforms.unix then "unix"
-    else abort "Unknown platform for NetHack";
+    else throw "Unknown platform for NetHack: ${stdenv.system}";
   unixHint =
     if stdenv.isLinux then "linux"
+    else if stdenv.isDarwin then "macosx10.10"
     # We probably want something different for Darwin
     else "unix";
   userDir = "~/.config/nethack";
+  binPath = lib.makeBinPath [ coreutils less ];
 
 in stdenv.mkDerivation {
   name = "nethack-3.6.0";
@@ -24,36 +26,42 @@ in stdenv.mkDerivation {
 
   makeFlags = [ "PREFIX=$(out)" ];
 
-  configurePhase = ''
-    cd sys/${platform}
-    ${lib.optionalString (platform == "unix") ''
-      sed -e '/^ *cd /d' -i nethack.sh
-      ${lib.optionalString (unixHint == "linux") ''
-        sed \
-          -e 's,/bin/gzip,${gzip}/bin/gzip,g' \
-          -e 's,^WINTTYLIB=.*,WINTTYLIB=-lncurses,' \
-          -i hints/linux
-      ''}
-      sh setup.sh hints/${unixHint}
-    ''}
-    cd ../..
-
-    sed -e '/define CHDIR/d' -i include/config.h
+  patchPhase = ''
+    sed -e '/^ *cd /d' -i sys/unix/nethack.sh
     sed \
       -e 's/^YACC *=.*/YACC = bison -y/' \
       -e 's/^LEX *=.*/LEX = flex/' \
-      -i util/Makefile
+      -i sys/unix/Makefile.utl
+    sed \
+      -e 's,/bin/gzip,${gzip}/bin/gzip,g' \
+      -e 's,^WINTTYLIB=.*,WINTTYLIB=-lncurses,' \
+      -i sys/unix/hints/linux
+    sed \
+      -e 's,^CC=.*$,CC=cc,' \
+      -e 's,^HACKDIR=.*$,HACKDIR=\$(PREFIX)/games/lib/\$(GAME)dir,' \
+      -e 's,^SHELLDIR=.*$,SHELLDIR=\$(PREFIX)/games,' \
+      -i sys/unix/hints/macosx10.10
+    sed -e '/define CHDIR/d' -i include/config.h
+  '';
+
+  configurePhase = ''
+    cd sys/${platform}
+    ${lib.optionalString (platform == "unix") ''
+      sh setup.sh hints/${unixHint}
+    ''}
+    cd ../..
   '';
 
   postInstall = ''
     mkdir -p $out/games/lib/nethackuserdir
-    for i in logfile perm record save; do
+    for i in xlogfile logfile perm record save; do
       mv $out/games/lib/nethackdir/$i $out/games/lib/nethackuserdir
     done
 
     mkdir -p $out/bin
     cat <<EOF >$out/bin/nethack
     #! ${stdenv.shell} -e
+    PATH=${binPath}:\$PATH
 
     if [ ! -d ${userDir} ]; then
       mkdir -p ${userDir}
@@ -61,7 +69,7 @@ in stdenv.mkDerivation {
       chmod -R +w ${userDir}
     fi
 
-    RUNDIR=\$(mktemp -td nethack.\$USER.XXXXX)
+    RUNDIR=\$(mktemp -d)
 
     cleanup() {
       rm -rf \$RUNDIR
@@ -82,7 +90,7 @@ in stdenv.mkDerivation {
 
   meta = with stdenv.lib; {
     description = "Rogue-like game";
-    homepage = "http://nethack.org/";
+    homepage = http://nethack.org/;
     license = "nethack";
     platforms = platforms.unix;
     maintainers = with maintainers; [ abbradar ];

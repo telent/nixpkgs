@@ -6,6 +6,7 @@
 with lib;
 
 let
+  nixpkgs = lib.cleanSource pkgs.path;
 
   # We need a copy of the Nix expressions for Nixpkgs and NixOS on the
   # CD.  These are installed into the "nixos" channel of the root
@@ -15,10 +16,11 @@ let
     { }
     ''
       mkdir -p $out
-      cp -prd ${pkgs.path} $out/nixos
+      cp -prd ${nixpkgs} $out/nixos
       chmod -R u+w $out/nixos
-      ln -s . $out/nixos/nixpkgs
-      rm -rf $out/nixos/.git
+      if [ ! -e $out/nixos/nixpkgs ]; then
+        ln -s . $out/nixos/nixpkgs
+      fi
       echo -n ${config.system.nixosVersionSuffix} > $out/nixos/.version-suffix
     '';
 
@@ -32,7 +34,7 @@ in
       if ! [ -e /var/lib/nixos/did-channel-init ]; then
         echo "unpacking the NixOS/Nixpkgs sources..."
         mkdir -p /nix/var/nix/profiles/per-user/root
-        ${config.nix.package}/bin/nix-env -p /nix/var/nix/profiles/per-user/root/channels \
+        ${config.nix.package.out}/bin/nix-env -p /nix/var/nix/profiles/per-user/root/channels \
           -i ${channelSources} --quiet --option build-use-substitutes false
         mkdir -m 0700 -p /root/.nix-defexpr
         ln -s /nix/var/nix/profiles/per-user/root/channels /root/.nix-defexpr/channels

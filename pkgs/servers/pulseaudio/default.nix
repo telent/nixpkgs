@@ -1,5 +1,5 @@
-{ lib, stdenv, fetchurl, pkgconfig, intltool, autoreconfHook
-, json_c, libsndfile, libtool
+{ lib, stdenv, fetchurl, fetchpatch, pkgconfig, intltool, autoreconfHook
+, libsndfile, libtool
 , xorg, libcap, alsaLib, glib
 , avahi, libjack2, libasyncns, lirc, dbus
 , sbc, bluez5, udev, openssl, fftwFloat
@@ -30,18 +30,22 @@
 
 , # Whether to build only the library.
   libOnly ? false
+
+, CoreServices, AudioUnit, Cocoa
 }:
 
 stdenv.mkDerivation rec {
   name = "${if libOnly then "lib" else ""}pulseaudio-${version}";
-  version = "7.1";
+  version = "11.0";
 
   src = fetchurl {
     url = "http://freedesktop.org/software/pulseaudio/releases/pulseaudio-${version}.tar.xz";
-    sha256 = "1ndrac0j528lsg3b8wcsgvzds38ml0ja4m57xsn953rj51552rz6";
+    sha256 = "0sf92knqkvqmfhrbz4vlsagzqlps72wycpmln5dygicg07a0a8q7";
   };
 
   patches = [ ./caps-fix.patch ];
+
+  outputs = [ "out" "dev" ];
 
   nativeBuildInputs = [ pkgconfig intltool autoreconfHook ];
 
@@ -49,8 +53,9 @@ stdenv.mkDerivation rec {
     lib.optionals stdenv.isLinux [ libcap ];
 
   buildInputs =
-    [ json_c libsndfile speexdsp fftwFloat ]
-    ++ lib.optionals stdenv.isLinux [ glib dbus.libs ]
+    [ libtool libsndfile speexdsp fftwFloat ]
+    ++ lib.optionals stdenv.isLinux [ glib dbus ]
+    ++ lib.optionals stdenv.isDarwin [ CoreServices AudioUnit Cocoa ]
     ++ lib.optionals (!libOnly) (
       [ libasyncns webrtc-audio-processing ]
       ++ lib.optional jackaudioSupport libjack2
@@ -110,13 +115,14 @@ stdenv.mkDerivation rec {
 
   postInstall = lib.optionalString libOnly ''
     rm -rf $out/{bin,share,etc,lib/{pulse-*,systemd}}
-    sed 's|-lltdl|-L${libtool}/lib -lltdl|' -i $out/lib/libpulsecore-${version}.la
-  '';
+    sed 's|-lltdl|-L${libtool.lib}/lib -lltdl|' -i $out/lib/pulseaudio/libpulsecore-${version}.la
+  ''
+    + ''moveToOutput lib/cmake "$dev" '';
 
   meta = {
     description = "Sound server for POSIX and Win32 systems";
     homepage    = http://www.pulseaudio.org/;
-    licenses    = lib.licenses.lgpl2Plus;
+    license     = lib.licenses.lgpl2Plus;
     maintainers = with lib.maintainers; [ lovek323 wkennington ];
     platforms   = lib.platforms.unix;
 

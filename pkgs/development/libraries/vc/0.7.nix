@@ -1,8 +1,8 @@
 { stdenv, fetchFromGitHub, cmake }:
 
 stdenv.mkDerivation rec {
-  version = "0.7.5";
   name = "Vc-${version}";
+  version = "0.7.5";
 
   src = fetchFromGitHub {
     owner = "VcDevel";
@@ -14,6 +14,11 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ cmake ];
 
   enableParallelBuilding = true;
+
+  postPatch = ''
+    sed -i '/OptimizeForArchitecture()/d' cmake/VcMacros.cmake
+    sed -i '/AutodetectHostArchitecture()/d' print_target_architecture.cmake
+  '';
 
   meta = with stdenv.lib; {
     description = "Library for multiprecision complex arithmetic with exact rounding";

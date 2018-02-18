@@ -1,21 +1,24 @@
-{ lib, stdenv, fetchurl, pkgconfig, udev, glib }:
-
-let version = "230"; in
+{ stdenv, fetchurl, pkgconfig, udev, glib }:
 
 stdenv.mkDerivation rec {
   name = "libgudev-${version}";
+  version = "232";
 
   src = fetchurl {
-    url = "https://download.gnome.org/sources/libgudev/${version}/${name}.tar.xz";
-    sha256 = "a2e77faced0c66d7498403adefcc0707105e03db71a2b2abd620025b86347c18";
+    url = "mirror://gnome/sources/libgudev/${version}/${name}.tar.xz";
+    sha256 = "ee4cb2b9c573cdf354f6ed744f01b111d4b5bed3503ffa956cefff50489c7860";
   };
 
-  buildInputs = [ pkgconfig udev glib ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ udev glib ];
 
-  meta = {
+  # There's a dependency cycle with umockdev and the tests fail to LD_PRELOAD anyway.
+  configureFlags = [ "--disable-umockdev" ];
+
+  meta = with stdenv.lib; {
     homepage = https://wiki.gnome.org/Projects/libgudev;
-    maintainers = [ lib.maintainers.eelco ];
-    platforms = lib.platforms.linux;
-    license = lib.licenses.lgpl2Plus;
+    maintainers = [ maintainers.eelco ];
+    platforms = platforms.linux;
+    license = licenses.lgpl2Plus;
   };
 }

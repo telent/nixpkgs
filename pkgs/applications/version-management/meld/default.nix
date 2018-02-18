@@ -1,47 +1,38 @@
-{ stdenv, fetchurl, itstool, buildPythonPackage, python27, intltool, makeWrapper
-, libxml2, pygobject3, gobjectIntrospection, gtk3, gnome3, pycairo, cairo
+{ stdenv, fetchurl, itstool, python2Packages, intltool, wrapGAppsHook
+, libxml2, gobjectIntrospection, gtk3, gnome3, cairo, file
 }:
 
 
 let
-  minor = "3.14";
-  version = "${minor}.0";
-in
-
-buildPythonPackage rec {
+  minor = "3.16";
+  version = "${minor}.4";
+  inherit (python2Packages) python buildPythonApplication pycairo pygobject3;
+in buildPythonApplication rec {
   name = "meld-${version}";
-  namePrefix = "";
 
   src = fetchurl {
     url = "mirror://gnome/sources/meld/${minor}/meld-${version}.tar.xz";
-    sha256 = "0g0h9wdr6nqdalqkz4r037569apw253cklwr17x0zjc7nwv2j3j3";
+    sha256 = "0rwflfkfnb9ydnk4k591x0il29d4dvz95cjs2f279blx64lgki4k";
   };
 
   buildInputs = [
-    python27 intltool makeWrapper itstool libxml2
+    intltool wrapGAppsHook itstool libxml2
     gnome3.gtksourceview gnome3.gsettings_desktop_schemas pycairo cairo
-    gnome3.defaultIconTheme
+    gnome3.defaultIconTheme gnome3.dconf file
   ];
   propagatedBuildInputs = [ gobjectIntrospection pygobject3 gtk3 ];
 
   installPhase = ''
-    mkdir -p "$out/lib/${python27.libPrefix}/site-packages"
+    mkdir -p "$out/lib/${python.libPrefix}/site-packages"
 
-    export PYTHONPATH="$out/lib/${python27.libPrefix}/site-packages:$PYTHONPATH"
+    export PYTHONPATH="$out/lib/${python.libPrefix}/site-packages:$PYTHONPATH"
 
-    ${python27}/bin/${python27.executable} setup.py install \
-      --install-lib=$out/lib/${python27.libPrefix}/site-packages \
+    ${python}/bin/${python.executable} setup.py install \
+      --install-lib=$out/lib/${python.libPrefix}/site-packages \
       --prefix="$out"
 
     mkdir -p $out/share/gsettings-schemas/$name
     mv $out/share/glib-2.0 $out/share/gsettings-schemas/$name/
-  '';
-
-  preFixup = ''
-    wrapProgram $out/bin/meld \
-      --prefix GI_TYPELIB_PATH : "$GI_TYPELIB_PATH" \
-      --prefix XDG_DATA_DIRS : "$XDG_ICON_DIRS:$GSETTINGS_SCHEMAS_PATH:$out/share" \
-      --prefix GIO_EXTRA_MODULES : "${gnome3.dconf}/lib/gio/modules"
   '';
 
   patchPhase = ''
@@ -55,5 +46,6 @@ buildPythonPackage rec {
     homepage = http://meldmerge.org/;
     license = stdenv.lib.licenses.gpl2;
     platforms = platforms.linux ++ stdenv.lib.platforms.darwin;
+    maintainers = [ maintainers.mimadrid ];
   };
 }

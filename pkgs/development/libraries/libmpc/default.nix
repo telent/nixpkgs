@@ -1,4 +1,8 @@
-{ fetchurl, stdenv, gmp, mpfr }:
+{ stdenv, fetchurl
+, gmp, mpfr
+, buildPlatform, hostPlatform
+}:
+
 let
   version = "1.0.3";
 in
@@ -12,9 +16,9 @@ stdenv.mkDerivation rec {
 
   buildInputs = [ gmp mpfr ];
 
-  CFLAGS = "-I${gmp}/include";
+  CFLAGS = "-I${gmp.dev}/include";
 
-  doCheck = true;
+  doCheck = hostPlatform == buildPlatform;
 
   meta = {
     description = "Library for multiprecision complex arithmetic with exact rounding";

@@ -1,21 +1,24 @@
 { stdenv, fetchurl, buildPerlPackage, DBI, sqlite }:
 
 buildPerlPackage rec {
-  name = "DBD-SQLite-1.48";
+  name = "DBD-SQLite-${version}";
+  version = "1.54";
 
   src = fetchurl {
     url = "mirror://cpan/authors/id/I/IS/ISHIGAKI/${name}.tar.gz";
-    sha256 = "19hf0fc4dlnpmxsxx3jjbh2z6d2jafgdlqhwz4irkp2cbl7j75xk";
+    sha256 = "3929a6dbd8d71630f0cb57f85dcef9588cd7ac4c9fa12db79df77b9d3a4d7269";
   };
 
   propagatedBuildInputs = [ DBI ];
-
-  makeMakerFlags = "SQLITE_LOCATION=${sqlite}";
+  buildInputs = [ sqlite ];
 
   patches = [
     # Support building against our own sqlite.
     ./external-sqlite.patch
   ];
+
+  SQLITE_INC = sqlite.dev + "/include";
+  SQLITE_LIB = sqlite.out + "/lib";
 
   preBuild =
     ''
@@ -33,7 +36,11 @@ buildPerlPackage rec {
 
   # Disabled because the tests can randomly fail due to timeouts
   # (e.g. "database is locked(5) at dbdimp.c line 402 at t/07busy.t").
-  doCheck = false;
+  #doCheck = false;
 
-  meta.platforms = stdenv.lib.platforms.unix;
+  meta = with stdenv.lib; {
+    description = "Self Contained SQLite RDBMS in a DBI Driver";
+    license = with licenses; [ artistic1 gpl1Plus ];
+    platforms = platforms.unix;
+  };
 }

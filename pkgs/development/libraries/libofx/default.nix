@@ -9,14 +9,15 @@ stdenv.mkDerivation rec {
   };
 
   configureFlags = [ "--with-opensp-includes=${opensp}/include/OpenSP" ];
-  buildInputs = [ opensp pkgconfig libxml2 curl ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ opensp libxml2 curl ];
 
   meta = { 
     description = "Opensource implementation of the Open Financial eXchange specification";
     homepage = http://libofx.sourceforge.net/;
     license = "LGPL";
-    platforms = stdenv.lib.platforms.all;
-    maintainers = [ stdenv.lib.maintainers.urkud ];
+    platforms = stdenv.lib.platforms.linux;
+    maintainers = [ ];
   };
 }
 

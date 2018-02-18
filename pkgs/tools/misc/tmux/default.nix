@@ -1,17 +1,32 @@
-{ stdenv, fetchurl, ncurses, libevent, pkgconfig }:
+{ stdenv, fetchFromGitHub, autoreconfHook, ncurses, libevent, pkgconfig, makeWrapper }:
+
+let
+
+  bashCompletion = fetchFromGitHub {
+    owner = "imomaliev";
+    repo = "tmux-bash-completion";
+    rev = "fcda450d452f07d36d2f9f27e7e863ba5241200d";
+    sha256 = "092jpkhggjqspmknw7h3icm0154rg21mkhbc71j5bxfmfjdxmya8";
+  };
+
+in
 
 stdenv.mkDerivation rec {
   name = "tmux-${version}";
-  version = "2.1";
+  version = "2.6";
 
-  src = fetchurl {
-    url = "https://github.com/tmux/tmux/releases/download/${version}/${name}.tar.gz";
-    sha256 = "0xk1mylsb08sf0w597mdgj9s6hxxjvjvjd6bngpjvvxwyixlwmii";
+  outputs = [ "out" "man" ];
+
+  src = fetchFromGitHub {
+    owner = "tmux";
+    repo = "tmux";
+    rev = version;
+    sha256 = "0605y0nwfmf0mnq075vk80897c2cvhxxvxinqq7hvrpjf2ph5mww";
   };
 
-  nativeBuildInputs = [ pkgconfig ];
+  nativeBuildInputs = [ pkgconfig autoreconfHook ];
 
-  buildInputs = [ ncurses libevent ];
+  buildInputs = [ ncurses libevent makeWrapper ];
 
   configureFlags = [
     "--sysconfdir=/etc"
@@ -19,8 +34,8 @@ stdenv.mkDerivation rec {
   ];
 
   postInstall = ''
-    mkdir -p $out/etc/bash_completion.d
-    cp -v examples/bash_completion_tmux.sh $out/etc/bash_completion.d/tmux
+    mkdir -p $out/share/bash-completion/completions
+    cp -v ${bashCompletion}/completions/tmux $out/share/bash-completion/completions/tmux
   '';
 
   meta = {
@@ -44,6 +59,6 @@ stdenv.mkDerivation rec {
     license = stdenv.lib.licenses.bsd3;
 
     platforms = stdenv.lib.platforms.unix;
-    maintainers = with stdenv.lib.maintainers; [ thammers ];
+    maintainers = with stdenv.lib.maintainers; [ thammers fpletz ];
   };
 }

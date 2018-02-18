@@ -1,4 +1,5 @@
-{stdenv, fetchurl, perl}:
+{stdenv, fetchurl, perl
+, searchNixProfiles ? true}:
 
 stdenv.mkDerivation rec {
   name = "aspell-0.60.6.1";
@@ -10,6 +11,8 @@ stdenv.mkDerivation rec {
 
   patchPhase = ''
     patch interfaces/cc/aspell.h < ${./clang.patch}
+  '' + stdenv.lib.optionalString searchNixProfiles ''
+    patch -p1 < ${./data-dirs-from-nix-profiles.patch}
   '';
 
   buildInputs = [ perl ];
@@ -22,13 +25,6 @@ stdenv.mkDerivation rec {
       --enable-pkgdatadir=$out/lib/aspell
     );
   '';
-
-  # Note: Users should define the `ASPELL_CONF' environment variable to
-  # `data-dir $HOME/.nix-profile/lib/aspell/' so that they can access
-  # dictionaries installed in their profile.
-  #
-  # We can't use `$out/etc/aspell.conf' for that purpose since Aspell
-  # doesn't expand environment variables such as `$HOME'.
 
   meta = {
     description = "Spell checker for many languages";

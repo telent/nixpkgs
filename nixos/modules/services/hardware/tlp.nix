@@ -40,7 +40,7 @@ in
       };
 
       extraConfig = mkOption {
-        type = types.str;
+        type = types.lines;
         default = "";
         description = "Additional configuration variables for TLP";
       };
@@ -54,13 +54,22 @@ in
 
   config = mkIf cfg.enable {
 
+    powerManagement.scsiLinkPolicy = null;
+    powerManagement.cpuFreqGovernor = null;
+
+    systemd.sockets."systemd-rfkill".enable = false;
+
     systemd.services = {
+      "systemd-rfkill@".enable = false;
+      "systemd-rfkill".enable = false;
+
       tlp = {
         description = "TLP system startup/shutdown";
 
         after = [ "multi-user.target" ];
         wantedBy = [ "multi-user.target" ];
         before = [ "shutdown.target" ];
+        restartTriggers = [ confFile ];
 
         serviceConfig = {
           Type = "oneshot";
@@ -68,8 +77,6 @@ in
           ExecStart = "${tlp}/bin/tlp init start";
           ExecStop = "${tlp}/bin/tlp init stop";
         };
-
-        environment.MODULE_DIR="/run/current-system/kernel-modules/lib/modules/";
       };
 
       tlp-sleep = {
@@ -88,8 +95,6 @@ in
           ExecStart = "${tlp}/bin/tlp suspend";
           ExecStop = "${tlp}/bin/tlp resume";
         };
-
-        environment.MODULE_DIR="/run/current-system/kernel-modules/lib/modules/";
       };
     };
 

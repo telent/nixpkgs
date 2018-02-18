@@ -1,14 +1,17 @@
-{ stdenv, fetchurl, pkgconfig, libuuid }:
+{ stdenv, fetchurl, pkgconfig, libuuid, gettext, texinfo }:
 
 stdenv.mkDerivation rec {
-  name = "e2fsprogs-1.42.13";
+  name = "e2fsprogs-1.43.7";
 
   src = fetchurl {
     url = "mirror://sourceforge/e2fsprogs/${name}.tar.gz";
-    sha256 = "1m72lk90b5i3h9qnmss6aygrzyn8x2avy3hyaq2fb0jglkrkz6ar";
+    sha256 = "1i51w5l45zhz3i98k92xbbvkqklvjrvw3zvqky3gk9cdmqp5y0w7";
   };
 
-  buildInputs = [ pkgconfig libuuid ];
+  outputs = [ "bin" "dev" "out" "man" "info" ];
+
+  nativeBuildInputs = [ pkgconfig texinfo ];
+  buildInputs = [ libuuid ] ++ stdenv.lib.optional (!stdenv.isLinux) gettext;
 
   crossAttrs = {
     preConfigure = ''
@@ -16,19 +19,29 @@ stdenv.mkDerivation rec {
     '';
   };
 
-  # libuuid, libblkid, uuidd and fsck are in util-linux-ng (the "libuuid" dependency).
-  configureFlags = "--enable-elf-shlibs --disable-libuuid --disable-libblkid --disable-uuidd --disable-fsck --enable-symlink-install";
+  configureFlags =
+    if stdenv.isLinux then [
+      "--enable-elf-shlibs" "--enable-symlink-install" "--enable-relative-symlinks"
+      # libuuid, libblkid, uuidd and fsck are in util-linux-ng (the "libuuid" dependency).
+      "--disable-libuuid" "--disable-uuidd" "--disable-libblkid" "--disable-fsck"
+    ] else [
+      "--enable-libuuid --disable-e2initrd-helper"
+    ]
+  ;
+
+  # hacky way to make it install *.pc
+  postInstall = ''
+    make install-libs
+    rm "$out"/lib/*.a
+  '';
 
   enableParallelBuilding = true;
 
-  preInstall = "installFlagsArray=('LN=ln -s')";
-
-  postInstall = "make install-libs";
-
-  meta = {
+  meta = with stdenv.lib; {
     homepage = http://e2fsprogs.sourceforge.net/;
     description = "Tools for creating and checking ext2/ext3/ext4 filesystems";
-    platforms = stdenv.lib.platforms.linux;
-    maintainers = [ stdenv.lib.maintainers.eelco ];
+    license = licenses.gpl2;
+    platforms = platforms.linux;
+    maintainers = [ maintainers.eelco ];
   };
 }

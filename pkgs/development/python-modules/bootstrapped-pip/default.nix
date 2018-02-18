@@ -1,21 +1,36 @@
-{ stdenv, python, fetchurl, makeWrapper, unzip }:
+{ stdenv, python, fetchPypi, fetchurl, makeWrapper, unzip }:
 
 let
-  wheel_source = fetchurl {
-    url = "https://pypi.python.org/packages/py2.py3/w/wheel/wheel-0.26.0-py2.py3-none-any.whl";
-    sha256 = "1sl642ncvipqx0hzypvl5hsiqngy0sib0kq242g4mic7vnid6bn9";
+  wheel_source = fetchPypi {
+    pname = "wheel";
+    version = "0.30.0";
+    format = "wheel";
+    sha256 = "e721e53864f084f956f40f96124a74da0631ac13fbbd1ba99e8e2b5e9cafdf64";
   };
-  setuptools_source = fetchurl {
-    url = "https://pypi.python.org/packages/3.4/s/setuptools/setuptools-18.2-py2.py3-none-any.whl";
-    sha256 = "0jhafl8wmjc8xigl1ib5hqiq9crmipcz0zcga52riymgqbf2bzh4";
+  setuptools_source = fetchPypi {
+    pname = "setuptools";
+    version = "38.2.3";
+    format = "wheel";
+    sha256 = "0c4j3jiiwc0h1bdv4xklinp90spgvgiv5fsxp119hif9934nfxfs";
   };
-in stdenv.mkDerivation rec {
-  name = "python-${python.version}-bootstrapped-pip-${version}";
-  version = "7.1.2";
 
-  src = fetchurl {
-    url = "https://pypi.python.org/packages/py2.py3/p/pip/pip-${version}-py2.py3-none-any.whl";
-    sha256 = "133hx6jaspm6hd02gza66lng37l65yficc2y2x1gh16fbhxrilxr";
+  # TODO: Shouldn't be necessary anymore for pip > 9.0.1!
+  # https://github.com/NixOS/nixpkgs/issues/26392
+  # https://github.com/pypa/setuptools/issues/885
+  pkg_resources = fetchurl {
+    url = "https://raw.githubusercontent.com/pypa/setuptools/v36.0.1/pkg_resources/__init__.py";
+    sha256 = "1wdnq3mammk75mifkdmmjx7yhnpydvnvi804na8ym4mj934l2jkv";
+  };
+
+in stdenv.mkDerivation rec {
+  pname = "pip";
+  version = "9.0.1";
+  name = "${python.libPrefix}-bootstrapped-${pname}-${version}";
+
+  src = fetchPypi {
+    inherit pname version;
+    format = "wheel";
+    sha256 = "690b762c0a8460c303c089d5d0be034fb15a5ea2b75bdf565f40421f542fefb0";
   };
 
   unpackPhase = ''
@@ -23,16 +38,12 @@ in stdenv.mkDerivation rec {
     unzip -d $out/${python.sitePackages} $src
     unzip -d $out/${python.sitePackages} ${setuptools_source}
     unzip -d $out/${python.sitePackages} ${wheel_source}
+    # TODO: Shouldn't be necessary anymore for pip > 9.0.1!
+    cp ${pkg_resources} $out/${python.sitePackages}/pip/_vendor/pkg_resources/__init__.py
   '';
 
   patchPhase = ''
     mkdir -p $out/bin
-
-    # patch pip to support "pip install --prefix"
-    # https://github.com/pypa/pip/pull/3252
-    pushd $out/${python.sitePackages}/
-    patch -p1 < ${./pip-7.0.1-prefix.patch}
-    popd
   '';
 
   buildInputs = [ python makeWrapper unzip ];
@@ -40,7 +51,9 @@ in stdenv.mkDerivation rec {
   installPhase = ''
 
     # install pip binary
-    echo '${python.interpreter} -m pip "$@"' > $out/bin/pip
+    echo '#!${python.interpreter}' > $out/bin/pip
+    echo 'import sys;from pip import main' >> $out/bin/pip
+    echo 'sys.exit(main())' >> $out/bin/pip
     chmod +x $out/bin/pip
 
     # wrap binaries with PYTHONPATH

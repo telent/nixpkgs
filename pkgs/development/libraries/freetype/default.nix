@@ -1,44 +1,63 @@
-{ stdenv, fetchurl, fetchpatch, pkgconfig, which, zlib, bzip2, libpng, gnumake
-  # FreeType supports sub-pixel rendering.  This is patented by
-  # Microsoft, so it is disabled by default.  This option allows it to
-  # be enabled.  See http://www.freetype.org/patents.html.
-, glib/*passthru only*/
-, useEncumberedCode ? true
+{ stdenv, lib, fetchurl, copyPathsToStore
+, hostPlatform
+, pkgconfig, which
+, zlib, bzip2, libpng, gnumake, glib
+
+, # FreeType supports LCD filtering (colloquially referred to as sub-pixel rendering).
+  # LCD filtering is also known as ClearType and covered by several Microsoft patents.
+  # This option allows it to be disabled. See http://www.freetype.org/patents.html.
+  useEncumberedCode ? true
 }:
 
 let
-  version = "2.5.4";
+  inherit (stdenv.lib) optional optionals optionalString;
+  version = "2.7.1"; name = "freetype-" + version;
 
-  fetch_bohoomil = name: sha256: fetchpatch {
-    url = https://raw.githubusercontent.com/bohoomil/fontconfig-ultimate/e4c99bcf5ac9595e2c64393c0661377685c0ad24/01_freetype2-iu/ + name;
-    inherit sha256;
+in stdenv.mkDerivation {
+  inherit name;
+
+  meta = with stdenv.lib; {
+    description = "A font rendering engine";
+    longDescription = ''
+      FreeType is a portable and efficient library for rendering fonts. It
+      supports TrueType, Type 1, CFF fonts, and WOFF, PCF, FNT, BDF and PFR
+      fonts. It has a bytecode interpreter and has an automatic hinter called
+      autofit which can be used instead of hinting instructions included in
+      fonts.
+    '';
+    homepage = https://www.freetype.org/;
+    license = licenses.gpl2Plus; # or the FreeType License (BSD + advertising clause)
+    platforms = platforms.all;
+    maintainers = with maintainers; [ ttuegel ];
   };
-in
-with { inherit (stdenv.lib) optional optionals optionalString; };
-stdenv.mkDerivation rec {
-  name = "freetype-${version}";
 
   src = fetchurl {
-    url = "mirror://sourceforge/freetype/${name}.tar.bz2";
-    sha256 = "1fxsbk4lp6ymifldzrb86g3x6mz771jmrzphkz92mcrkddk2qkiv";
+    url = "mirror://savannah/freetype/${name}.tar.bz2";
+    sha256 = "121gm15ayfg3rglby8ifh8384mcjb9dhmx9j40zl7yszw72b4frs";
   };
-
-  patches = [ ./enable-validation.patch ] # from Gentoo, bohoomil has the same patch as well
-    ++ [ ./fix-pcf.patch ]
-    ++ optionals useEncumberedCode [
-      (fetch_bohoomil "02-ftsmooth-2.5.4.patch" "11w4wb7gwgpijc788mpkxj92d7rfdwrdv7jzrpxwv5w5cgpx9iw9")
-      (fetch_bohoomil "03-upstream-2014.12.07.patch" "0gq7y63mg3gc5z69nfkv2kl7xad0bjzsvnl6j1j9q79jjbvaqdq0")
-      (fetch_bohoomil "04-infinality-2.5.4-2014.12.07.patch" "1gph7z9s2221gy5dxn01v3lga0m9yib8yqsaqj5km74bqx1vlalh")
-    ];
 
   propagatedBuildInputs = [ zlib bzip2 libpng ]; # needed when linking against freetype
   # dependence on harfbuzz is looser than the reverse dependence
-  buildInputs = [ pkgconfig which ]
+  nativeBuildInputs = [ pkgconfig which ]
     # FreeType requires GNU Make, which is not part of stdenv on FreeBSD.
     ++ optional (!stdenv.isLinux) gnumake;
 
-  # from Gentoo, see https://bugzilla.redhat.com/show_bug.cgi?id=506840
-  NIX_CFLAGS_COMPILE = "-fno-strict-aliasing";
+  patches =
+    [
+      ./pcf-introduce-driver.patch
+      ./pcf-config-long-family-names.patch
+      ./disable-pcf-long-family-names.patch
+      ./enable-table-validation.patch
+      # remove the two CVE patches after updating to >= 2.8
+      ./cve-2017-8105.patch
+      ./cve-2017-8287.patch
+    ] ++
+    optional useEncumberedCode ./enable-subpixel-rendering.patch;
+
+  outputs = [ "out" "dev" ];
+
+  configureFlags = [ "--disable-static" "--bindir=$(dev)/bin" ];
+
   # The asm for armel is written with the 'asm' keyword.
   CFLAGS = optionalString stdenv.isArm "-std=gnu99";
 
@@ -46,23 +65,12 @@ stdenv.mkDerivation rec {
 
   doCheck = true;
 
-  # compat hacks
-  postInstall = glib.flattenInclude + ''
-    ln -s . "$out"/include/freetype
-  '';
+  postInstall = glib.flattenInclude;
 
-  crossAttrs = {
+  crossAttrs = stdenv.lib.optionalAttrs (hostPlatform.libc or null != "msvcrt") {
     # Somehow it calls the unwrapped gcc, "i686-pc-linux-gnu-gcc", instead
     # of gcc. I think it's due to the unwrapped gcc being in the PATH. I don't
     # know why it's on the PATH.
     configureFlags = "--disable-static CC_BUILD=gcc";
-  };
-
-  meta = with stdenv.lib; {
-    description = "A font rendering engine";
-    homepage = http://www.freetype.org/;
-    license = licenses.gpl2Plus; # or the FreeType License (BSD + advertising clause)
-    #ToDo: encumbered = useEncumberedCode;
-    platforms = platforms.all;
   };
 }

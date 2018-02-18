@@ -1,30 +1,33 @@
-{ stdenv, fetchurl, cmake, giflib, libjpeg, libtiff, lib3ds, freetype
-, libpng, coin3d, jasper, gdal_1_11, xproto, libX11, libXmu
-, freeglut, mesa, doxygen, ffmpeg, xineLib, unzip, zlib, openal
-, libxml2, curl, a52dec, faad2, gdk_pixbuf, pkgconfig, kbproto, SDL
-, qt4, poppler, librsvg, gtk }:
+{ stdenv, lib, fetchurl, cmake, pkgconfig, doxygen, unzip
+, freetype, libjpeg, jasper, libxml2, zlib, gdal, curl, libX11
+, cairo, poppler, librsvg, libpng, libtiff, libXrandr
+, xineLib, boost
+, withApps ? false
+, withSDL ? false, SDL
+, withQt4 ? false, qt4
+}:
 
 stdenv.mkDerivation rec {
   name = "openscenegraph-${version}";
-  version = "3.2.1";
+  version = "3.4.0";
 
   src = fetchurl {
-    url = "http://trac.openscenegraph.org/downloads/developer_releases/${name}.zip";
-    sha256 = "0v9y1gxb16y0mj994jd0mhcz32flhv2r6kc01xdqb4817lk75bnr";
+    url = "http://trac.openscenegraph.org/downloads/developer_releases/OpenSceneGraph-${version}.zip";
+    sha256 = "03h4wfqqk7rf3mpz0sa99gy715cwpala7964z2npd8jxfn27swjw";
   };
 
-  buildInputs = [
-    cmake giflib libjpeg libtiff lib3ds freetype libpng coin3d jasper
-    gdal_1_11 xproto libX11 libXmu freeglut mesa doxygen ffmpeg
-    xineLib unzip zlib openal libxml2 curl a52dec faad2 gdk_pixbuf
-    pkgconfig kbproto SDL qt4 poppler librsvg gtk
-  ];
+  nativeBuildInputs = [ pkgconfig cmake doxygen unzip ];
 
-  cmakeFlags = [
-    "-DMATH_LIBRARY="
-    "-DCMAKE_C_FLAGS=-D__STDC_CONSTANT_MACROS=1"
-    "-DCMAKE_CXX_FLAGS=-D__STDC_CONSTANT_MACROS=1"
-  ];
+  buildInputs = [
+    freetype libjpeg jasper libxml2 zlib gdal curl libX11
+    cairo poppler librsvg libpng libtiff libXrandr boost
+    xineLib
+  ] ++ lib.optional withSDL SDL
+    ++ lib.optional withQt4 qt4;
+
+  enableParallelBuilding = true;
+
+  cmakeFlags = lib.optional (!withApps) "-DBUILD_OSG_APPLICATIONS=OFF";
 
   meta = with stdenv.lib; {
     description = "A 3D graphics toolkit";

@@ -13,11 +13,13 @@ stdenv.mkDerivation rec {
   };
   name = "${p_name}-${ver_maj}.${ver_min}";
 
-  buildInputs = [ pkgconfig intltool exo gtk vte libxfce4util ncurses dbus_glib libxfce4ui ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ intltool exo gtk vte libxfce4util ncurses dbus_glib libxfce4ui ];
 
   meta = {
     homepage = http://www.xfce.org/projects/terminal;
     description = "A modern terminal emulator primarily for the Xfce desktop environment";
     license = stdenv.lib.licenses.gpl2Plus;
+    platforms = stdenv.lib.platforms.linux;
   };
 }

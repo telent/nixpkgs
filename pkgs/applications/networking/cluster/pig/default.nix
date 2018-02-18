@@ -21,13 +21,13 @@ stdenv.mkDerivation rec {
 
     for n in $out/{bin,sbin}"/"*; do
       wrapProgram $n \
-        --prefix PATH : "${jre}/bin:${bash}/bin" \
+        --prefix PATH : "${stdenv.lib.makeBinPath [ jre bash ]}" \
         --set JAVA_HOME "${jre}" --set HADOOP_PREFIX "${hadoop}"
     done
   '';
 
   meta = with stdenv.lib; {
-    homepage = "http://pig.apache.org/";
+    homepage = http://pig.apache.org/;
     description = "High-level language for Apache Hadoop";
     license = licenses.asl20;
 

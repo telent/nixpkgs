@@ -1,18 +1,19 @@
 { fetchurl, stdenv, autoreconfHook, libkrb5 }:
 
 stdenv.mkDerivation rec {
-  name = "libtirpc-0.3.2";
+  name = "libtirpc-1.0.2";
 
   src = fetchurl {
     url = "mirror://sourceforge/libtirpc/${name}.tar.bz2";
-    sha256 = "1z1z8xnlqgqznxzmyc6sypjc6b220xkv0s55hxd5sb3zydws6210";
+    sha256 = "1xchbxy0xql7yl7z4n1icj8r7dmly46i22fvm00vdjq64zlmqg3j";
   };
+
+  postPatch = ''
+    sed '1i#include <stdint.h>' -i src/xdr_sizeof.c
+  '';
 
   nativeBuildInputs = [ autoreconfHook ];
   propagatedBuildInputs = [ libkrb5 ];
-
-  # http://sourceforge.net/p/libtirpc/mailman/libtirpc-devel/thread/5581CB06.5020604%40email.com/#msg34216933
-  patches = [ ./fix_missing_rpc_get_default_domain.patch ];
 
   preConfigure = ''
     sed -es"|/etc/netconfig|$out/etc/netconfig|g" -i doc/Makefile.in tirpc/netconfig.h
@@ -23,7 +24,7 @@ stdenv.mkDerivation rec {
   doCheck = true;
 
   meta = with stdenv.lib; {
-    homepage = "http://sourceforge.net/projects/libtirpc/";
+    homepage = https://sourceforge.net/projects/libtirpc/;
     description = "The transport-independent Sun RPC implementation (TI-RPC)";
     license = licenses.bsd3;
     platforms = platforms.linux;

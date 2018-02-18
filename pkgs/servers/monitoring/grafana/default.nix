@@ -1,35 +1,35 @@
-{ lib, goPackages, fetchurl, fetchFromGitHub }:
+{ lib, buildGoPackage, fetchurl, fetchFromGitHub, phantomjs2 }:
 
-goPackages.buildGoPackage rec {
-  version = "2.5.0";
+buildGoPackage rec {
+  version = "4.6.3";
   name = "grafana-v${version}";
   goPackagePath = "github.com/grafana/grafana";
-  subPackages = [ "./" ];
 
   src = fetchFromGitHub {
     rev = "v${version}";
     owner = "grafana";
     repo = "grafana";
-    sha256 = "11m6jvls3gm9z8g27vxmfx84f22vyjff8bllz5lvpdizydry6zar";
+    sha256 = "18r35pwarbgamhd7m9z4wpx6x1ymd5qsymvfll58zcgivis6c32j";
   };
 
   srcStatic = fetchurl {
-    url = "https://grafanarel.s3.amazonaws.com/builds/grafana-${version}.linux-x64.tar.gz";
-    sha256 = "1zih0nzlx1sszgc4b5gll4jvsq43ikx782vv991fgy79bb2a5snk";
+    url = "https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-${version}.linux-x64.tar.gz";
+    sha256 = "01f50w57n7p7if37rhj8zy0y0x84qajbxrrdcfrsbi2qi1kzfz03";
   };
 
   preBuild = "export GOPATH=$GOPATH:$NIX_BUILD_TOP/go/src/${goPackagePath}/Godeps/_workspace";
   postInstall = ''
     tar -xvf $srcStatic
     mkdir -p $bin/share/grafana
-    mv grafana-*/{public,conf} $bin/share/grafana/
+    mv grafana-*/{public,conf,vendor} $bin/share/grafana/
+    ln -sf ${phantomjs2}/bin/phantomjs $bin/share/grafana/vendor/phantomjs/phantomjs
   '';
 
   meta = with lib; {
     description = "Gorgeous metric viz, dashboards & editors for Graphite, InfluxDB & OpenTSDB";
     license = licenses.asl20;
-    homepage = http://grafana.org/;
-    maintainers = with maintainers; [ offline ];
+    homepage = https://grafana.org/;
+    maintainers = with maintainers; [ offline fpletz willibutz ];
     platforms = platforms.linux;
   };
 }

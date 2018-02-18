@@ -1,25 +1,91 @@
-{ stdenv, lib, fetchFromGitHub }:
+{
+  stdenv, lib,
+  fetchFromGitHub, fetchurl,
+  runCommand, writeText,
+  nodejs, ttfautohint-nox, otfcc,
 
-stdenv.mkDerivation rec {
-  name = "iosevka-${version}";
-  version = "1.4.2";
+  # Custom font set options.
+  # See https://github.com/be5invis/Iosevka#build-your-own-style
+  design ? [], upright ? [], italic ? [], oblique ? [],
+  # Custom font set name. Required if any custom settings above.
+  set ? null
+}:
 
+assert (design != []) -> set != null;
+assert (upright != []) -> set != null;
+assert (italic != []) -> set != null;
+assert (oblique != []) -> set != null;
+
+let
+  installPackageLock = import ./package-lock.nix { inherit fetchurl lib; };
+in
+
+let pname = if set != null then "iosevka-${set}" else "iosevka"; in
+
+let
+  version = "1.13.3";
+  name = "${pname}-${version}";
   src = fetchFromGitHub {
-    owner  = "be5invis";
-    repo   = "Iosevka";
-    rev    = "v${version}";
-    sha256 = "1h1lmvjpjk0238bhdhnv2c149s98qpbndc8rxzlk6bhmxcy6rwsk";
+    owner = "be5invis";
+    repo ="Iosevka";
+    rev = "v${version}";
+    sha256 = "0wfhfiahllq8ngn0mybvp29cfcm7b8ndk3fyhizd620wrj50bazf";
   };
+in
 
-  installPhase = ''
-    fontdir=$out/share/fonts/iosevka
+with lib;
+let unwords = concatStringsSep " "; in
 
-    mkdir -p $fontdir
-    cp -v iosevka-* $fontdir
+let
+  param = name: options:
+    if options != [] then "${name}='${unwords options}'" else null;
+  config = unwords (lib.filter (x: x != null) [
+    (param "design" design)
+    (param "upright" upright)
+    (param "italic" italic)
+    (param "oblique" oblique)
+  ]);
+  custom = design != [] || upright != [] || italic != [] || oblique != [];
+in
+
+stdenv.mkDerivation {
+  inherit name pname version src;
+
+  nativeBuildInputs = [ nodejs ttfautohint-nox otfcc ];
+
+  passAsFile = [ "installPackageLock" ];
+  installPackageLock = installPackageLock ./package-lock.json;
+
+  preConfigure = ''
+    HOME=$TMPDIR
+    source "$installPackageLockPath";
+    npm --offline rebuild
   '';
 
-  meta = with lib; {
-    homepage = "http://be5invis.github.io/Iosevka/";
+  configurePhase = ''
+    runHook preConfigure
+
+    ${optionalString custom ''make custom-config set=${set} ${config}''}
+
+    runHook postConfigure
+  '';
+
+  makeFlags = lib.optionals custom [ "custom" "set=${set}" ];
+
+  installPhase = ''
+    runHook preInstall
+
+    fontdir="$out/share/fonts/$pname"
+    install -d "$fontdir"
+    install "dist/$pname/ttf"/* "$fontdir"
+
+    runHook postInstall
+  '';
+
+  enableParallelBuilding = true;
+
+  meta = with stdenv.lib; {
+    homepage = https://be5invis.github.io/Iosevka/;
     downloadPage = "https://github.com/be5invis/Iosevka/releases";
     description = ''
       Slender monospace sans-serif and slab-serif typeface inspired by Pragmata
@@ -27,6 +93,6 @@ stdenv.mkDerivation rec {
     '';
     license = licenses.ofl;
     platforms = platforms.all;
-    maintainers = [ maintainers.cstrahan ];
+    maintainers = with maintainers; [ cstrahan jfrankenau ttuegel ];
   };
 }

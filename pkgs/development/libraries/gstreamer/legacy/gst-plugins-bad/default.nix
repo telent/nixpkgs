@@ -1,4 +1,4 @@
-{ fetchurl, stdenv, pkgconfig, glib, gstreamer, gst_plugins_base
+{ fetchurl, stdenv, pkgconfig, glib, gstreamer, gst-plugins-base
 , libdvdnav, libdvdread, orc }:
 
 stdenv.mkDerivation rec {
@@ -13,12 +13,12 @@ stdenv.mkDerivation rec {
   };
 
   buildInputs =
-    [ pkgconfig glib gstreamer gst_plugins_base libdvdnav libdvdread orc ];
+    [ pkgconfig glib gstreamer gst-plugins-base libdvdnav libdvdread orc ];
 
   enableParallelBuilding = true;
 
   meta = {
-    homepage = http://gstreamer.freedesktop.org;
+    homepage = https://gstreamer.freedesktop.org;
 
     description = "‘Bad’ (potentially low quality) plug-ins for GStreamer";
 

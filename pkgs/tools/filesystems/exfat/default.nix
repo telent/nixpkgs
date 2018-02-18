@@ -1,11 +1,11 @@
 { stdenv, fetchFromGitHub, autoreconfHook, pkgconfig, fuse }:
 
-let version = "1.2.3"; in
 stdenv.mkDerivation rec {
   name = "exfat-${version}";
+  version = "1.2.4";
 
   src = fetchFromGitHub {
-    sha256 = "147s11sqmn5flbvz2hwpl6kdfqi2gnm1c2nsn5fxygyw7qyhpzda";
+    sha256 = "0x8wjvvlqmp0g2361m6d24csi1p4df8za2cqhyys03s1hv1qmy0k";
     rev = "v${version}";
     repo = "exfat";
     owner = "relan";
@@ -15,7 +15,6 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ autoreconfHook pkgconfig ];
 
   meta = with stdenv.lib; {
-    inherit version;
     inherit (src.meta) homepage;
     description = "Free exFAT file system implementation";
     platforms = platforms.linux;

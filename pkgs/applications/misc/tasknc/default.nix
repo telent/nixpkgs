@@ -9,6 +9,8 @@ stdenv.mkDerivation rec {
     sha256 = "0max5schga9hmf3vfqk2ic91dr6raxglyyjcqchzla280kxn5c28";
   };
 
+  hardeningDisable = [ "format" ];
+
   #
   # I know this is ugly, but the Makefile does strange things in this package,
   # so we have to:
@@ -38,8 +40,8 @@ stdenv.mkDerivation rec {
   buildInputs = [ taskwarrior perl ncurses ];
 
   meta = {
-    homepage = "https://github.com/mjheagle8/tasknc";
-    description = "a ncurses wrapper around taskwarrior";
+    homepage = https://github.com/mjheagle8/tasknc;
+    description = "A ncurses wrapper around taskwarrior";
     maintainers = [ stdenv.lib.maintainers.matthiasbeyer ];
     platforms = stdenv.lib.platforms.linux; # Cannot test others
   };

@@ -36,10 +36,11 @@ in
 
       package = mkOption {
         type = types.package;
-        default = pkgs.slurm-llnl;
-        example = literalExample "pkgs.slurm-llnl-full";
+        default = pkgs.slurm;
+        defaultText = "pkgs.slurm";
+        example = literalExample "pkgs.slurm-full";
         description = ''
-          The packge to use for slurm binaries.
+          The package to use for slurm binaries.
         '';
       };
 
@@ -110,7 +111,7 @@ in
         builder = pkgs.writeText "builder.sh" ''
           source $stdenv/setup
           mkdir -p $out/bin
-          find  ${cfg.package}/bin -type f -executable | while read EXE
+          find  ${getBin cfg.package}/bin -type f -executable | while read EXE
           do
             exename="$(basename $EXE)"
             wrappername="$out/bin/$exename"

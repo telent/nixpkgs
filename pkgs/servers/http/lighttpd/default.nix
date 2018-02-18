@@ -7,14 +7,15 @@ assert enableMagnet -> lua5_1 != null;
 assert enableMysql -> mysql != null;
 
 stdenv.mkDerivation rec {
-  name = "lighttpd-1.4.37";
+  name = "lighttpd-1.4.48";
 
   src = fetchurl {
     url = "http://download.lighttpd.net/lighttpd/releases-1.4.x/${name}.tar.xz";
-    sha256 = "1gbri5avg1jv2g585wk0jp53mf9jjdz2py9774mxm8bwarh6ykl0";
+    sha256 = "0djgsx06x3p22rjvzml5klq7gqd9nk88qzlxifa7p7ajqymdb2hg";
   };
 
-  buildInputs = [ pkgconfig pcre libxml2 zlib attr bzip2 which file openssl ]
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ pcre libxml2 zlib attr bzip2 which file openssl ]
              ++ stdenv.lib.optional enableMagnet lua5_1
              ++ stdenv.lib.optional enableMysql mysql.lib;
 
@@ -24,6 +25,15 @@ stdenv.mkDerivation rec {
 
   preConfigure = ''
     sed -i "s:/usr/bin/file:${file}/bin/file:g" configure
+  '';
+
+  postInstall = ''
+    mkdir -p "$out/share/lighttpd/doc/config"
+    cp -vr doc/config "$out/share/lighttpd/doc/"
+    # Remove files that references needless store paths (dependency bloat)
+    rm "$out/share/lighttpd/doc/config/Makefile"*
+    rm "$out/share/lighttpd/doc/config/conf.d/Makefile"*
+    rm "$out/share/lighttpd/doc/config/vhosts.d/Makefile"*
   '';
 
   meta = with stdenv.lib; {

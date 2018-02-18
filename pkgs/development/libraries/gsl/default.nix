@@ -1,11 +1,11 @@
 { fetchurl, fetchpatch, stdenv }:
 
 stdenv.mkDerivation rec {
-  name = "gsl-2.1";
+  name = "gsl-2.4";
 
   src = fetchurl {
     url = "mirror://gnu/gsl/${name}.tar.gz";
-    sha256 = "0rhcia9jhr3p1f1wybwyllwqfs9bggz99i3mi5lpyqcpff1hdbar";
+    sha256 = "16yfs5n444s03np1naj6yp1fsysd42kdscxzkg0k2yvfjixx0ijd";
   };
 
   patches = [
@@ -13,7 +13,7 @@ stdenv.mkDerivation rec {
     ./disable-fma.patch # http://lists.gnu.org/archive/html/bug-gsl/2011-11/msg00019.html
   ];
 
-  doCheck = true;
+  doCheck = stdenv.system != "i686-linux"; # https://lists.gnu.org/archive/html/bug-gsl/2015-11/msg00012.html
 
   meta = {
     description = "The GNU Scientific Library, a large numerical library";
@@ -30,5 +30,6 @@ stdenv.mkDerivation rec {
       fitting.  There are over 1000 functions in total with an
       extensive test suite.
     '';
+    platforms = stdenv.lib.platforms.unix;
   };
 }

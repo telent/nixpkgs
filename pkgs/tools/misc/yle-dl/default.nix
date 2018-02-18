@@ -1,30 +1,21 @@
 { stdenv, fetchFromGitHub, rtmpdump, php, pythonPackages }:
 
-stdenv.mkDerivation rec {
+pythonPackages.buildPythonApplication rec {
   name = "yle-dl-${version}";
-  version = "2.9.1";
+  version = "2.28";
 
   src = fetchFromGitHub {
     owner = "aajanki";
     repo = "yle-dl";
     rev = version;
-    sha256 = "1irpcp9iw2cw85sj1kzndmrw8350p9q7cfghjx2xkh2czk9k7whq";
+    sha256 = "1nb3gmkizgkd09slihc2iaf3rh1s7bdhy9zydkfghmqi7nv4mmq0";
   };
 
-  patchPhase = ''
-    substituteInPlace yle-dl --replace '/usr/local/share/' "$out/share/"
+  propagatedBuildInputs = with pythonPackages; [ lxml pyamf pycrypto requests ];
+  pythonPath = [ rtmpdump php ];
 
-    # HACK: work around https://github.com/NixOS/nixpkgs/issues/9593
-    substituteInPlace yle-dl --replace '/usr/bin/env python2' '/usr/bin/env python'
-  '';
-
-  buildInputs = [ pythonPackages.wrapPython ];
-  pythonPath = [ rtmpdump php ] ++ (with pythonPackages; [ pycrypto ]);
-
-  installPhase = ''
-    make install prefix=$out
-    wrapPythonPrograms
-  '';
+  doCheck = false; # tests require network access
+  checkInputs = with pythonPackages; [ pytest pytestrunner ];
 
   meta = with stdenv.lib; {
     description = "Downloads videos from Yle (Finnish Broadcasting Company) servers";

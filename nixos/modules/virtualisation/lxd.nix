@@ -45,9 +45,9 @@ in
         after = [ "systemd-udev-settle.service" ];
 
         # TODO(wkennington): Add lvm2 and thin-provisioning-tools
-        path = with pkgs; [ acl rsync gnutar xz btrfs-progs ];
+        path = with pkgs; [ acl rsync gnutar xz btrfs-progs gzip dnsmasq squashfsTools iproute iptables ];
 
-        serviceConfig.ExecStart = "@${pkgs.lxd}/bin/lxd lxd --syslog --group lxd";
+        serviceConfig.ExecStart = "@${pkgs.lxd.bin}/bin/lxd lxd --syslog --group lxd";
         serviceConfig.Type = "simple";
         serviceConfig.KillMode = "process"; # when stopping, leave the containers alone
       };

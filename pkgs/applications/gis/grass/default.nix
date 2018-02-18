@@ -1,6 +1,6 @@
 { stdenv, fetchurl, flex, bison, pkgconfig, zlib, libtiff, libpng, fftw
 , cairo, readline, ffmpeg, makeWrapper, wxGTK30, netcdf, blas
-, proj, gdal, geos, sqlite, postgresql, mysql, pythonPackages
+, proj, gdal, geos, sqlite, postgresql, mysql, python2Packages
 }:
 
 stdenv.mkDerivation {
@@ -10,9 +10,10 @@ stdenv.mkDerivation {
     sha256 = "02qrdgn46gxr60amxwax4b8fkkmhmjxi6qh4yfvpbii6ai6diarf";
   };
 
-  buildInputs = [ flex bison zlib proj gdal libtiff libpng fftw sqlite pkgconfig cairo
-  readline ffmpeg makeWrapper wxGTK30 netcdf geos postgresql mysql.lib blas ]
-    ++ (with pythonPackages; [ python dateutil wxPython30 numpy sqlite3 ]);
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ flex bison zlib proj gdal libtiff libpng fftw sqlite cairo
+  readline ffmpeg makeWrapper wxGTK30 netcdf geos postgresql mysql.client blas ]
+    ++ (with python2Packages; [ python dateutil wxPython30 numpy ]);
 
   configureFlags = [
     "--with-proj-share=${proj}/share/proj"
@@ -21,8 +22,9 @@ stdenv.mkDerivation {
     "--with-wxwidgets"
     "--with-netcdf"
     "--with-geos"
-    "--with-postgres"
-    "--with-mysql" "--with-mysql-includes=${mysql.lib}/include/mysql"
+    "--with-postgres" "--with-postgres-libs=${postgresql.lib}/lib/"
+    # it complains about missing libmysqld but doesn't really seem to need it
+    "--with-mysql" "--with-mysql-includes=${stdenv.lib.getDev mysql.client}/include/mysql"
     "--with-blas"
   ];
 
@@ -58,7 +60,8 @@ stdenv.mkDerivation {
   postInstall = ''
     wrapProgram $out/bin/grass70 \
     --set PYTHONPATH $PYTHONPATH \
-    --set GRASS_PYTHON ${pythonPackages.python}/bin/${pythonPackages.python.executable}
+    --set GRASS_PYTHON ${python2Packages.python}/bin/${python2Packages.python.executable} \
+    --suffix LD_LIBRARY_PATH ':' '${gdal}/lib'
     ln -s $out/grass-*/lib $out/lib
   '';
 
@@ -69,5 +72,6 @@ stdenv.mkDerivation {
     description = "GIS software suite used for geospatial data management and analysis, image processing, graphics and maps production, spatial modeling, and visualization";
     license = stdenv.lib.licenses.gpl2Plus;
     platforms = stdenv.lib.platforms.all;
+    broken = true;
   };
 }

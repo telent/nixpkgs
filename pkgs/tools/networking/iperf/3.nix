@@ -1,12 +1,14 @@
-{ stdenv, fetchurl }:
+{ stdenv, fetchurl, openssl }:
 
 stdenv.mkDerivation rec {
-  name = "iperf-3.1";
+  name = "iperf-3.3";
 
   src = fetchurl {
     url = "http://downloads.es.net/pub/iperf/${name}.tar.gz";
-    sha256 = "0mp6bhfbkkcrdc2sl65k0g5x5csnccqrjk3bc3a0kjr5rqpa71a3";
+    sha256 = "1n442bjkm1dvzmcj8z1i99yrmba489yz3f5v27ybymhh4mqn4nbg";
   };
+
+  buildInputs = [ openssl ];
 
   postInstall = ''
     ln -s iperf3 $out/bin/iperf
@@ -17,6 +19,6 @@ stdenv.mkDerivation rec {
     description = "Tool to measure IP bandwidth using UDP or TCP";
     platforms = platforms.unix;
     license = "as-is";
-    maintainers = with maintainers; [ wkennington ];
+    maintainers = with maintainers; [ wkennington fpletz ];
   };
 }

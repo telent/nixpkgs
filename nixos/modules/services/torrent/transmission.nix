@@ -6,7 +6,7 @@ let
   cfg = config.services.transmission;
   apparmor = config.security.apparmor.enable;
 
-  homeDir = "/var/lib/transmission";
+  homeDir = cfg.home;
   downloadDir = "${homeDir}/Downloads";
   incompleteDir = "${homeDir}/.incomplete";
 
@@ -15,13 +15,12 @@ let
 
   # Strings must be quoted, ints and bools must not (for settings.json).
   toOption = x:
-    if x == true then "true"
-    else if x == false then "false"
+    if isBool x then boolToString x
     else if isInt x then toString x
     else toString ''"${x}"'';
 
   # for users in group "transmission" to have access to torrents
-  fullSettings = { download-dir = downloadDir; incomplete-dir = incompleteDir; } // cfg.settings // { umask = 2; };
+  fullSettings = { umask = 2; download-dir = downloadDir; incomplete-dir = incompleteDir; } // cfg.settings;
 in
 {
   options = {
@@ -70,6 +69,14 @@ in
         default = 9091;
         description = "TCP port number to run the RPC/web interface.";
       };
+
+      home = mkOption {
+        type = types.path;
+        default = "/var/lib/transmission";
+        description = ''
+          The directory where transmission will create files.
+        '';
+      };
     };
   };
 
@@ -113,26 +120,27 @@ in
           #include <abstractions/base>
           #include <abstractions/nameservice>
 
-          ${pkgs.glibc}/lib/*.so                    mr,
-          ${pkgs.libevent}/lib/libevent*.so*        mr,
-          ${pkgs.curl}/lib/libcurl*.so*             mr,
-          ${pkgs.openssl}/lib/libssl*.so*           mr,
-          ${pkgs.openssl}/lib/libcrypto*.so*        mr,
-          ${pkgs.zlib}/lib/libz*.so*                mr,
-          ${pkgs.libssh2}/lib/libssh2*.so*          mr,
-          ${pkgs.systemd}/lib/libsystemd*.so*       mr,
-          ${pkgs.xz}/lib/liblzma*.so*               mr,
-          ${pkgs.libgcrypt}/lib/libgcrypt*.so*      mr,
-          ${pkgs.libgpgerror}/lib/libgpg-error*.so* mr,
-          ${pkgs.libnghttp2}/lib/libnghttp2*.so*    mr,
-          ${pkgs.c-ares}/lib/libcares*.so*          mr,
-          ${pkgs.libcap}/lib/libcap*.so*            mr,
-          ${pkgs.attr}/lib/libattr*.so*             mr,
+          ${getLib pkgs.glibc}/lib/*.so                    mr,
+          ${getLib pkgs.libevent}/lib/libevent*.so*        mr,
+          ${getLib pkgs.curl}/lib/libcurl*.so*             mr,
+          ${getLib pkgs.openssl}/lib/libssl*.so*           mr,
+          ${getLib pkgs.openssl}/lib/libcrypto*.so*        mr,
+          ${getLib pkgs.zlib}/lib/libz*.so*                mr,
+          ${getLib pkgs.libssh2}/lib/libssh2*.so*          mr,
+          ${getLib pkgs.systemd}/lib/libsystemd*.so*       mr,
+          ${getLib pkgs.xz}/lib/liblzma*.so*               mr,
+          ${getLib pkgs.libgcrypt}/lib/libgcrypt*.so*      mr,
+          ${getLib pkgs.libgpgerror}/lib/libgpg-error*.so* mr,
+          ${getLib pkgs.nghttp2}/lib/libnghttp2*.so*       mr,
+          ${getLib pkgs.c-ares}/lib/libcares*.so*          mr,
+          ${getLib pkgs.libcap}/lib/libcap*.so*            mr,
+          ${getLib pkgs.attr}/lib/libattr*.so*             mr,
+          ${getLib pkgs.lz4}/lib/liblz4*.so*               mr,
 
           @{PROC}/sys/kernel/random/uuid   r,
           @{PROC}/sys/vm/overcommit_memory r,
 
-          ${pkgs.openssl}/etc/**                     r,
+          ${pkgs.openssl.out}/etc/**                     r,
           ${pkgs.transmission}/share/transmission/** r,
 
           owner ${settingsDir}/** rw,

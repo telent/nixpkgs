@@ -1,24 +1,36 @@
-{stdenv, fetchurl, pkgconfig, cmake, zlib, python, libssh2, openssl, http-parser}:
+{ stdenv, fetchFromGitHub, pkgconfig, cmake
+, zlib, python, libssh2, openssl, curl, http-parser
+, libiconv, Security
+}:
 
-stdenv.mkDerivation rec {
-  version = "0.23.2";
+stdenv.mkDerivation (rec {
   name = "libgit2-${version}";
+  version = "0.26.0";
+  # keep the version in sync with pythonPackages.pygit2 and gnome3.libgit2-glib
 
-  src = fetchurl {
-    name = "${name}.tar.gz";
-    url = "https://github.com/libgit2/libgit2/tarball/v${version}";
-    sha256 = "1d3901bmgvdnmzrx21afi1d0llsqmca3ckj942p0i2wpdpr1kbcp";
+  src = fetchFromGitHub {
+    owner = "libgit2";
+    repo = "libgit2";
+    rev = "v${version}";
+    sha256 = "0zrrmfkfhd2xb4879z5khjb6xsdklrm01f1lscrs2ks68v25fk78";
   };
 
-  cmakeFlags = "-DTHREADSAFE=ON";
+  cmakeFlags = [ "-DTHREADSAFE=ON" ];
 
   nativeBuildInputs = [ cmake python pkgconfig ];
-  buildInputs = [ zlib libssh2 openssl http-parser ];
 
-  meta = {
-    description = "the Git linkable library";
-    homepage = http://libgit2.github.com/;
-    license = stdenv.lib.licenses.gpl2;
-    platforms = with stdenv.lib.platforms; all;
+  buildInputs = [ zlib libssh2 openssl http-parser curl ]
+    ++ stdenv.lib.optional stdenv.isDarwin Security;
+
+  propagatedBuildInputs = stdenv.lib.optional (!stdenv.isLinux) [ libiconv ];
+
+  enableParallelBuilding = true;
+
+  meta = with stdenv.lib; {
+    description = "The Git linkable library";
+    homepage = https://libgit2.github.com/;
+    license = licenses.gpl2;
+    platforms = with platforms; all;
   };
-}
+} // stdenv.lib.optionalAttrs (!stdenv.isLinux) {
+})

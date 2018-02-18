@@ -1,15 +1,25 @@
 { stdenv, fetchurl, rpmextract, glibc
 , dataDir ? "/var/lib/plex" # Plex's data directory must be baked into the package due to symlinks.
+, enablePlexPass ? false
 }:
 
-stdenv.mkDerivation rec {
+let
+  plexPass = throw "Plex pass has been removed at upstream's request; please unset nixpkgs.config.plex.pass";
+  plexpkg = if enablePlexPass then plexPass else {
+    version = "1.9.6.4429";
+    vsnHash = "23901a099";
+    sha256 = "0bmqf8b2d9h2h5q3n4ahs8y6a9aihj63rch7wd82rcr1l9xnqk9d";
+  };
+
+in stdenv.mkDerivation rec {
   name = "plex-${version}";
-  version = "0.9.14.6.1620";
-  vsnHash = "e0b7243";
+  version = plexpkg.version;
+  vsnHash = plexpkg.vsnHash;
+  sha256 = plexpkg.sha256;
 
   src = fetchurl {
-    url    = "https://downloads.plex.tv/plex-media-server/${version}-${vsnHash}/plexmediaserver-${version}-${vsnHash}.x86_64.rpm";
-    sha256 = "0br82yxnvjapvsrb0mbfd12mx7qqi9zh623jnivsjk2gxbfd3ki1";
+    url = "https://downloads.plex.tv/plex-media-server/${version}-${vsnHash}/plexmediaserver-${version}-${vsnHash}.x86_64.rpm";
+    inherit sha256;
   };
 
   buildInputs = [ rpmextract glibc ];
@@ -26,13 +36,20 @@ stdenv.mkDerivation rec {
 
     # Now we need to patch up the executables and libraries to work on Nix.
     # Side note: PLEASE don't put spaces in your binary names. This is stupid.
-    for bin in "Plex Media Server" "Plex DLNA Server" "Plex Media Scanner"; do
-      patchelf --set-interpreter "${glibc}/lib/ld-linux-x86-64.so.2" "$out/usr/lib/plexmediaserver/$bin"
+    for bin in "Plex Media Server"              \
+               "Plex DLNA Server"               \
+               "Plex Media Scanner"             \
+               "Plex Media Server Tests"        \
+               "Plex Relay"                     \
+               "Plex Script Host"               \
+               "Plex Transcoder"                \
+               "Plex Tuner Service"             ; do
+      patchelf --set-interpreter "${glibc.out}/lib/ld-linux-x86-64.so.2" "$out/usr/lib/plexmediaserver/$bin"
       patchelf --set-rpath "$out/usr/lib/plexmediaserver" "$out/usr/lib/plexmediaserver/$bin"
     done
 
     find $out/usr/lib/plexmediaserver/Resources -type f -a -perm -0100 \
-        -print -exec patchelf --set-interpreter "${glibc}/lib/ld-linux-x86-64.so.2" '{}' \;
+        -print -exec patchelf --set-interpreter "${glibc.out}/lib/ld-linux-x86-64.so.2" '{}' \;
 
     # executables need libstdc++.so.6
     ln -s "${stdenv.lib.makeLibraryPath [ stdenv.cc.cc ]}/libstdc++.so.6" "$out/usr/lib/plexmediaserver/libstdc++.so.6"
@@ -57,7 +74,7 @@ stdenv.mkDerivation rec {
     homepage = http://plex.tv/;
     license = licenses.unfree;
     platforms = platforms.linux;
-    maintainers = with stdenv.lib.maintainers; [ forkk thoughtpolice ];
+    maintainers = with stdenv.lib.maintainers; [ colemickens forkk thoughtpolice pjones lnl7 ];
     description = "Media / DLNA server";
     longDescription = ''
       Plex is a media server which allows you to store your media and play it

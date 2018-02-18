@@ -2,21 +2,22 @@
 
 stdenv.mkDerivation rec {
   name = "gtkspell-${version}";
-  version = "3.0.7";
+  version = "3.0.9";
 
   src = fetchurl {
-    url = "mirror://sourceforge/gtkspell/gtkspell3-${version}.tar.gz";
-    sha256 = "1hiwzajf18v9ik4nai3s7frps4ccn9s20nggad1c4k2mwb9ydwhk";
+    url = "mirror://sourceforge/gtkspell/gtkspell3-${version}.tar.xz";
+    sha256 = "09jdicmpipmj4v84gnkqwbmj4lh8v0i6pn967rb9jx4zg2ia9x54";
   };
 
-  buildInputs = [ aspell pkgconfig gtk3 enchant intltool ];
+  nativeBuildInputs = [ pkgconfig intltool ];
+  buildInputs = [ aspell gtk3 enchant ];
   propagatedBuildInputs = [ enchant ];
 
-  meta = {
-    homepage = "http://gtkspell.sourceforge.net/";
+  meta = with stdenv.lib; {
+    homepage = http://gtkspell.sourceforge.net/;
     description = "Word-processor-style highlighting GtkTextView widget";
-    license = stdenv.lib.licenses.gpl2Plus;
-    platforms = stdenv.lib.platforms.unix;
-    maintainers = with stdenv.lib.maintainers; [ fuuzetsu ];
+    license = licenses.gpl2Plus;
+    platforms = platforms.unix;
+    maintainers = with maintainers; [ fuuzetsu ];
   };
 }

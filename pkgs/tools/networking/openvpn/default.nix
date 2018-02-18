@@ -1,27 +1,31 @@
-{ stdenv, fetchurl, iproute, lzo, openssl, pam, systemd, pkgconfig }:
+{ stdenv, fetchurl, iproute, lzo, openssl, pam, systemd, pkgconfig
+, pkcs11Support ? false, pkcs11helper ? null,
+}:
+
+assert pkcs11Support -> (pkcs11helper != null);
 
 with stdenv.lib;
 
 stdenv.mkDerivation rec {
-  name = "openvpn-2.3.8";
+  name = "openvpn-${version}";
+  version = "2.4.4";
 
   src = fetchurl {
-    url = "http://swupdate.openvpn.net/community/releases/${name}.tar.gz";
-    sha256 = "0lbw22qv3m0axhs13razr6b4x1p7jcpvf9rzb15b850wyvpka92k";
+    url = "http://swupdate.openvpn.net/community/releases/${name}.tar.xz";
+    sha256 = "102an395nv8l7qfx3syydzhmd9xfbycd6gvwy0h2kjz8w67ipkcn";
   };
 
-  patches = optional stdenv.isLinux ./systemd-notify.patch;
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ lzo openssl ]
+                  ++ optionals stdenv.isLinux [ pam systemd iproute ]
+                  ++ optional pkcs11Support pkcs11helper;
 
-  buildInputs = [ lzo openssl pkgconfig ]
-                  ++ optionals stdenv.isLinux [ pam systemd iproute ];
-
-  configureFlags = ''
-    --enable-password-save
-  '' + optionalString stdenv.isLinux ''
-    --enable-systemd
-    --enable-iproute2
-    IPROUTE=${iproute}/sbin/ip
-  '';
+  configureFlags = optionals stdenv.isLinux [
+    "--enable-systemd"
+    "--enable-iproute2"
+    "IPROUTE=${iproute}/sbin/ip" ]
+    ++ optional pkcs11Support "--enable-pkcs11"
+    ++ optional stdenv.isDarwin "--disable-plugin-auth-pam";
 
   postInstall = ''
     mkdir -p $out/share/doc/openvpn/examples
@@ -32,13 +36,13 @@ stdenv.mkDerivation rec {
 
   enableParallelBuilding = true;
 
-  NIX_LDFLAGS = optionalString stdenv.isLinux "-lsystemd-daemon"; # hacky
-
   meta = {
     description = "A robust and highly flexible tunneling application";
     homepage = http://openvpn.net/;
+    downloadPage = "https://openvpn.net/index.php/open-source/downloads.html";
     license = stdenv.lib.licenses.gpl2;
     maintainers = [ stdenv.lib.maintainers.viric ];
-    platforms = stdenv.lib.platforms.linux;
+    platforms = stdenv.lib.platforms.unix;
+    updateWalker = true;
   };
 }

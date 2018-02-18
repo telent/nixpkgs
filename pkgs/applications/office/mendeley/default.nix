@@ -1,6 +1,31 @@
-{ fetchurl, stdenv, dpkg, makeWrapper, which
-,gcc, xorg, qt4, zlib
-, ...}:
+{ fetchurl, stdenv, dpkg, which
+, makeWrapper
+, alsaLib
+, desktop_file_utils
+, dbus
+, libcap
+, fontconfig
+, freetype
+, gcc
+, gconf
+, glib
+, icu
+, libxml2
+, libxslt
+, orc
+, nss
+, nspr
+, qt5
+, sqlite
+, xorg
+, xlibs
+, zlib
+# The provided wrapper does this, but since we don't use it
+# we emulate the behavior.  The downside is that this
+# will leave entries on your system after uninstalling mendeley.
+# (they can be removed by running '$out/bin/install-mendeley-link-handler.sh -u')
+, autorunLinkHandler ? true
+}:
 
 assert stdenv.system == "i686-linux" || stdenv.system == "x86_64-linux";
 
@@ -12,19 +37,49 @@ let
     then "i386"
     else "amd64";
 
-  shortVersion = "1.15.2-stable";
+  shortVersion = "1.17.12-stable";
 
   version = "${shortVersion}_${arch}";
 
   url = "http://desktop-download.mendeley.com/download/apt/pool/main/m/mendeleydesktop/mendeleydesktop_${version}.deb";
   sha256 = if stdenv.system == arch32
-    then "64e72b5749ea54f75cb0400732af68d1044037c6233a6bc0ba7a560acd3503cb"
-    else "cd13e39ad665b243fa5ca04c30cdc4c7da3ddaa259ea1af8fd1ff60f85f4eb25";
+    then "09n910ny8k103g1v8m19f9n827l2y0kmz79cwgy95k6acf2rkc2x"
+    else "11z65mj1a2rw6cwfarl8r1vzpcz4ww5mgvd5fyv31l60mbmnqkap";
 
   deps = [
+    qt5.qtbase
+    qt5.qtsvg
+    qt5.qtdeclarative
+    qt5.qtwebchannel
+    qt5.qtquickcontrols
+    qt5.qtwebkit
+    qt5.qtwebengine
+    alsaLib
+    dbus
+    freetype
+    fontconfig
     gcc.cc
-    qt4
+    gconf
+    glib
+    icu
+    libcap
+    libxml2
+    libxslt
+    nspr
+    nss
+    orc
+    sqlite
     xorg.libX11
+    xlibs.xcbutilkeysyms
+    xorg.libxcb
+    xorg.libXcomposite
+    xorg.libXext
+    xorg.libXrender
+    xorg.libXi
+    xorg.libXcursor
+    xorg.libXtst
+    xorg.libXrandr
+    xorg.xcbutilimage
     zlib
   ];
 
@@ -38,19 +93,33 @@ stdenv.mkDerivation {
     sha256 = sha256;
   };
 
-  buildInputs = [ dpkg makeWrapper which ];
+  nativeBuildInputs = [ makeWrapper ];
+  buildInputs = [ dpkg which ] ++ deps;
 
   unpackPhase = "true";
 
   installPhase = ''
     dpkg-deb -x $src $out
-    mv $out/opt/mendeleydesktop/{bin,lib,plugins,share} $out
+    mv $out/opt/mendeleydesktop/{bin,lib,share} $out
 
     interpreter=$(patchelf --print-interpreter $(readlink -f $(which patchelf)))
-    patchelf --set-interpreter $interpreter $out/bin/mendeleydesktop
+    patchelf --set-interpreter $interpreter \
+             --set-rpath ${stdenv.lib.makeLibraryPath deps}:$out/lib \
+             $out/bin/mendeleydesktop
+    paxmark m $out/bin/mendeleydesktop
 
-    librarypath="${stdenv.lib.makeLibraryPath deps}:$out/lib:$out/lib/qt"
-    wrapProgram $out/bin/mendeleydesktop --prefix LD_LIBRARY_PATH : "$librarypath"
+    wrapProgram $out/bin/mendeleydesktop \
+      --add-flags "--unix-distro-build" \
+      ${stdenv.lib.optionalString autorunLinkHandler # ignore errors installing the link handler
+      ''--run "$out/bin/install-mendeley-link-handler.sh $out/bin/mendeleydesktop ||:"''}
+
+    # Remove bundled qt bits
+    rm -rf $out/lib/qt
+    rm $out/bin/qt* $out/bin/Qt*
+
+    # Patch up link handler script
+    wrapProgram $out/bin/install-mendeley-link-handler.sh \
+      --prefix PATH ':' ${stdenv.lib.makeBinPath [ which gconf desktop_file_utils ] }
   '';
 
   dontStrip = true;

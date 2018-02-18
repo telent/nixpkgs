@@ -1,19 +1,24 @@
-{ stdenv, fetchurl, gettext, libidn, pkgconfig
-, perl, perlPackages, LWP, python3
-, libiconv, libpsl ? null, openssl ? null }:
+{ stdenv, fetchurl, gettext, pkgconfig, perl
+, libidn2, zlib, pcre, libuuid, libiconv
+, IOSocketSSL, LWP, python3, lzip
+, libpsl ? null
+, openssl ? null }:
 
 stdenv.mkDerivation rec {
-  name = "wget-1.17.1";
+  name = "wget-1.19.2";
 
   src = fetchurl {
-    url = "mirror://gnu/wget/${name}.tar.xz";
-    sha256 = "1jcpvl5sxb2ag8yahpy370c5jlfb097a21k2mhsidh4wxdhrnmgy";
+    url = "mirror://gnu/wget/${name}.tar.lz";
+    sha256 = "01yzal7xm85543x02bij3capnigr063d6c5vc039f8n5s9d796nm";
   };
 
+  patches = [
+    ./remove-runtime-dep-on-openssl-headers.patch
+  ];
+
   preConfigure = ''
-    for i in "doc/texi2pod.pl" "util/rmold.pl"; do
-      sed -i "$i" -e 's|/usr/bin.*perl|${perl}/bin/perl|g'
-    done
+    patchShebangs doc
+
   '' + stdenv.lib.optionalString doCheck ''
     # Work around lack of DNS resolution in chroots.
     for i in "tests/"*.pm "tests/"*.px
@@ -24,10 +29,11 @@ stdenv.mkDerivation rec {
     export LIBS="-liconv -lintl"
   '';
 
-  nativeBuildInputs = [ gettext pkgconfig ];
-  buildInputs = [ libidn libiconv libpsl ]
-    ++ stdenv.lib.optionals doCheck [ perl perlPackages.IOSocketSSL LWP python3 ]
+  nativeBuildInputs = [ gettext pkgconfig perl lzip ];
+  buildInputs = [ libidn2 libiconv zlib pcre libuuid ]
+    ++ stdenv.lib.optionals doCheck [ IOSocketSSL LWP python3 ]
     ++ stdenv.lib.optional (openssl != null) openssl
+    ++ stdenv.lib.optional (libpsl != null) libpsl
     ++ stdenv.lib.optional stdenv.isDarwin perl;
 
   configureFlags =

@@ -1,22 +1,14 @@
-{ stdenv, callPackage, lib, fetchFromGitHub, wineUnstable, libtxc_dxtn_Name }:
+{ stdenv, callPackage, lib, wineUnstable, libtxc_dxtn_Name }:
 
 with callPackage ./util.nix {};
 
-let v = (import ./versions.nix).staging;
-    inherit (v) version;
-    patch = fetchFromGitHub {
-      inherit (v) sha256;
-      owner = "wine-compholio";
-      repo = "wine-staging";
-      rev = "v${version}";
-    };
+let patch = (callPackage ./sources.nix {}).staging;
     build-inputs = pkgNames: extra:
       (mkBuildInputs wineUnstable.pkgArches pkgNames) ++ extra;
-in assert (builtins.parseDrvName wineUnstable.name).version == version;
+in assert (builtins.parseDrvName wineUnstable.name).version == patch.version;
 
 stdenv.lib.overrideDerivation wineUnstable (self: {
-  nativeBuildInputs = build-inputs [ libtxc_dxtn_Name ] self.nativeBuildInputs; 
-  buildInputs = build-inputs [ "perl" "utillinux" "autoconf" ] self.buildInputs;
+  buildInputs = build-inputs [ "perl" "utillinux" "autoconf" libtxc_dxtn_Name ] self.buildInputs;
 
   name = "${self.name}-staging";
 
@@ -26,7 +18,7 @@ stdenv.lib.overrideDerivation wineUnstable (self: {
     chmod +w patches
     cd patches
     patchShebangs gitapply.sh
-    ./patchinstall.sh DESTDIR="$TMP/$sourceRoot" --all
+    ./patchinstall.sh DESTDIR="$PWD/.." --all
     cd ..
   '';
 })

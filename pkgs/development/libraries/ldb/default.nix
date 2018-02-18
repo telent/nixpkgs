@@ -3,15 +3,18 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "ldb-1.1.23";
+  name = "ldb-1.1.27";
 
   src = fetchurl {
     url = "mirror://samba/ldb/${name}.tar.gz";
-    sha256 = "0ncmwgga6q9v7maiywgw21w6rb3149m1w2ca11yq8k5j0izjz2wg";
+    sha256 = "1b1mkl5p8swb67s9aswavhzswlib34hpgsv66zgns009paf2df6d";
   };
 
+  outputs = [ "out" "dev" ];
+
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    python pkgconfig readline tdb talloc tevent popt
+    python readline tdb talloc tevent popt
     libxslt docbook_xsl docbook_xml_dtd_42
   ];
 
@@ -24,8 +27,10 @@ stdenv.mkDerivation rec {
     "--builtin-libraries=replace"
   ];
 
+  stripDebugList = "bin lib modules";
+
   meta = with stdenv.lib; {
-    description = "a LDAP-like embedded database";
+    description = "A LDAP-like embedded database";
     homepage = http://ldb.samba.org/;
     license = licenses.lgpl3Plus;
     maintainers = with maintainers; [ wkennington ];

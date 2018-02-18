@@ -1,4 +1,4 @@
-{ fetchurl, stdenv, pkgconfig, libxml2, gconf, glib, gtk, libgnomeui, libofx
+{ fetchurl, stdenv, pkgconfig, libxml2, gconf, glib, gtk2, libgnomeui, libofx
 , libgtkhtml, gtkhtml, libgnomeprint, goffice, enchant, gettext, libbonoboui
 , intltool, perl, guile, slibGuile, swig, isocodes, bzip2, makeWrapper, libglade
 , libgsf, libart_lgpl, perlPackages, aqbanking, gwenhywfar
@@ -17,8 +17,9 @@ stdenv.mkDerivation rec {
     sha256 = "058mgfwic6a2g7jq6iip5hv45md1qaxy25dj4lvlzjjr141wm4gx";
   };
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    pkgconfig libxml2 gconf glib gtk libgnomeui libgtkhtml gtkhtml
+    libxml2 gconf glib gtk2 libgnomeui libgtkhtml gtkhtml
     libgnomeprint goffice enchant gettext intltool perl guile slibGuile
     swig isocodes bzip2 makeWrapper libofx libglade libgsf libart_lgpl
     perlPackages.DateManip perlPackages.FinanceQuote aqbanking gwenhywfar
@@ -45,14 +46,14 @@ stdenv.mkDerivation rec {
         --prefix LD_LIBRARY_PATH ":" "${libbonoboui}/lib/libglade/2.0"  \
         --prefix PERL5LIB ":" "$PERL5LIB"                               \
         --set GCONF_CONFIG_SOURCE 'xml::~/.gconf'                       \
-        --prefix PATH ":" "$out/bin:${perl}/bin:${gconf}/bin"
+        --prefix PATH ":" "$out/bin:${stdenv.lib.makeBinPath [ perl gconf ]}"
     done
 
     rm $out/share/icons/hicolor/icon-theme.cache
   '';
 
   # The following settings fix failures in the test suite. It's not required otherwise.
-  NIX_LDFLAGS = "-rpath=${guile}/lib -rpath=${glib}/lib";
+  NIX_LDFLAGS = "-rpath=${guile}/lib -rpath=${glib.out}/lib";
   preCheck = "export GNC_DOT_DIR=$PWD/dot-gnucash";
 
   doCheck = false;      # https://github.com/NixOS/nixpkgs/issues/11084
@@ -65,7 +66,7 @@ stdenv.mkDerivation rec {
     longDescription = ''
       GnuCash is personal and small-business financial-accounting software,
       freely licensed under the GNU GPL and available for GNU/Linux, BSD,
-      Solaris, Mac OS X and Microsoft Windows.
+      Solaris, macOS and Microsoft Windows.
 
       Designed to be easy to use, yet powerful and flexible, GnuCash allows
       you to track bank accounts, stocks, income and expenses.  As quick and
@@ -77,7 +78,7 @@ stdenv.mkDerivation rec {
 
     homepage = http://www.gnucash.org/;
 
-    maintainers = [ stdenv.lib.maintainers.simons stdenv.lib.maintainers.iElectric ];
+    maintainers = [ stdenv.lib.maintainers.peti stdenv.lib.maintainers.domenkozar ];
     platforms = stdenv.lib.platforms.gnu;
   };
 }

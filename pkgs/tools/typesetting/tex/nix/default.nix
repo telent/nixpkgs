@@ -17,7 +17,9 @@ rec {
     assert generatePDF -> !generatePS;
 
     let
-      tex = pkgs.texlive.combine texPackages;
+      tex = pkgs.texlive.combine
+        # always include basic stuff you need for LaTeX
+        ({inherit (pkgs.texlive) scheme-basic;} // texPackages);
     in
 
     pkgs.stdenv.mkDerivation {
@@ -183,7 +185,7 @@ rec {
         if test -d $postscript; then
           input=$(ls $postscript/*.ps)
         else
-          input=$(stripHash $postscript; echo $strippedName)
+          input=$(stripHash $postscript)
           ln -s $postscript $input
         fi
 

@@ -5,11 +5,6 @@
 let
   major = "3.16";
   minor = "1";
-  GST_PLUGIN_PATH = stdenv.lib.makeSearchPath "lib/gstreamer-1.0" [
-    gst_all_1.gst-plugins-base
-    gst_all_1.gst-plugins-good
-    gst_all_1.gst-plugins-bad
-    gst_all_1.gst-libav ];
 
 in stdenv.mkDerivation rec {
   version = "${major}.${minor}";
@@ -20,19 +15,21 @@ in stdenv.mkDerivation rec {
     sha256 = "0mx6n901vb97hsv0cwaafjffj75s1kcp8jsqay90dy3099849dyz";
   };
 
-  buildInputs = [ pkgconfig gtk3 intltool itstool libxml2 brasero libcanberra_gtk3
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ gtk3 intltool itstool libxml2 brasero libcanberra_gtk3
                   gnome3.gsettings_desktop_schemas libmusicbrainz5 libdiscid isocodes
-                  makeWrapper gnome3.dconf
+                  makeWrapper (stdenv.lib.getLib gnome3.dconf)
                   gst_all_1.gstreamer gst_all_1.gst-plugins-base
-                  gst_all_1.gst-plugins-good gst_all_1.gst-plugins-bad ];
+                  gst_all_1.gst-plugins-good gst_all_1.gst-plugins-bad
+                  gst_all_1.gst-libav
+                ];
 
   preFixup = ''
     for f in $out/bin/* $out/libexec/*; do
       wrapProgram "$f" \
         --prefix XDG_DATA_DIRS : "${gnome3.gnome_themes_standard}/share:$XDG_ICON_DIRS:$GSETTINGS_SCHEMAS_PATH" \
         --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : "$GST_PLUGIN_SYSTEM_PATH_1_0" \
-        --prefix GIO_EXTRA_MODULES : "${gnome3.dconf}/lib/gio/modules" \
-        --prefix GST_PLUGIN_PATH : "${GST_PLUGIN_PATH}"
+        --prefix GIO_EXTRA_MODULES : "${stdenv.lib.getLib gnome3.dconf}/lib/gio/modules"
     done
   '';
 

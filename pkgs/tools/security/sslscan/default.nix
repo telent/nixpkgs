@@ -1,20 +1,19 @@
-{ stdenv, fetchurl, openssl }:
+{ stdenv, fetchFromGitHub, openssl }:
 
 stdenv.mkDerivation rec {
   name = "sslscan-${version}";
-  version = "1.11.0";
+  version = "1.11.10";
 
-  src = fetchurl {
-    url = "https://github.com/rbsec/sslscan/archive/${version}-rbsec.tar.gz";
-    sha256 = "19d6vpcihfqs35hni4vigcpqabbnd3sndr5wyvfsladgp40vz3b9";
+  src = fetchFromGitHub {
+    owner = "rbsec";
+    repo = "sslscan";
+    rev = "${version}-rbsec";
+    sha256 = "1bxr7p7nhg4b8wkcm7j2xk10gf370sqcvl06vbgnqd3azp55fhpf";
   };
 
   buildInputs = [ openssl ];
 
-  installFlags = [
-    "BINPATH=$(out)/bin"
-    "MANPATH=$(out)/share/man"
-  ];
+  installFlags = [ "PREFIX=$(out)" ];
 
   meta = with stdenv.lib; {
     description = "Tests SSL/TLS services and discover supported cipher suites";
@@ -24,4 +23,3 @@ stdenv.mkDerivation rec {
     platforms = platforms.all;
   };
 }
-

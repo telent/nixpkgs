@@ -1,8 +1,8 @@
 { fetchurl, stdenv, wrapGAppsHook
-, curl, dbus, dbus_glib, enchant, gtk, gnutls, gnupg, gpgme, hicolor_icon_theme
-, libarchive, libcanberra, libetpan, libnotify, libsoup, libxml2, networkmanager
-, openldap , perl, pkgconfig, poppler, python, shared_mime_info, webkitgtk2
-, glib_networking, gsettings_desktop_schemas
+, curl, dbus, dbus_glib, enchant, gtk2, gnutls, gnupg, gpgme, hicolor_icon_theme
+, libarchive, libcanberra_gtk2, libetpan, libnotify, libsoup, libxml2, networkmanager
+, openldap , perl, pkgconfig, poppler, python, shared_mime_info, webkitgtk24x-gtk2
+, glib_networking, gsettings_desktop_schemas, libSM, libytnef
 
 # Build options
 # TODO: A flag to build the manual.
@@ -30,46 +30,43 @@
 
 with stdenv.lib;
 
-let version = "3.13.1"; in
-
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "claws-mail-${version}";
-
-  meta = {
-    description = "The user-friendly, lightweight, and fast email client";
-    homepage = http://www.claws-mail.org/;
-    license = licenses.gpl3;
-    platforms = platforms.linux;
-    maintainers = with maintainers; [ khumba fpletz ];
-  };
+  version = "3.15.1";
 
   src = fetchurl {
     url = "http://www.claws-mail.org/download.php?file=releases/claws-mail-${version}.tar.xz";
-    sha256 = "049av7r0xhjjjm1p93l2ns3xisvn125v3ncqar23cqjzgcichg5d";
+    sha256 = "0hlm2jipyr4z6izlrpvabpz4ivh49i13avnm848kr1nv68pkq2cd";
   };
 
+  outputs = [ "out" "dev" ];
+
   patches = [ ./mime.patch ];
+
+  hardeningDisable = [ "format" ];
 
   postPatch = ''
     substituteInPlace src/procmime.c \
         --subst-var-by MIMEROOTDIR ${shared_mime_info}/share
   '';
 
+  nativeBuildInputs = [ pkgconfig wrapGAppsHook ];
+
   buildInputs =
-    [ curl dbus dbus_glib gtk gnutls gsettings_desktop_schemas hicolor_icon_theme
-      libetpan perl pkgconfig python wrapGAppsHook glib_networking
+    [ curl dbus dbus_glib gtk2 gnutls gsettings_desktop_schemas hicolor_icon_theme
+      libetpan perl python glib_networking libSM libytnef
     ]
     ++ optional enableSpellcheck enchant
     ++ optionals (enablePgp || enablePluginSmime) [ gnupg gpgme ]
     ++ optional enablePluginArchive libarchive
-    ++ optional enablePluginNotificationSounds libcanberra
+    ++ optional enablePluginNotificationSounds libcanberra_gtk2
     ++ optional enablePluginNotificationDialogs libnotify
     ++ optional enablePluginFancy libsoup
     ++ optional enablePluginRssyl libxml2
     ++ optional enableNetworkManager networkmanager
     ++ optional enableLdap openldap
     ++ optional enablePluginPdf poppler
-    ++ optional enablePluginFancy webkitgtk2;
+    ++ optional enablePluginFancy webkitgtk24x-gtk2;
 
   configureFlags =
     optional (!enableLdap) "--disable-ldap"
@@ -100,4 +97,12 @@ stdenv.mkDerivation {
     mkdir -p $out/share/applications
     cp claws-mail.desktop $out/share/applications
   '';
+
+  meta = {
+    description = "The user-friendly, lightweight, and fast email client";
+    homepage = http://www.claws-mail.org/;
+    license = licenses.gpl3;
+    platforms = platforms.linux;
+    maintainers = with maintainers; [ khumba fpletz globin ];
+  };
 }

@@ -1,10 +1,10 @@
 { stdenv, fetchurl, glib, pkgconfig, mesa, libX11, libXext, libXfixes
-, libXdamage, libXcomposite, libXi, cogl, pango, atk, json_glib, 
-gobjectIntrospection 
+, libXdamage, libXcomposite, libXi, libxcb, cogl, pango, atk, json_glib, 
+gobjectIntrospection, gtk3
 }:
 
 let
-  ver_maj = "1.16";
+  ver_maj = "1.26";
   ver_min = "2";
 in
 stdenv.mkDerivation rec {
@@ -12,13 +12,14 @@ stdenv.mkDerivation rec {
 
   src = fetchurl {
     url = "mirror://gnome/sources/clutter/${ver_maj}/${name}.tar.xz";
-    sha256 = "0hnz6fnrkc7ixrm2x83sxyha32p9896d7ilzhvxwfgzlh26fidqc";
+    sha256 = "0mif1qnrpkgxi43h7pimim6w6zwywa16ixcliw0yjm9hk0a368z7";
   };
 
+  buildInputs = [ gtk3 ];
   nativeBuildInputs = [ pkgconfig ];
   propagatedBuildInputs =
     [ libX11 mesa libXext libXfixes libXdamage libXcomposite libXi cogl pango
-      atk json_glib gobjectIntrospection
+      atk json_glib gobjectIntrospection libxcb
     ];
 
   configureFlags = [ "--enable-introspection" ]; # needed by muffin AFAIK
@@ -46,7 +47,7 @@ stdenv.mkDerivation rec {
     license = stdenv.lib.licenses.lgpl2Plus;
     homepage = http://www.clutter-project.org/;
 
-    maintainers = with stdenv.lib.maintainers; [ urkud lethalman ];
+    maintainers = with stdenv.lib.maintainers; [ lethalman ];
     platforms = stdenv.lib.platforms.mesaPlatforms;
   };
 }

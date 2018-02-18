@@ -6,7 +6,9 @@ let
 
   cfg = config.nix;
 
-  nix = cfg.package;
+  nix = cfg.package.out;
+
+  isNix112 = versionAtLeast (getVersion nix) "1.12pre";
 
   makeNixBuildUser = nr:
     { name = "nixbld${toString nr}";
@@ -24,8 +26,8 @@ let
 
   nixConf =
     let
-      # If we're using a chroot for builds, then provide /bin/sh in
-      # the chroot as a bind-mount to bash. This means we also need to
+      # If we're using sandbox for builds, then provide /bin/sh in
+      # the sandbox as a bind-mount to bash. This means we also need to
       # include the entire closure of bash.
       sh = pkgs.stdenv.shell;
       binshDeps = pkgs.writeReferencesToFile sh;
@@ -39,11 +41,12 @@ let
         build-users-group = nixbld
         build-max-jobs = ${toString (cfg.maxJobs)}
         build-cores = ${toString (cfg.buildCores)}
-        build-use-chroot = ${if cfg.useChroot then "true" else "false"}
-        build-chroot-dirs = ${toString cfg.chrootDirs} /bin/sh=${sh} $(echo $extraPaths)
+        build-use-sandbox = ${if (builtins.isBool cfg.useSandbox) then boolToString cfg.useSandbox else cfg.useSandbox}
+        build-sandbox-paths = ${toString cfg.sandboxPaths} /bin/sh=${sh} $(echo $extraPaths)
         binary-caches = ${toString cfg.binaryCaches}
         trusted-binary-caches = ${toString cfg.trustedBinaryCaches}
         binary-cache-public-keys = ${toString cfg.binaryCachePublicKeys}
+        auto-optimise-store = ${boolToString cfg.autoOptimiseStore}
         ${optionalString cfg.requireSignedBinaryCaches ''
           signed-binary-caches = *
         ''}
@@ -66,6 +69,7 @@ in
       package = mkOption {
         type = types.package;
         default = pkgs.nix;
+        defaultText = "pkgs.nix";
         description = ''
           This option specifies the Nix package instance to use throughout the system.
         '';
@@ -83,6 +87,18 @@ in
         '';
       };
 
+      autoOptimiseStore = mkOption {
+        type = types.bool;
+        default = false;
+        example = true;
+        description = ''
+         If set to true, Nix automatically detects files in the store that have
+         identical contents, and replaces them with hard links to a single copy.
+         This saves disk space. If set to false (the default), you can still run
+         nix-store --optimise to get rid of duplicate files.
+        '';
+      };
+
       buildCores = mkOption {
         type = types.int;
         default = 1;
@@ -97,25 +113,27 @@ in
         '';
       };
 
-      useChroot = mkOption {
-        type = types.bool;
+      useSandbox = mkOption {
+        type = types.either types.bool (types.enum ["relaxed"]);
         default = false;
         description = "
-          If set, Nix will perform builds in a chroot-environment that it
+          If set, Nix will perform builds in a sandboxed environment that it
           will set up automatically for each build.  This prevents
           impurities in builds by disallowing access to dependencies
-          outside of the Nix store.
+          outside of the Nix store. This isn't enabled by default for
+          performance. It doesn't affect derivation hashes, so changing
+          this option will not trigger a rebuild of packages.
         ";
       };
 
-      chrootDirs = mkOption {
+      sandboxPaths = mkOption {
         type = types.listOf types.str;
         default = [];
         example = [ "/dev" "/proc" ];
         description =
           ''
             Directories from the host filesystem to be included
-            in the chroot.
+            in the sandbox.
           '';
       };
 
@@ -159,22 +177,24 @@ in
       buildMachines = mkOption {
         type = types.listOf types.attrs;
         default = [];
-        example = [
-          { hostName = "voila.labs.cs.uu.nl";
-            sshUser = "nix";
-            sshKey = "/root/.ssh/id_buildfarm";
-            system = "powerpc-darwin";
-            maxJobs = 1;
-          }
-          { hostName = "linux64.example.org";
-            sshUser = "buildfarm";
-            sshKey = "/root/.ssh/id_buildfarm";
-            system = "x86_64-linux";
-            maxJobs = 2;
-            supportedFeatures = "kvm";
-            mandatoryFeatures = "perf";
-          }
-        ];
+        example = literalExample ''
+          [ { hostName = "voila.labs.cs.uu.nl";
+              sshUser = "nix";
+              sshKey = "/root/.ssh/id_buildfarm";
+              system = "powerpc-darwin";
+              maxJobs = 1;
+            }
+            { hostName = "linux64.example.org";
+              sshUser = "buildfarm";
+              sshKey = "/root/.ssh/id_buildfarm";
+              system = "x86_64-linux";
+              maxJobs = 2;
+              speedFactor = 2;
+              supportedFeatures = [ "kvm" ];
+              mandatoryFeatures = [ "perf" ];
+            }
+          ]
+        '';
         description = ''
           This option lists the machines to be used if distributed
           builds are enabled (see
@@ -247,7 +267,7 @@ in
         description = ''
           List of binary cache URLs that non-root users can use (in
           addition to those specified using
-          <option>nix.binaryCaches</option> by passing
+          <option>nix.binaryCaches</option>) by passing
           <literal>--option binary-caches</literal> to Nix commands.
         '';
       };
@@ -256,13 +276,11 @@ in
         type = types.bool;
         default = true;
         description = ''
-          If enabled, Nix will only download binaries from binary
-          caches if they are cryptographically signed with any of the
-          keys listed in
-          <option>nix.binaryCachePublicKeys</option>. If disabled (the
-          default), signatures are neither required nor checked, so
-          it's strongly recommended that you use only trustworthy
-          caches and https to prevent man-in-the-middle attacks.
+          If enabled (the default), Nix will only download binaries from binary caches if
+          they are cryptographically signed with any of the keys listed in
+          <option>nix.binaryCachePublicKeys</option>. If disabled, signatures are neither
+          required nor checked, so it's strongly recommended that you use only
+          trustworthy caches and https to prevent man-in-the-middle attacks.
         '';
       };
 
@@ -312,7 +330,7 @@ in
       nixPath = mkOption {
         type = types.listOf types.str;
         default =
-          [ "/nix/var/nix/profiles/per-user/root/channels/nixos"
+          [ "nixpkgs=/nix/var/nix/profiles/per-user/root/channels/nixos/nixpkgs"
             "nixos-config=/etc/nixos/configuration.nix"
             "/nix/var/nix/profiles/per-user/root/channels"
           ];
@@ -359,12 +377,14 @@ in
     systemd.sockets.nix-daemon.wantedBy = [ "sockets.target" ];
 
     systemd.services.nix-daemon =
-      { path = [ nix pkgs.openssl pkgs.utillinux config.programs.ssh.package ]
+      { path = [ nix pkgs.openssl.bin pkgs.utillinux config.programs.ssh.package ]
           ++ optionals cfg.distributedBuilds [ pkgs.gzip ];
 
         environment = cfg.envVars
-          // { CURL_CA_BUNDLE = "/etc/ssl/certs/ca-bundle.crt"; }
+          // { CURL_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"; }
           // config.networking.proxy.envVars;
+
+        unitConfig.RequiresMountsFor = "/nix/store";
 
         serviceConfig =
           { Nice = cfg.daemonNiceLevel;
@@ -377,7 +397,9 @@ in
 
     nix.envVars =
       { NIX_CONF_DIR = "/etc/nix";
+      }
 
+      // optionalAttrs (!isNix112) {
         # Enable the copy-from-other-stores substituter, which allows
         # builds to be sped up by copying build results from remote
         # Nix stores.  To do this, mount the remote file system on a
@@ -386,9 +408,11 @@ in
       }
 
       // optionalAttrs cfg.distributedBuilds {
-        NIX_BUILD_HOOK = "${nix}/libexec/nix/build-remote.pl";
-        NIX_REMOTE_SYSTEMS = "/etc/nix/machines";
-        NIX_CURRENT_LOAD = "/run/nix/current-load";
+        NIX_BUILD_HOOK =
+          if isNix112 then
+            "${nix}/libexec/nix/build-remote"
+          else
+            "${nix}/libexec/nix/build-remote.pl";
       };
 
     # Set up the environment variables for running Nix.
@@ -405,7 +429,7 @@ in
         fi
       '';
 
-    nix.nrBuildUsers = mkDefault (lib.max 10 cfg.maxJobs);
+    nix.nrBuildUsers = mkDefault (lib.max 32 cfg.maxJobs);
 
     users.extraUsers = nixbldUsers;
 

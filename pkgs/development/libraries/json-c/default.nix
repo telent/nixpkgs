@@ -1,19 +1,19 @@
 { stdenv, fetchurl, autoreconfHook }:
 
 stdenv.mkDerivation rec {
-  name = "json-c-0.12";
+  name = "json-c-0.12.1";
   src = fetchurl {
     url    = "https://s3.amazonaws.com/json-c_releases/releases/${name}-nodoc.tar.gz";
-    sha256 = "0dgvjjyb9xva63l6sy70sdch2w4ryvacdmfd3fg2f2v13lqx5mkg";
+    sha256 = "148jkvpnxmg1fwwigp0nq9qbd5vzpnmgiw3y34w7k6fymalpsqas";
   };
 
-  patches = [ ./unused-variable.patch ];
+  outputs = [ "out" "dev" ];
 
-  buildInputs = [ autoreconfHook ]; # won't configure without it, no idea why
+  nativeBuildInputs = [ autoreconfHook ]; # won't configure without it, no idea why
 
   # compatibility hack (for mypaint at least)
   postInstall = ''
-    ln -s json-c.pc "$out/lib/pkgconfig/json.pc"
+    ln -s json-c.pc "$dev/lib/pkgconfig/json.pc"
   '';
 
   meta = with stdenv.lib; {

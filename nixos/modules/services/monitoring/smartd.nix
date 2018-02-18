@@ -17,7 +17,7 @@ let
     #! ${pkgs.stdenv.shell}
     ${optionalString nm.enable ''
       {
-      cat << EOF
+      ${pkgs.coreutils}/bin/cat << EOF
       From: smartd on ${host} <root>
       To: undisclosed-recipients:;
       Subject: SMART error on $SMARTD_DEVICESTRING: $SMARTD_FAILTYPE
@@ -30,7 +30,7 @@ let
     ''}
     ${optionalString nw.enable ''
       {
-      cat << EOF
+      ${pkgs.coreutils}/bin/cat << EOF
       Problem detected with disk: $SMARTD_DEVICESTRING
       Warning message from smartd is:
 
@@ -41,7 +41,7 @@ let
     ${optionalString nx.enable ''
       export DISPLAY=${nx.display}
       {
-      cat << EOF
+      ${pkgs.coreutils}/bin/cat << EOF
       Problem detected with disk: $SMARTD_DEVICESTRING
       Warning message from smartd is:
 
@@ -124,7 +124,7 @@ in
           };
 
           mailer = mkOption {
-            default = "/var/setuid-wrappers/sendmail";
+            default = "/run/wrappers/bin/sendmail";
             type = types.path;
             description = ''
               Sendmail-compatible binary to be used to send the messages.
@@ -197,8 +197,7 @@ in
       devices = mkOption {
         default = [];
         example = [ { device = "/dev/sda"; } { device = "/dev/sdb"; options = "-d sat"; } ];
-        type = types.listOf types.optionSet;
-        options = [ smartdOpts ];
+        type = with types; listOf (submodule smartdOpts);
         description = "List of devices to monitor.";
       };
 

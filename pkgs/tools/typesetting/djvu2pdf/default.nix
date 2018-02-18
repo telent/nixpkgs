@@ -14,14 +14,14 @@ stdenv.mkDerivation rec {
   installPhase = ''
     mkdir -p $out/bin
     cp -p djvu2pdf $out/bin
-    wrapProgram $out/bin/djvu2pdf --prefix PATH : ${ghostscript}/bin:${djvulibre}/bin:${which}/bin
+    wrapProgram $out/bin/djvu2pdf --prefix PATH : ${stdenv.lib.makeBinPath [ ghostscript djvulibre which ]}
 
     mkdir -p $out/man/man1
     cp -p djvu2pdf.1.gz $out/man/man1
   '';
 
   meta = {
-    description = "Creates djvu files from PDF files";
+    description = "Convert DjVu files to PDF files";
     homepage = http://0x2a.at/s/projects/djvu2pdf;
     license = stdenv.lib.licenses.gpl2;
     platforms = stdenv.lib.platforms.all;

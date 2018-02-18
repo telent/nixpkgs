@@ -1,31 +1,38 @@
-{ stdenv, lib, autoconf, automake, go, file, git, wget, gnupg1, squashfsTools, cpio
-, fetchurl, fetchFromGitHub }:
+{ stdenv, lib, autoreconfHook, acl, go, file, git, wget, gnupg1, trousers, squashfsTools,
+  cpio, fetchurl, fetchFromGitHub, iptables, systemd, makeWrapper, glibc }:
 
 let
-  coreosImageRelease = "835.9.0";
-  coreosImageSystemdVersion = "225";
+  # Always get the information from
+  # https://github.com/coreos/rkt/blob/v${VERSION}/stage1/usr_from_coreos/coreos-common.mk
+  coreosImageRelease = "1478.0.0";
+  coreosImageSystemdVersion = "233";
 
   # TODO: track https://github.com/coreos/rkt/issues/1758 to allow "host" flavor.
-  stage1Flavours = [ "coreos" ];
+  stage1Flavours = [ "coreos" "fly" ];
+  stage1Dir = "lib/rkt/stage1-images";
 
 in stdenv.mkDerivation rec {
-  version = "0.14.0";
+  version = "1.29.0";
   name = "rkt-${version}";
   BUILDDIR="build-${name}";
 
   src = fetchFromGitHub {
-      rev = "v${version}";
-      owner = "coreos";
-      repo = "rkt";
-      sha256 = "0dmgs9s40xhan2rh9f5n0k5gv8p2dn946zffq02sq35qqvi67s71";
+    owner = "coreos";
+    repo = "rkt";
+    rev = "v${version}";
+    sha256 = "0wnhii15pr4z190iladfcl4jzj9sgyl1bn5v63a3yy6nkmz9cfda";
   };
 
   stage1BaseImage = fetchurl {
-    url = "http://stable.release.core-os.net/amd64-usr/${coreosImageRelease}/coreos_production_pxe_image.cpio.gz";
-    sha256 = "51dc10b4269b9c1801c233de49da817d29ca8d858bb0881df94dc90f7e86ce70";
+    url = "http://alpha.release.core-os.net/amd64-usr/${coreosImageRelease}/coreos_production_pxe_image.cpio.gz";
+    sha256 = "0s4qdkkfp0iirfnm5ds3b3hxq0249kvpygyhflma8z90ivkzk5wq";
   };
 
-  buildInputs = [ autoconf automake go file git wget gnupg1 squashfsTools cpio ];
+  buildInputs = [
+    glibc.out glibc.static
+    autoreconfHook go file git wget gnupg1 trousers squashfsTools cpio acl systemd
+    makeWrapper
+  ];
 
   preConfigure = ''
     ./autogen.sh
@@ -35,6 +42,7 @@ in stdenv.mkDerivation rec {
       --with-coreos-local-pxe-image-path=${stage1BaseImage}
       --with-coreos-local-pxe-image-systemd-version=v${coreosImageSystemdVersion}
       " else "" }
+      --with-stage1-default-location=$out/${stage1Dir}/stage1-${builtins.elemAt stage1Flavours 0}.aci
     );
   '';
 
@@ -44,7 +52,14 @@ in stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out/bin
-    cp -Rv $BUILDDIR/bin/* $out/bin
+    cp -Rv $BUILDDIR/target/bin/rkt $out/bin
+
+    mkdir -p $out/lib/rkt/stage1-images/
+    cp -Rv $BUILDDIR/target/bin/stage1-*.aci $out/${stage1Dir}/
+
+    wrapProgram $out/bin/rkt \
+      --prefix LD_LIBRARY_PATH : ${systemd.lib}/lib \
+      --prefix PATH : ${iptables}/bin
   '';
 
   meta = with lib; {

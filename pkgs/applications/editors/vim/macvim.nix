@@ -1,5 +1,6 @@
 { stdenv, fetchFromGitHub, ncurses, gettext
 , pkgconfig, cscope, python, ruby, tcl, perl, luajit
+, darwin
 }:
 
 stdenv.mkDerivation rec {
@@ -16,8 +17,9 @@ stdenv.mkDerivation rec {
 
   enableParallelBuilding = true;
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    gettext ncurses pkgconfig luajit ruby tcl perl python
+    gettext ncurses luajit ruby tcl perl python
   ];
 
   patches = [ ./macvim.patch ];
@@ -72,9 +74,14 @@ stdenv.mkDerivation rec {
     )
   '';
 
+  postConfigure = ''
+    substituteInPlace src/auto/config.mk --replace "PERL_CFLAGS	=" "PERL_CFLAGS	= -I${darwin.libutil}/include"
+  '';
+
   postInstall = ''
     mkdir -p $out/Applications
     cp -r src/MacVim/build/Release/MacVim.app $out/Applications
+    rm -rf $out/MacVim.app
 
     rm $out/bin/{Vimdiff,Vimtutor,Vim,ex,rVim,rview,view}
 
@@ -96,7 +103,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    description = "Vim - the text editor - for Mac OS X";
+    description = "Vim - the text editor - for macOS";
     homepage    = https://github.com/b4winckler/macvim;
     license = licenses.vim;
     maintainers = with maintainers; [ cstrahan ];

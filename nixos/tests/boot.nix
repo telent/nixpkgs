@@ -12,7 +12,6 @@ let
       modules =
         [ ../modules/installer/cd-dvd/installation-cd-minimal.nix
           ../modules/testing/test-instrumentation.nix
-          { key = "serial"; }
         ];
     }).config.system.build.isoImage;
 
@@ -30,19 +29,63 @@ let
         '';
     };
 in {
-    bootBiosCdrom = makeBootTest "bios-cdrom" ''
+
+    biosCdrom = makeBootTest "bios-cdrom" ''
         cdrom => glob("${iso}/iso/*.iso")
       '';
-    bootBiosUsb = makeBootTest "bios-usb" ''
+
+    biosUsb = makeBootTest "bios-usb" ''
         usb => glob("${iso}/iso/*.iso")
       '';
-    bootUefiCdrom = makeBootTest "uefi-cdrom" ''
-        cdrom => glob("${iso}/iso/*.iso"),
-        bios => '${pkgs.OVMF}/FV/OVMF.fd'
-      '';
-    bootUefiUsb = makeBootTest "uefi-usb" ''
-        usb => glob("${iso}/iso/*.iso"),
-        bios => '${pkgs.OVMF}/FV/OVMF.fd'
-      '';
-  }
 
+    uefiCdrom = makeBootTest "uefi-cdrom" ''
+        cdrom => glob("${iso}/iso/*.iso"),
+        bios => '${pkgs.OVMF.fd}/FV/OVMF.fd'
+      '';
+
+    uefiUsb = makeBootTest "uefi-usb" ''
+        usb => glob("${iso}/iso/*.iso"),
+        bios => '${pkgs.OVMF.fd}/FV/OVMF.fd'
+      '';
+
+    netboot = let
+      config = (import ../lib/eval-config.nix {
+          inherit system;
+          modules =
+            [ ../modules/installer/netboot/netboot.nix
+              ../modules/testing/test-instrumentation.nix
+              { key = "serial"; }
+            ];
+        }).config;
+      ipxeScriptDir = pkgs.writeTextFile {
+        name = "ipxeScriptDir";
+        text = ''
+          #!ipxe
+          dhcp
+          kernel bzImage init=${config.system.build.toplevel}/init ${toString config.boot.kernelParams} console=ttyS0
+          initrd initrd
+          boot
+        '';
+        destination = "/boot.ipxe";
+      };
+      ipxeBootDir = pkgs.symlinkJoin {
+        name = "ipxeBootDir";
+        paths = [
+          config.system.build.netbootRamdisk
+          config.system.build.kernel
+          ipxeScriptDir
+        ];
+      };
+    in
+      makeTest {
+        name = "boot-netboot";
+        nodes = { };
+        testScript =
+          ''
+            my $machine = createMachine({ qemuFlags => '-boot order=n -net nic,model=e1000 -net user,tftp=${ipxeBootDir}/,bootfile=boot.ipxe -m 2000M' });
+            $machine->start;
+            $machine->waitForUnit("multi-user.target");
+            $machine->shutdown;
+          '';
+      };
+}

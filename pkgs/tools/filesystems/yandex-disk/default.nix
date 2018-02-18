@@ -5,19 +5,19 @@ assert stdenv.isLinux;
 let
   p = if stdenv.is64bit then {
       arch = "x86_64";
-      gcclib = "${stdenv.cc.cc}/lib64";
-      sha256 = "1dr976z0zgg5jk477hrnfmpcx4llh5xi1493k0pkp28m6ypbxy2q";
+      gcclib = "${stdenv.cc.cc.lib}/lib64";
+      sha256 = "1skbzmrcjbw00a3jnbl2llqwz3ahsgvq74mjav68s2hw1wjidvk6";
     }
     else {
       arch = "i386";
-      gcclib = "${stdenv.cc.cc}/lib";
-      sha256 = "01v0caf194y6yb0zc0d3ywx3y0rwb7sxkav4ickd4l968jpi8p91";
+      gcclib = "${stdenv.cc.cc.lib}/lib";
+      sha256 = "09h71i3k9d24ki81jdwhnav63fqbc44glbx228s9g3cr4ap41jcx";
     };
 in 
 stdenv.mkDerivation rec {
 
   name = "yandex-disk-${version}";
-  version = "0.1.5.940";
+  version = "0.1.5.978";
 
   src = fetchurl {
     url = "http://repo.yandex.ru/yandex-disk/rpm/stable/${p.arch}/${name}-1.fedora.${p.arch}.rpm";
@@ -43,7 +43,7 @@ stdenv.mkDerivation rec {
 
     ${patchelf}/bin/patchelf \
       --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
-      --set-rpath "${zlib}/lib:${p.gcclib}" \
+      --set-rpath "${zlib.out}/lib:${p.gcclib}" \
       $out/bin/yandex-disk
   '';
 

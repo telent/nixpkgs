@@ -7,11 +7,12 @@
 assert qt4Support -> qt4 != null;
 
 stdenv.mkDerivation rec {
-  name = "avahi-0.6.31";
+  name = "avahi-${version}";
+  version = "0.7";
 
   src = fetchurl {
-    url = "${meta.homepage}/download/${name}.tar.gz";
-    sha256 = "0j5b5ld6bjyh3qhd2nw0jb84znq0wqai7fsrdzg7bpg24jdp2wl3";
+    url = "https://github.com/lathiat/avahi/releases/download/v${version}/avahi-${version}.tar.gz";
+    sha256 = "0128n7jlshw4bpx0vg8lwj8qwdisjxi7mvniwfafgnkzzrfrpaap";
   };
 
   patches = [ ./no-mkdir-localstatedir.patch ];
@@ -36,12 +37,15 @@ stdenv.mkDerivation rec {
     avahi-core/socket.c
   '';
 
-  postInstall = ''
+  postInstall =
     # Maintain compat for mdnsresponder and howl
-    ${if withLibdnssdCompat then "ln -s avahi-compat-libdns_sd/dns_sd.h $out/include/dns_sd.h" else ""}
+    stdenv.lib.optionalString withLibdnssdCompat ''
+      ln -s avahi-compat-libdns_sd/dns_sd.h "$out/include/dns_sd.h"
+    '';
+  /*  # these don't exist (anymore?)
     ln -s avahi-compat-howl $out/include/howl
     ln -s avahi-compat-howl.pc $out/lib/pkgconfig/howl.pc
-  '';
+  */
 
   meta = with stdenv.lib; {
     description = "mDNS/DNS-SD implementation";

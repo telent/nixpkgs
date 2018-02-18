@@ -5,12 +5,12 @@
 assert pulseaudioSupport -> libpulseaudio != null;
 
 stdenv.mkDerivation rec {
-  version = "2.0.2";
+  version = "2.0.5";
   name = "guvcview-${version}";
 
   src = fetchurl {
     url = "mirror://sourceforge/project/guvcview/source/guvcview-src-${version}.tar.gz";
-    sha256 = "1hnx6h2d3acwpw93ahj54nhizd6qrmylylq6qbjxvilbfprg6y34";
+    sha256 = "a86beb5993a8449ed3cbcc6ec2a238ef0b90138b6cbe2afab4456d37f44c41a0";
   };
 
   buildInputs =
@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
       portaudio
       udev
       gsl
-    ] ++ stdenv.lib.optional pulseaudioSupport [ libpulseaudio ];
+    ] ++ stdenv.lib.optional pulseaudioSupport libpulseaudio;
 
   meta = {
     description = "A simple interface for devices supported by the linux UVC driver";

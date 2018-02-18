@@ -1,19 +1,20 @@
-{ stdenv, fetchFromGitHub, python3, libftdi }:
+{ stdenv, fetchFromGitHub, python3, libftdi, pkgconfig }:
 
 stdenv.mkDerivation rec {
   name = "icestorm-${version}";
-  version = "2015.12.29";
+  version = "2017.12.06";
 
   src = fetchFromGitHub {
-    owner = "cliffordwolf";
-    repo = "icestorm";
-    rev = "7852514c2cde208da87b62777b2c5e482092f50d";
-    sha256 = "1ya1nk5h28hjdmd8jdrlfiayr2434rnvi133gs1p0ay21qb3iwfz";
+    owner  = "cliffordwolf";
+    repo   = "icestorm";
+    rev    = "14b44ca866665352e7146778bb932e45b5fdedbd";
+    sha256 = "18qy7gylnydgzmqry1b4r0ilm6lkjdcyn0wj03syxdig9dbjiacm";
   };
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [ python3 libftdi ];
   preBuild = ''
-    makeFlags="DESTDIR=$out $makeFlags"
+    makeFlags="PREFIX=$out $makeFlags"
   '';
 
   meta = {
@@ -26,6 +27,7 @@ stdenv.mkDerivation rec {
     '';
     homepage = http://www.clifford.at/icestorm/;
     license = stdenv.lib.licenses.isc;
-    maintainers = [ stdenv.lib.maintainers.shell ];
+    maintainers = with stdenv.lib.maintainers; [ shell thoughtpolice ];
+    platforms = stdenv.lib.platforms.linux;
   };
 }

@@ -2,18 +2,18 @@
 
 stdenv.mkDerivation rec {
   name = "keepassx2-${version}";
-  version = "2.0";
+  version = "2.0.3";
 
   src = fetchurl {
     url = "https://www.keepassx.org/releases/${version}/keepassx-${version}.tar.gz";
-    sha256 = "1ri2r1sldc62hbg74m4pmci0nrjwvv38rqhyzhyjin247an0zd0f";
+    sha256 = "1ia7cqx9ias38mnffsl7da7g1f66bcbjsi23k49sln0c6spb9zr3";
   };
 
   buildInputs = [ cmake libgcrypt qt4 xorg.libXtst ];
 
   meta = {
     description = "Qt password manager compatible with its Win32 and Pocket PC versions";
-    homepage = http://www.keepassx.org/;
+    homepage = https://www.keepassx.org/;
     license = stdenv.lib.licenses.gpl2;
     maintainers = with stdenv.lib.maintainers; [ qknight jgeerds ];
     platforms = with stdenv.lib.platforms; linux;

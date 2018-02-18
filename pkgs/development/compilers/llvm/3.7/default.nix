@@ -1,8 +1,11 @@
-{ newScope, stdenv, isl, fetchurl, overrideCC, wrapCC }:
-let
-  callPackage = newScope (self // { inherit stdenv isl version fetch; });
+{ newScope, stdenv, libstdcxxHook, cmake, libxml2, python2, isl, fetchurl
+, overrideCC, wrapCC, ccWrapperFun, darwin
+}:
 
-  version = "3.7.0";
+let
+  callPackage = newScope (self // { inherit stdenv cmake libxml2 python2 isl version fetch; });
+
+  version = "3.7.1";
 
   fetch = fetch_v version;
   fetch_v = ver: name: sha256: fetchurl {
@@ -10,8 +13,8 @@ let
     inherit sha256;
   };
 
-  compiler-rt_src = fetch "compiler-rt" "02rbsqdnj1dw9q3d8w5wwmvz5gfraiv8xp18lis4kj8baacajzr2";
-  clang-tools-extra_src = fetch "clang-tools-extra" "1k894zkx4w8grigmgv5y4q9zrcic2ypz0zfn28270ykbm6is1s4a";
+  compiler-rt_src = fetch "compiler-rt" "10c1mz2q4bdq9bqfgr3dirc6hz1h3sq8573srd5q5lr7m7j6jiwx";
+  clang-tools-extra_src = fetch "clang-tools-extra" "0sxw2l3q5msbrwxv1ck72arggdw6n5ysi929gi69ikniranfv4aa";
 
   self = {
     llvm = callPackage ./llvm.nix {
@@ -22,9 +25,31 @@ let
       inherit clang-tools-extra_src stdenv;
     };
 
-    clang = wrapCC self.clang-unwrapped;
+    clang = if stdenv.cc.isGNU then self.libstdcxxClang else self.libcxxClang;
 
-    stdenv = overrideCC stdenv self.clang;
+    libstdcxxClang = ccWrapperFun {
+      cc = self.clang-unwrapped;
+      /* FIXME is this right? */
+      inherit (stdenv.cc) bintools libc nativeTools nativeLibc;
+      extraPackages = [ libstdcxxHook ];
+    };
+
+    libcxxClang = ccWrapperFun {
+      cc = self.clang-unwrapped;
+      /* FIXME is this right? */
+      inherit (stdenv.cc) bintools libc nativeTools nativeLibc;
+      extraPackages = [ self.libcxx self.libcxxabi ];
+    };
+
+    stdenv = stdenv.override (drv: {
+      allowedRequisites = null;
+      cc = self.clang;
+    });
+
+    libcxxStdenv = stdenv.override (drv: {
+      allowedRequisites = null;
+      cc = self.libcxxClang;
+    });
 
     lldb = callPackage ./lldb.nix {};
 

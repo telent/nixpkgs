@@ -1,44 +1,136 @@
-{ stdenv, fetchurl, automoc4, boost, shared_desktop_ontologies, cmake
-, eigen, lcms, gettext, jasper, kdelibs, kdepimlibs, lensfun
-, libgphoto2, libjpeg, libkdcraw, libkexiv2, libkipi, libpgf, libtiff
-, libusb1, liblqr1, marble, mysql, opencv, perl, phonon, pkgconfig
-, qca2, qimageblitz, qjson, qt4, soprano
+{ mkDerivation, lib, fetchurl, cmake, doxygen, extra-cmake-modules, wrapGAppsHook, fetchpatch
+
+# For `digitaglinktree`
+, perl, sqlite
+
+, qtbase
+, qtxmlpatterns
+, qtsvg
+, qtwebkit
+
+, kcalcore
+, kconfigwidgets
+, kcoreaddons
+, kdoctools
+, kfilemetadata
+, knotifications
+, knotifyconfig
+, ktextwidgets
+, kwidgetsaddons
+, kxmlgui
+
+, bison
+, boost
+, eigen
+, exiv2
+, flex
+, jasper
+, lcms2
+, lensfun
+, libgphoto2
+, libkipi
+, libksane
+, liblqr1
+, libqtav
+, libusb1
+, marble
+, mesa
+, mysql
+, opencv3
+, pcre
+, threadweaver
+
+# For panorama and focus stacking
+, enblend-enfuse
+, hugin
+, gnumake
+
+, oxygen
 }:
 
-stdenv.mkDerivation rec {
-  name = "digikam-4.12.0";
+mkDerivation rec {
+  name    = "digikam-${version}";
+  version = "5.7.0";
 
   src = fetchurl {
-    url = "http://download.kde.org/stable/digikam/${name}.tar.bz2";
-    sha256 = "081ldsaf3frf5khznjd3sxkjmi4dyp6w6nqnc2a0agkk0kxkl10m";
+    url = "mirror://kde/stable/digikam/${name}.tar.xz";
+    sha256 = "1xah079g47fih8l9qy1ifppfvmq5yms5y1z54nvxdyz8nsszy19n";
   };
 
-  nativeBuildInputs = [ automoc4 cmake gettext perl pkgconfig ];
+  nativeBuildInputs = [ cmake doxygen extra-cmake-modules kdoctools wrapGAppsHook ];
 
   buildInputs = [
-    boost eigen jasper kdelibs kdepimlibs lcms lensfun libgphoto2
-    libjpeg libkdcraw libkexiv2 libkipi liblqr1 libpgf libtiff marble
-    mysql.lib opencv phonon qca2 qimageblitz qjson qt4
-    shared_desktop_ontologies soprano
+    bison
+    boost
+    eigen
+    exiv2
+    flex
+    jasper
+    lcms2
+    lensfun
+    libgphoto2
+    libkipi
+    libksane
+    liblqr1
+    libqtav
+    libusb1
+    mesa
+    mysql
+    opencv3
+    pcre
+
+    qtbase
+    qtxmlpatterns
+    qtsvg
+    qtwebkit
+
+    kcalcore
+    kconfigwidgets
+    kcoreaddons
+    kfilemetadata
+    knotifications
+    knotifyconfig
+    ktextwidgets
+    kwidgetsaddons
+    kxmlgui
+
+    marble
+    oxygen
+    threadweaver
   ];
 
-  # Make digikam find some FindXXXX.cmake
-  KDEDIRS="${marble}:${qjson}";
-
-  # Help digiKam find libusb, otherwise gphoto2 support is disabled
   cmakeFlags = [
-    "-DLIBUSB_LIBRARIES=${libusb1}/lib"
-    "-DLIBUSB_INCLUDE_DIR=${libusb1}/include/libusb-1.0"
-    "-DDIGIKAMSC_COMPILE_LIBKFACE=ON"
+    "-DENABLE_MYSQLSUPPORT=1"
+    "-DENABLE_INTERNALMYSQL=1"
+    "-DENABLE_MEDIAPLAYER=1"
   ];
 
-  enableParallelBuilding = true;
+  preFixup = ''
+    gappsWrapperArgs+=(--prefix PATH : ${lib.makeBinPath [ gnumake hugin enblend-enfuse ]})
+    substituteInPlace $out/bin/digitaglinktree \
+      --replace "/usr/bin/perl" "${perl}/bin/perl" \
+      --replace "/usr/bin/sqlite3" "${sqlite}/bin/sqlite3"
+  '';
 
-  meta = {
+  patches = [
+    # fix Qt-5.9.3 empty album problem
+    (fetchpatch {
+      url = "https://cgit.kde.org/digikam.git/patch/?id=855ba5b7d4bc6337234720a72ea824ddd3b32e5b";
+      sha256 = "0zk8p182piy6xn9v0mhwawya9ciq596vql1qc3lgnx371a97mmni";
+    })
+  ];
+
+  patchFlags = "-d core -p1";
+
+  # `en make -f core/utilities/assistants/expoblending/CMakeFiles/expoblending_src.dir/build.make core/utilities/assistants/expoblending/CMakeFiles/expoblending_src.dir/manager/expoblendingthread.cpp.o`:
+  # digikam_version.h:37:24: fatal error: gitversion.h: No such file or directory
+  enableParallelBuilding = false;
+
+  meta = with lib; {
     description = "Photo Management Program";
-    license = stdenv.lib.licenses.gpl2;
+    license = licenses.gpl2;
     homepage = http://www.digikam.org;
-    maintainers = with stdenv.lib.maintainers; [ goibhniu viric urkud ];
-    inherit (kdelibs.meta) platforms;
+    maintainers = with maintainers; [ the-kenny ];
+    platforms = platforms.linux;
   };
 }

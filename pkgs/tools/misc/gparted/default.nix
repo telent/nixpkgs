@@ -1,26 +1,26 @@
 { stdenv, fetchurl, intltool, gettext, makeWrapper
-, parted, gtk, glib, libuuid, pkgconfig, gtkmm, libxml2, hicolor_icon_theme
+, parted, glib, libuuid, pkgconfig, gtkmm2, libxml2, hicolor_icon_theme
 , gpart, hdparm, procps, utillinux
 }:
 
 stdenv.mkDerivation rec {
-  name = "gparted-0.24.0";
+  name = "gparted-0.29.0";
 
   src = fetchurl {
-    sha256 = "0q6d1s9f4qgdivj4vm9w87qmdfyq8s65jzkhv05rp9cl72rqlf82";
-    url = "mirror://sourceforge/gparted/${name}.tar.bz2";
+    sha256 = "1kf3ly7m3bikyzapjw8q1rlia0kg5zzgp59akhabx1rnnimvyl12";
+    url = "mirror://sourceforge/gparted/${name}.tar.gz";
   };
 
   configureFlags = [ "--disable-doc" ];
 
-  buildInputs = [ parted gtk glib libuuid gtkmm libxml2 hicolor_icon_theme ];
+  buildInputs = [ parted glib libuuid gtkmm2 libxml2 hicolor_icon_theme ];
   nativeBuildInputs = [ intltool gettext makeWrapper pkgconfig ];
 
   postInstall = ''
     wrapProgram $out/sbin/gparted \
       --prefix PATH : "${procps}/bin"
     wrapProgram $out/sbin/gpartedbin \
-      --prefix PATH : "${gpart}/bin:${hdparm}/bin:${utillinux}/bin"
+      --prefix PATH : "${stdenv.lib.makeBinPath [ gpart hdparm utillinux ]}"
   '';
 
   meta = with stdenv.lib; {

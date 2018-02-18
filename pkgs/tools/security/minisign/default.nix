@@ -1,15 +1,18 @@
-{ stdenv, fetchurl, cmake, libsodium }:
+{ stdenv, fetchFromGitHub, cmake, libsodium }:
 
 stdenv.mkDerivation rec {
   name = "minisign-${version}";
-  version = "0.6";
+  version = "0.7";
 
-  src = fetchurl {
-    url = "https://github.com/jedisct1/minisign/archive/${version}.tar.gz";
-    sha256 = "029g8ian72fy07k73nf451dw1yggav6crjjc2x6kv4nfpq3pl9pj";
+  src = fetchFromGitHub {
+    repo = "minisign";
+    owner = "jedisct1";
+    rev = version;
+    sha256 = "15w8fgplkxiw9757qahwmgnl4bwx9mm0rnwp1izs2jcy1wy35vp8";
   };
 
-  buildInputs = [ cmake libsodium ];
+  nativeBuildInputs = [ cmake ];
+  buildInputs = [ libsodium ];
 
   meta = with stdenv.lib; {
     description = "A simple tool for signing files and verifying signatures";
@@ -21,5 +24,6 @@ stdenv.mkDerivation rec {
     homepage = https://jedisct1.github.io/minisign/;
     license = licenses.isc;
     maintainers = with maintainers; [ joachifm ];
+    platforms = platforms.unix;
   };
 }

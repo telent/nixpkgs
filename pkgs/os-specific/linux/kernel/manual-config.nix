@@ -1,4 +1,9 @@
-{ stdenv, runCommand, nettools, bc, perl, kmod, openssl, writeTextFile, ubootChooser }:
+{ runCommand, nettools, bc, perl, gmp, libmpc, mpfr, kmod, openssl
+, libelf ? null
+, utillinux ? null
+, writeTextFile, ubootTools
+, hostPlatform
+}:
 
 let
   readConfig = configfile: import (runCommand "config.nix" {} ''
@@ -11,6 +16,8 @@ let
     echo "}" >> $out
   '').outPath;
 in {
+  # Allow overriding stdenv on each buildLinux call
+  stdenv,
   # The kernel version
   version,
   # The version of the kernel module directory
@@ -32,6 +39,8 @@ in {
   config ? stdenv.lib.optionalAttrs allowImportFromDerivation (readConfig configfile),
   # Cross-compiling config
   crossConfig ? if allowImportFromDerivation then (readConfig crossConfigfile) else config,
+  # Use defaultMeta // extraMeta
+  extraMeta ? {},
   # Whether to utilize the controversial import-from-derivation feature to parse the config
   allowImportFromDerivation ? false
 }:
@@ -93,7 +102,7 @@ let
             echo "stripping FHS paths in \`$mf'..."
             sed -i "$mf" -e 's|/usr/bin/||g ; s|/bin/||g ; s|/sbin/||g'
         done
-        sed -i Makefile -e 's|= depmod|= ${kmod}/sbin/depmod|'
+        sed -i Makefile -e 's|= depmod|= ${kmod}/bin/depmod|'
       '';
 
       configurePhase = ''
@@ -102,12 +111,21 @@ let
         make $makeFlags "''${makeFlagsArray[@]}" oldconfig
         runHook postConfigure
 
-        buildFlagsArray+=("KBUILD_BUILD_TIMESTAMP=Thu Jan 1 00:00:01 UTC 1970")
+        make $makeFlags prepare
+        actualModDirVersion="$(cat $buildRoot/include/config/kernel.release)"
+        if [ "$actualModDirVersion" != "${modDirVersion}" ]; then
+          echo "Error: modDirVersion ${modDirVersion} specified in the Nix expression is wrong, it should be: $actualModDirVersion"
+          exit 1
+        fi
+
+        # Note: we can get rid of this once http://permalink.gmane.org/gmane.linux.kbuild.devel/13800 is merged.
+        buildFlagsArray+=("KBUILD_BUILD_TIMESTAMP=$(date -u -d @$SOURCE_DATE_EPOCH)")
       '';
 
       buildFlags = [
         "KBUILD_BUILD_VERSION=1-NixOS"
         platform.kernelTarget
+        "vmlinux"  # for "perf" and things like that
       ] ++ optional isModular "modules";
 
       installFlags = [
@@ -118,32 +136,38 @@ let
 
       # Some image types need special install targets (e.g. uImage is installed with make uinstall)
       installTargets = [ (if platform.kernelTarget == "uImage" then "uinstall" else
-                          if platform.kernelTarget == "zImage" then "zinstall" else
+                          if platform.kernelTarget == "zImage" || platform.kernelTarget == "Image.gz" then "zinstall" else
                           "install") ];
 
-      postInstall = (optionalString installsFirmware ''
+      postInstall = ''
+        mkdir -p $dev
+        cp $buildRoot/vmlinux $dev/
+      '' + (optionalString installsFirmware ''
         mkdir -p $out/lib/firmware
       '') + (if (platform ? kernelDTB && platform.kernelDTB) then ''
- 	make $makeFlags "''${makeFlagsArray[@]}" dtbs
-        mkdir -p $out/dtbs
-        cp $buildRoot/arch/$karch/boot/dts/*.dtb $out/dtbs
+        make $makeFlags "''${makeFlagsArray[@]}" dtbs dtbs_install INSTALL_DTBS_PATH=$out/dtbs
       '' else "") + (if isModular then ''
+        if [ -z "$dontStrip" ]; then
+          installFlagsArray+=("INSTALL_MOD_STRIP=1")
+        fi
         make modules_install $makeFlags "''${makeFlagsArray[@]}" \
           $installFlags "''${installFlagsArray[@]}"
         unlink $out/lib/modules/${modDirVersion}/build
         unlink $out/lib/modules/${modDirVersion}/source
 
-        mkdir -p $dev/lib/modules/${modDirVersion}
-        cd ..
-        mv $sourceRoot $dev/lib/modules/${modDirVersion}/source
+        mkdir -p $dev/lib/modules/${modDirVersion}/build
+        cp -dpR ../$sourceRoot $dev/lib/modules/${modDirVersion}/source
         cd $dev/lib/modules/${modDirVersion}/source
 
-        mv $buildRoot/.config $buildRoot/Module.symvers $TMPDIR
-        rm -fR $buildRoot
-        mkdir $buildRoot
-        mv $TMPDIR/.config $TMPDIR/Module.symvers $buildRoot
-        make modules_prepare $makeFlags "''${makeFlagsArray[@]}"
-        mv $buildRoot $dev/lib/modules/${modDirVersion}/build
+        cp $buildRoot/{.config,Module.symvers} $dev/lib/modules/${modDirVersion}/build
+        make modules_prepare $makeFlags "''${makeFlagsArray[@]}" O=$dev/lib/modules/${modDirVersion}/build
+
+        # Keep some extra files on some arches (powerpc, aarch64)
+        for f in arch/powerpc/lib/crtsavres.o arch/arm64/kernel/ftrace-mod.o; do
+          if [ -f "$buildRoot/$f" ]; then
+            cp $buildRoot/$f $dev/lib/modules/${modDirVersion}/build/$f
+          fi
+        done
 
         # !!! No documentation on how much of the source tree must be kept
         # If/when kernel builds fail due to missing files, you can add
@@ -151,27 +175,31 @@ let
         # from drivers/ in the future; it adds 50M to keep all of its
         # headers on 3.10 though.
 
-        chmod +w -R ../source
-        arch=`cd $dev/lib/modules/${modDirVersion}/build/arch; ls`
+        chmod u+w -R ../source
+        arch=$(cd $dev/lib/modules/${modDirVersion}/build/arch; ls)
 
-        # Remove unusued arches
-        mv arch/$arch .
-        rm -fR arch
-        mkdir arch
-        mv $arch arch
+        # Remove unused arches
+        for d in $(cd arch/; ls); do
+          if [ "$d" = "$arch" ]; then continue; fi
+          if [ "$arch" = arm64 ] && [ "$d" = arm ]; then continue; fi
+          rm -rf arch/$d
+        done
 
         # Remove all driver-specific code (50M of which is headers)
         rm -fR drivers
 
         # Keep all headers
-        find .  -type f -name '*.h' -print0 | xargs -0 chmod -w
+        find .  -type f -name '*.h' -print0 | xargs -0 chmod u-w
+
+        # Keep linker scripts (they are required for out-of-tree modules on aarch64)
+        find .  -type f -name '*.lds' -print0 | xargs -0 chmod u-w
 
         # Keep root and arch-specific Makefiles
-        chmod -w Makefile
-        chmod -w arch/$arch/Makefile*
+        chmod u-w Makefile
+        chmod u-w arch/$arch/Makefile*
 
         # Keep whole scripts dir
-        chmod -w -R scripts
+        chmod u-w -R scripts
 
         # Delete everything not kept
         find . -type f -perm -u=w -print0 | xargs -0 rm
@@ -180,23 +208,13 @@ let
         find -empty -type d -delete
 
         # Remove reference to kmod
-        sed -i Makefile -e 's|= ${kmod}/sbin/depmod|= depmod|'
+        sed -i Makefile -e 's|= ${kmod}/bin/depmod|= depmod|'
       '' else optionalString installsFirmware ''
         make firmware_install $makeFlags "''${makeFlagsArray[@]}" \
           $installFlags "''${installFlagsArray[@]}"
       '');
 
-      # !!! This leaves references to gcc in $dev
-      # that we might be able to avoid
-      postFixup = if isModular then ''
-        if [ -z "$dontStrip" ]; then
-            find $out -name "*.ko" -print0 | xargs -0 -r ''${crossConfig+$crossConfig-}strip -S
-        fi
-        # !!! Should this be part of stdenv? Also patchELF should take an argument...
-        prefix=$dev
-        patchELF
-        prefix=$out
-      '' else null;
+      requiredSystemFeatures = [ "big-parallel" ];
 
       meta = {
         description =
@@ -206,23 +224,30 @@ let
             + stdenv.lib.concatStrings (stdenv.lib.intersperse ", " (map (x: x.name) kernelPatches))
             + ")");
         license = stdenv.lib.licenses.gpl2;
-        homepage = http://www.kernel.org/;
+        homepage = https://www.kernel.org/;
         repositories.git = https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git;
         maintainers = [
           maintainers.thoughtpolice
         ];
         platforms = platforms.linux;
-      };
+      } // extraMeta;
     };
 in
 
+assert stdenv.lib.versionAtLeast version "4.15" -> libelf != null;
+assert stdenv.lib.versionAtLeast version "4.15" -> utillinux != null;
 stdenv.mkDerivation ((drvAttrs config stdenv.platform (kernelPatches ++ nativeKernelPatches) configfile) // {
   name = "linux-${version}";
 
   enableParallelBuilding = true;
 
-  nativeBuildInputs = [ perl bc nettools openssl ] ++ optional (stdenv.platform.uboot != null)
-    (ubootChooser stdenv.platform.uboot);
+  nativeBuildInputs = [ perl bc nettools openssl gmp libmpc mpfr ]
+      ++ optional (stdenv.platform.kernelTarget == "uImage") ubootTools
+      ++ optional (stdenv.lib.versionAtLeast version "4.15") libelf
+      ++ optional (stdenv.lib.versionAtLeast version "4.15") utillinux
+      ;
+
+  hardeningDisable = [ "bindnow" "format" "fortify" "stackprotector" "pic" ];
 
   makeFlags = commonMakeFlags ++ [
     "ARCH=${stdenv.platform.kernelArch}"
@@ -230,7 +255,7 @@ stdenv.mkDerivation ((drvAttrs config stdenv.platform (kernelPatches ++ nativeKe
 
   karch = stdenv.platform.kernelArch;
 
-  crossAttrs = let cp = stdenv.cross.platform; in
+  crossAttrs = let cp = hostPlatform.platform; in
     (drvAttrs crossConfig cp (kernelPatches ++ crossKernelPatches) crossConfigfile) // {
       makeFlags = commonMakeFlags ++ [
         "ARCH=${cp.kernelArch}"
@@ -239,10 +264,6 @@ stdenv.mkDerivation ((drvAttrs config stdenv.platform (kernelPatches ++ nativeKe
 
       karch = cp.kernelArch;
 
-      # !!! uboot has messed up cross-compiling, nativeDrv builds arm tools on x86,
-      # crossDrv builds x86 tools on x86 (but arm uboot). If this is fixed, uboot
-      # can just go into buildInputs (but not nativeBuildInputs since cp.uboot
-      # may be different from stdenv.platform.uboot)
-      buildInputs = optional (cp.uboot != null) (ubootChooser cp.uboot).crossDrv;
+      nativeBuildInputs = optional (cp.kernelTarget == "uImage") ubootTools;
   };
 })

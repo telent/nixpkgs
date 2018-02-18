@@ -12,9 +12,9 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     homepage = https://www.nic.ad.jp/ja/idn/idnkit;
-    description = "provides functionalities about i18n domain name processing";
+    description = "Provides functionalities about i18n domain name processing";
     license = "idnkit-2 license";
-    platforms = platforms.unix;
+    platforms = platforms.linux;
     maintainers = with maintainers; [ wkennington ];
   };
 }

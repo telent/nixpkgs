@@ -1,27 +1,27 @@
 { stdenv, fetchurl, gettext, libnl, ncurses, pciutils, pkgconfig, zlib }:
 
 stdenv.mkDerivation rec {
-  name = "powertop-2.7";
+  name = "powertop-${version}";
+  version = "2.9";
 
   src = fetchurl {
-    url = "https://01.org/sites/default/files/downloads/powertop/${name}.tar.gz";
-    sha256 = "1jkqqr3l1x98m7rgin1dgfzxqwj4vciw9lyyq1kl9bdswa818jwd";
+    url = "https://01.org/sites/default/files/downloads/powertop/powertop-v${version}.tar.gz";
+    sha256 = "0l4jjlf05li2mc6g8nrss3h435wjhmnqd8m7v3kha3x0x7cbfzxa";
   };
 
-  buildInputs = [ gettext libnl ncurses pciutils pkgconfig zlib ];
-
-  # Fix --auto-tune bug:
-  # https://lists.01.org/pipermail/powertop/2014-December/001727.html
-  patches = [ ./auto-tune.patch ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ gettext libnl ncurses pciutils zlib ];
 
   postPatch = ''
     substituteInPlace src/main.cpp --replace "/sbin/modprobe" "modprobe"
+    substituteInPlace src/calibrate/calibrate.cpp --replace "/usr/bin/xset" "xset"
   '';
 
-  meta = {
+  meta = with stdenv.lib; {
     description = "Analyze power consumption on Intel-based laptops";
-    license = stdenv.lib.licenses.gpl2;
-    maintainers = [ stdenv.lib.maintainers.chaoflow ];
-    platforms = stdenv.lib.platforms.linux;
+    homepage = https://01.org/powertop;
+    license = licenses.gpl2;
+    maintainers = with maintainers; [ chaoflow fpletz ];
+    platforms = platforms.linux;
   };
 }

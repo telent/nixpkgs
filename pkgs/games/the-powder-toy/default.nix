@@ -1,21 +1,25 @@
-{ stdenv, fetchFromGitHub, scons, pkgconfig, SDL, lua, fftwFloat }:
+{ stdenv, fetchFromGitHub, scons, pkgconfig, SDL, lua, fftwFloat, zlib, bzip2 }:
 
-let version = "90.2.322";
-in
 stdenv.mkDerivation rec {
   name = "the-powder-toy-${version}";
+  version = "92.0.331";
+
   src = fetchFromGitHub {
     owner = "simtr";
     repo = "The-Powder-Toy";
     rev = "v${version}";
-    sha256 = "1rlxnk8icymalnr3j4bgpklq1dhhs0rpsyjx97isqqcwm2ys03q3";
+    sha256 = "185zlg20qk6ic9llyf4xka923snqrpdazg568raz0jiafzzsirax";
   };
 
   patches = [ ./fix-env.patch ];
 
+  postPatch = ''
+    sed -i 's,lua5.1,lua,g' SConscript
+  '';
+
   nativeBuildInputs = [ scons pkgconfig ];
 
-  buildInputs = [ SDL lua fftwFloat ];
+  buildInputs = [ SDL lua fftwFloat zlib bzip2 ];
 
   buildPhase = "scons DESTDIR=$out/bin --tool='' -j$NIX_BUILD_CORES";
 

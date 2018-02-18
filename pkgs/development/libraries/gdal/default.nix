@@ -1,64 +1,80 @@
-{ stdenv, fetchurl, composableDerivation, unzip, libjpeg, libtiff, zlib
+{ stdenv, fetchurl, unzip, libjpeg, libtiff, zlib
 , postgresql, mysql, libgeotiff, pythonPackages, proj, geos, openssl
-, libpng }:
+, libpng, sqlite, libspatialite, poppler, hdf4
+, libiconv
+, netcdfSupport ? true, netcdf, hdf5 , curl
+}:
 
-composableDerivation.composableDerivation {} (fixed: rec {
-  version = "2.0.1";
+with stdenv.lib;
+
+stdenv.mkDerivation rec {
+  version = "2.2.1";
   name = "gdal-${version}";
 
   src = fetchurl {
-    url = "http://download.osgeo.org/gdal/${version}/${name}.tar.gz";
-    sha256 = "b55f794768e104a2fd0304eaa61bb8bda3dc7c4e14f2c9d0913baca3e55b83ab";
+    url = "http://download.osgeo.org/gdal/${version}/${name}.tar.xz";
+    sha256 = "0rk0p0k787whzzdl8m1f9wcrm7h9bf1pny3z96d93b4383arhw4j";
   };
 
-  buildInputs = [ unzip libjpeg libtiff libpng proj openssl ]
-  ++ (with pythonPackages; [ python numpy wrapPython ]);
-
-  patches = [
-    # This ensures that the python package is installed into gdal's prefix,
-    # rather than trying to install into python's prefix.
-    ./python.patch
-  ];
-
-  # Don't use optimization for gcc >= 4.3. That's said to be causing segfaults.
-  # Unset CC and CXX as they confuse libtool.
-  preConfigure = "export CFLAGS=-O0 CXXFLAGS=-O0; unset CC CXX";
+  buildInputs = [ unzip libjpeg libtiff libpng proj openssl sqlite
+    libspatialite poppler hdf4 ]
+  ++ (with pythonPackages; [ python numpy wrapPython ])
+  ++ stdenv.lib.optional stdenv.isDarwin libiconv
+  ++ stdenv.lib.optionals netcdfSupport [ netcdf hdf5 curl ];
 
   configureFlags = [
-    "--with-jpeg=${libjpeg}"
-    "--with-libtiff=${libtiff}" # optional (without largetiff support)
-    "--with-libpng=${libpng}"   # optional
-    "--with-libz=${zlib}"       # optional
-
+    "--with-jpeg=${libjpeg.dev}"
+    "--with-libtiff=${libtiff.dev}" # optional (without largetiff support)
+    "--with-png=${libpng.dev}"      # optional
+    "--with-poppler=${poppler.dev}" # optional
+    "--with-libz=${zlib.dev}"       # optional
     "--with-pg=${postgresql}/bin/pg_config"
-    "--with-mysql=${mysql.lib}/bin/mysql_config"
+    "--with-mysql=${mysql.lib.dev}/bin/mysql_config"
     "--with-geotiff=${libgeotiff}"
+    "--with-sqlite3=${sqlite.dev}"
+    "--with-spatialite=${libspatialite}"
     "--with-python"               # optional
     "--with-static-proj4=${proj}" # optional
     "--with-geos=${geos}/bin/geos-config"# optional
+    "--with-hdf4=${hdf4.dev}" # optional
+    (if netcdfSupport then "--with-netcdf=${netcdf}" else "")
   ];
 
-  # Prevent this:
-  #
-  #   Checking .pth file support in /nix/store/xkrmb8xnvqxzjwsdmasqmsdh1a5y2y99-gdal-1.11.2/lib/python2.7/site-packages/
-  #   /nix/store/pbi1lgank10fy0xpjckbdpgacqw34dsz-python-2.7.9/bin/python -E -c pass
-  #   TEST FAILED: /nix/store/xkrmb8xnvqxzjwsdmasqmsdh1a5y2y99-gdal-1.11.2/lib/python2.7/site-packages/ does NOT support .pth files
-  #   error: bad install directory or PYTHONPATH
+  hardeningDisable = [ "format" ];
+
+  CXXFLAGS = "-fpermissive";
+
+  postPatch = ''
+    sed -i '/ifdef bool/i\
+      #ifdef swap\
+      #undef swap\
+      #endif' ogr/ogrsf_frmts/mysql/ogr_mysql.h
+  '';
+
+  # - Unset CC and CXX as they confuse libtool.
+  # - teach gdal that libdf is the legacy name for libhdf
+  preConfigure = ''
+      unset CC CXX
+      substituteInPlace configure \
+      --replace "-lmfhdf -ldf" "-lmfhdf -lhdf"
+    '';
+
   preBuild = ''
-    pythonInstallDir=$out/lib/${pythonPackages.python.libPrefix}/site-packages
-    mkdir -p $pythonInstallDir
-    export PYTHONPATH=''${PYTHONPATH:+''${PYTHONPATH}:}$pythonInstallDir
+    substituteInPlace swig/python/GNUmakefile \
+      --replace "ifeq (\$(STD_UNIX_LAYOUT),\"TRUE\")" "ifeq (1,1)"
   '';
 
   postInstall = ''
     wrapPythonPrograms
   '';
 
+  enableParallelBuilding = true;
+
   meta = {
     description = "Translator library for raster geospatial data formats";
     homepage = http://www.gdal.org/;
     license = stdenv.lib.licenses.mit;
     maintainers = [ stdenv.lib.maintainers.marcweber ];
-    platforms = stdenv.lib.platforms.linux;
+    platforms = with stdenv.lib.platforms; linux ++ darwin;
   };
-})
+}

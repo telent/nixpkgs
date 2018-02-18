@@ -1,5 +1,5 @@
 { stdenv, fetchurl, intltool, pkgconfig, glib, libnotify, gtk3, libgee
-, keybinder3, json_glib, zeitgeist, vala, hicolor_icon_theme
+, keybinder3, json_glib, zeitgeist, vala_0_23, hicolor_icon_theme
 }:
 
 with stdenv.lib;
@@ -12,9 +12,10 @@ stdenv.mkDerivation rec {
     sha256 = "846d8a5130580bb47c754bb7f20dc76311e589c00a18b02370a5d78b52409220";
   };
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    intltool pkgconfig glib libnotify gtk3 libgee keybinder3 json_glib zeitgeist 
-    vala hicolor_icon_theme
+    intltool glib libnotify gtk3 libgee keybinder3 json_glib zeitgeist 
+    vala_0_23 hicolor_icon_theme
   ];
 
   meta = { 
@@ -28,7 +29,7 @@ stdenv.mkDerivation rec {
       '';
       homepage = https://launchpad.net/synapse-project;
       license = stdenv.lib.licenses.gpl3;
-      maintainers = with stdenv.lib.maintainers; mahe;
+      maintainers = with stdenv.lib.maintainers; [ mahe ];
       platforms = with stdenv.lib.platforms; all;
   };
 }

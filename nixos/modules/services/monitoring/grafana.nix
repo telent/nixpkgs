@@ -1,14 +1,13 @@
-{ config, lib, pkgs, ... }:
+{ options, config, lib, pkgs, ... }:
 
 with lib;
 
 let
   cfg = config.services.grafana;
 
-  b2s = val: if val then "true" else "false";
-
   envOptions = {
     PATHS_DATA = cfg.dataDir;
+    PATHS_PLUGINS = "${cfg.dataDir}/plugins";
     PATHS_LOGS = "${cfg.dataDir}/log";
 
     SERVER_PROTOCOL = cfg.protocol;
@@ -31,12 +30,16 @@ let
     SECURITY_ADMIN_PASSWORD = cfg.security.adminPassword;
     SECURITY_SECRET_KEY = cfg.security.secretKey;
 
-    USERS_ALLOW_SIGN_UP = b2s cfg.users.allowSignUp;
-    USERS_ALLOW_ORG_CREATE = b2s cfg.users.allowOrgCreate;
-    USERS_AUTO_ASSIGN_ORG = b2s cfg.users.autoAssignOrg;
+    USERS_ALLOW_SIGN_UP = boolToString cfg.users.allowSignUp;
+    USERS_ALLOW_ORG_CREATE = boolToString cfg.users.allowOrgCreate;
+    USERS_AUTO_ASSIGN_ORG = boolToString cfg.users.autoAssignOrg;
     USERS_AUTO_ASSIGN_ORG_ROLE = cfg.users.autoAssignOrgRole;
 
-    AUTH_ANONYMOUS_ENABLE = b2s cfg.auth.anonymous.enable;
+    AUTH_ANONYMOUS_ENABLED = boolToString cfg.auth.anonymous.enable;
+    AUTH_ANONYMOUS_ORG_NAME = cfg.auth.anonymous.org_name;
+    AUTH_ANONYMOUS_ORG_ROLE = cfg.auth.anonymous.org_role;
+
+    ANALYTICS_REPORTING_ENABLED = boolToString cfg.analytics.reporting.enable;
   } // cfg.extraOptions;
 
 in {
@@ -87,12 +90,14 @@ in {
 
     staticRootPath = mkOption {
       description = "Root path for static assets.";
+      default = "${cfg.package}/share/grafana/public";
       type = types.str;
     };
 
     package = mkOption {
       description = "Package to use.";
       default = pkgs.grafana;
+      defaultText = "pkgs.grafana";
       type = types.package;
     };
 
@@ -106,7 +111,7 @@ in {
       type = mkOption {
         description = "Database type.";
         default = "sqlite3";
-        type = types.enum ["mysql" "sqlite3" "postgresql"];
+        type = types.enum ["mysql" "sqlite3" "postgres"];
       };
 
       host = mkOption {
@@ -192,6 +197,25 @@ in {
         default = false;
         type = types.bool;
       };
+      org_name = mkOption {
+        description = "Which organization to allow anonymous access to";
+        default = "Main Org.";
+        type = types.str;
+      };
+      org_role = mkOption {
+        description = "Which role anonymous users have in the organization";
+        default = "Viewer";
+        type = types.str;
+      };
+
+    };
+
+    analytics.reporting = {
+      enable = mkOption {
+        description = "Whether to allow anonymous usage reporting to stats.grafana.net";
+        default = true;
+        type = types.bool;
+      };
     };
 
     extraOptions = mkOption {
@@ -206,9 +230,12 @@ in {
   };
 
   config = mkIf cfg.enable {
-    warnings = [
-      "Grafana passwords will be stored as plaintext in the Nix store!"
-    ];
+    warnings = optional (
+      cfg.database.password != options.services.grafana.database.password.default ||
+      cfg.security.adminPassword != options.services.grafana.security.adminPassword.default
+    ) "Grafana passwords will be stored as plaintext in the Nix store!";
+
+    environment.systemPackages = [ cfg.package ];
 
     systemd.services.grafana = {
       description = "Grafana Service Daemon";
@@ -216,12 +243,13 @@ in {
       after = ["networking.target"];
       environment = mapAttrs' (n: v: nameValuePair "GF_${n}" (toString v)) envOptions;
       serviceConfig = {
-        ExecStart = "${cfg.package}/bin/grafana -homepath ${cfg.dataDir}";
+        ExecStart = "${cfg.package.bin}/bin/grafana-server -homepath ${cfg.dataDir}";
         WorkingDirectory = cfg.dataDir;
         User = "grafana";
       };
       preStart = ''
         ln -fs ${cfg.package}/share/grafana/conf ${cfg.dataDir}
+        ln -fs ${cfg.package}/share/grafana/vendor ${cfg.dataDir}
       '';
     };
 
@@ -231,8 +259,5 @@ in {
       home = cfg.dataDir;
       createHome = true;
     };
-
-    services.grafana.staticRootPath = mkDefault "${cfg.package}/share/grafana/public";
-
   };
 }

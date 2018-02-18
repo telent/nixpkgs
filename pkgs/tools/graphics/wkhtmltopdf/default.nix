@@ -1,76 +1,130 @@
-{ stdenv, fetchgit, qt4, fontconfig, freetype, libpng, zlib, libjpeg
+{ stdenv, fetchFromGitHub, fetchpatch, qt4, fontconfig, freetype, libpng, zlib, libjpeg
 , openssl, libX11, libXext, libXrender, overrideDerivation }:
 
 stdenv.mkDerivation rec {
-  version = "0.12.2.4";
+  version = "0.12.4";
   name = "wkhtmltopdf-${version}";
 
-  src = fetchgit {
-    url = "https://github.com/wkhtmltopdf/wkhtmltopdf.git";
-    rev = "refs/tags/${version}";
-    sha256 = "0g96vgi3s633j4myjfzakkyiml1zspvdvbc0q1vhw8fp5n1xdknm";
-    fetchSubmodules = false;
+  src = fetchFromGitHub {
+    owner  = "wkhtmltopdf";
+    repo   = "wkhtmltopdf";
+    rev    = version;
+    sha256 = "09yzj9ylc6ci4a1qlhz60cgxi1nm9afwjrjxfikf8wwjd3i24vp2";
   };
 
   wkQt = overrideDerivation qt4 (deriv: {
-    name = "qt-mod-4.8.6";
+    name = "qt-mod-4.8.7";
     enableParallelBuilding = true;
-    src = fetchgit {
-      url = "https://github.com/wkhtmltopdf/qt.git";
-      rev = "48e71c19c7fc67517fb3dca6d42eacb57341c9ba"; # From git submodule spec in wkhtml repo.
-      sha256 = "1ygr7g3k900zjf54ji6kkfppqnxaqwbh8npr53g2krdw3bmny6fx";
+    src = fetchFromGitHub {
+      owner  = "wkhtmltopdf";
+      repo   = "qt";
+      rev    = "fe194f9dac0b515757392a18f7fc9527c91d45ab"; # From git submodule spec in wkhtml repo.
+      sha256 = "1j2ld2bfacnn3vm2l1870v55sj82bq4y8zkawmlx2y5j63d8vr23";
     };
     configureFlags =
       ''
-        -v -no-separate-debug-info -release -confirm-license -opensource
-        -qdbus -glib -dbus-linked -openssl-linked
+        -dbus-linked
+        -glib
+        -no-separate-debug-info
+        -openssl-linked
+        -qdbus
+        -v
       ''
       + # This is taken from the wkhtml build script that we don't run
       ''
-        -fast
-        -static
+        -confirm-license
         -exceptions
-        -xmlpatterns
-        -webkit
-        -system-zlib
-        -system-libpng
-        -system-libjpeg
+        -fast
+        -graphicssystem raster
+        -iconv
+        -largefile
+        -no-3dnow
+        -no-accessibility
+        -no-audio-backend
+        -no-avx
+        -no-cups
+        -no-dbus
+        -no-declarative
+        -no-glib
+        -no-gstreamer
+        -no-gtkstyle
+        -no-icu
+        -no-javascript-jit
         -no-libmng
         -no-libtiff
-        -no-accessibility
-        -no-stl
-        -no-qt3support
+        -nomake demos
+        -nomake docs
+        -nomake examples
+        -nomake tests
+        -nomake tools
+        -nomake translations
+        -no-mitshm
+        -no-mmx
+        -no-multimedia
+        -no-nas-sound
+        -no-neon
+        -no-nis
+        -no-opengl
+        -no-openvg
+        -no-pch
         -no-phonon
         -no-phonon-backend
-        -no-opengl
-        -no-declarative
+        -no-qt3support
+        -no-rpath
+        -no-scripttools
+        -no-sm
         -no-sql-ibase
         -no-sql-mysql
         -no-sql-odbc
         -no-sql-psql
         -no-sql-sqlite
         -no-sql-sqlite2
-        -no-mmx
-        -no-3dnow
         -no-sse
         -no-sse2
-        -no-multimedia
-        -nomake demos
-        -nomake docs
-        -nomake examples
-        -nomake tools
-        -nomake tests
-        -nomake translations
+        -no-sse3
+        -no-sse4.1
+        -no-sse4.2
+        -no-ssse3
+        -no-stl
+        -no-xcursor
+        -no-xfixes
+        -no-xinerama
+        -no-xinput
+        -no-xkb
+        -no-xrandr
+        -no-xshape
+        -no-xsync
+        -opensource
+        -release
+        -static
+        -system-libjpeg
+        -system-libpng
+        -system-zlib
+        -webkit
+        -xmlpatterns
       '';
   });
 
-  buildInputs = [ wkQt fontconfig freetype libpng zlib libjpeg openssl
+  buildInputs = [
+    wkQt fontconfig freetype libpng zlib libjpeg openssl
     libX11 libXext libXrender
-    ];
+  ];
+
+  prePatch = ''
+    for f in src/image/image.pro src/pdf/pdf.pro ; do
+      substituteInPlace $f --replace '$(INSTALL_ROOT)' ""
+    done
+  '';
+
+  patches = [
+    (fetchpatch {
+      name = "make-0.12.4-compile.patch";
+      url = "https://github.com/efx/aports/raw/eb9f8e6bb9a488460929db747b15b8fceddd7abd/testing/wkhtmltopdf/10-patch1.patch";
+      sha256 = "1c136jz0klr2rmhmy13gdbgsgkpjfdp2sif8bnw8d23mr9pym3s1";
+    })
+  ];
 
   configurePhase = "qmake wkhtmltopdf.pro INSTALLBASE=$out";
-
-  patches = [ ./makefix.patch ];
 
   enableParallelBuilding = true;
 
@@ -87,5 +141,6 @@ stdenv.mkDerivation rec {
     '';
     license = licenses.gpl3Plus;
     maintainers = with maintainers; [ jb55 ];
+    platforms = with platforms; linux;
   };
 }

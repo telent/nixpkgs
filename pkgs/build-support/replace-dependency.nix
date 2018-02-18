@@ -22,7 +22,7 @@
 with lib;
 
 let
-  warn = if verbose then builtins.trace else (x:y:y);
+  warn = if verbose then builtins.trace else (x: y: y);
   references = import (runCommand "references.nix" { exportReferencesGraph = [ "graph" drv ]; } ''
     (echo {
     while read path
@@ -61,7 +61,7 @@ let
   drvName = drv:
     discard (substring 33 (stringLength (builtins.baseNameOf drv)) (builtins.baseNameOf drv));
 
-  rewriteHashes = drv: hashes: runCommand (drvName drv) { nixStore = "${nix}/bin/nix-store"; } ''
+  rewriteHashes = drv: hashes: runCommand (drvName drv) { nixStore = "${nix.out}/bin/nix-store"; } ''
     $nixStore --dump ${drv} | sed 's|${baseNameOf drv}|'$(basename $out)'|g' | sed -e ${
       concatStringsSep " -e " (mapAttrsToList (name: value:
         "'s|${baseNameOf name}|${baseNameOf value}|g'"

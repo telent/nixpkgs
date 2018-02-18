@@ -1,4 +1,4 @@
-{ fetchurl, stdenv, zip, zlib, qt }:
+{ fetchurl, stdenv, zip, zlib, qtbase, qmake }:
 
 stdenv.mkDerivation rec {
   name = "quazip-0.7.1";
@@ -8,11 +8,10 @@ stdenv.mkDerivation rec {
     sha256 = "1pijy6zn8kdx9m6wrckid24vkgp250hklbpmgrpixiam6l889jbq";
   };
 
-  configurePhase = "cd quazip && qmake quazip.pro";
+  preConfigure = "cd quazip";
 
-  installFlags = "INSTALL_ROOT=$(out)";
-
-  buildInputs = [ zlib qt ];
+  buildInputs = [ zlib qtbase ];
+  nativeBuildInputs = [ qmake ];
 
   meta = {
     description = "Provides access to ZIP archives from Qt programs";

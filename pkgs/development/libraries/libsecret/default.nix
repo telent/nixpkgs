@@ -1,19 +1,23 @@
 { stdenv, fetchurl, glib, pkgconfig, intltool, libxslt, docbook_xsl, gtk_doc
-, libgcrypt, gobjectIntrospection }:
+, libgcrypt, gobjectIntrospection, vala_0_38 }:
 let
-  version = "0.18";
+  version = "0.18.5";
 in
 stdenv.mkDerivation rec {
   name = "libsecret-${version}";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/libsecret/${version}/${name}.tar.xz";
-    sha256 = "1qq29c01xxjyx5sl6y5h22w8r0ff4c73bph3gfx3h7mx5mvalwqc";
+    url = "mirror://gnome/sources/libsecret/0.18/${name}.tar.xz";
+    sha256 = "1cychxc3ff8fp857iikw0n2s13s2mhw2dn1mr632f7w3sn6vvrww";
   };
+
+  outputs = [ "out" "dev" ];
+
+  NIX_LDFLAGS = stdenv.lib.optionalString stdenv.isDarwin "-lintl";
 
   propagatedBuildInputs = [ glib ];
   nativeBuildInputs = [ pkgconfig intltool libxslt docbook_xsl ];
-  buildInputs = [ libgcrypt gobjectIntrospection ];
+  buildInputs = [ libgcrypt gobjectIntrospection vala_0_38 ];
   # optional: build docs with gtk-doc? (probably needs a flag as well)
 
   meta = {

@@ -1,27 +1,50 @@
-{ stdenv, fetchurl, cmake, mesa, freeglut }:
+{ stdenv, fetchFromGitHub, cmake, mesa, freeglut, darwin }:
 
 stdenv.mkDerivation rec {
-  name = "bullet-2.80"; # vdrift 2012-07-22 doesn't build with 2.81
-  rev = "2531";
-  src = fetchurl {
-    url = "http://bullet.googlecode.com/files/${name}-rev${rev}.tgz";
-    sha256 = "0dig6k88jz5y0cz6dn186vc4l96l4v56zvwpsp5bv9f5wdwjskj6";
+  name = "bullet-${version}";
+  version = "2.86.1";
+
+  src = fetchFromGitHub {
+    owner = "bulletphysics";
+    repo = "bullet3";
+    rev = version;
+    sha256 = "1k81hr5y9rs2nsal6711fal21rxp6h573cpmjjk8x8ji2crqbqlz";
   };
 
-  buildInputs = [ cmake mesa freeglut ];
-  configurePhase = ''
-    cmake -DBUILD_SHARED_LIBS=ON -DBUILD_EXTRAS=OFF -DBUILD_DEMOS=OFF \
-      -DCMAKE_INSTALL_PREFIX=$out .
+  buildInputs = [ cmake ] ++
+    (if stdenv.isDarwin
+     then with darwin.apple_sdk.frameworks; [ Cocoa OpenGL ]
+     else [mesa freeglut]);
+
+  postPatch = stdenv.lib.optionalString stdenv.isDarwin ''
+    sed -i 's/FIND_PACKAGE(OpenGL)//' CMakeLists.txt
+    sed -i 's/FIND_LIBRARY(COCOA_LIBRARY Cocoa)//' CMakeLists.txt
   '';
+
+  cmakeFlags = [
+    "-DBUILD_SHARED_LIBS=ON"
+    "-DBUILD_CPU_DEMOS=OFF"
+    "-DINSTALL_EXTRA_LIBS=ON"
+  ] ++ stdenv.lib.optionals stdenv.isDarwin [
+    "-DMACOSX_DEPLOYMENT_TARGET=\"10.9\""
+    "-DOPENGL_FOUND=true"
+    "-DOPENGL_LIBRARIES=${darwin.apple_sdk.frameworks.OpenGL}/Library/Frameworks/OpenGL.framework"
+    "-DOPENGL_INCLUDE_DIR=${darwin.apple_sdk.frameworks.OpenGL}/Library/Frameworks/OpenGL.framework"
+    "-DOPENGL_gl_LIBRARY=${darwin.apple_sdk.frameworks.OpenGL}/Library/Frameworks/OpenGL.framework"
+    "-DCOCOA_LIBRARY=${darwin.apple_sdk.frameworks.Cocoa}/Library/Frameworks/Cocoa.framework"
+  ];
+
+  enableParallelBuilding = true;
 
   meta = {
     description = "A professional free 3D Game Multiphysics Library";
     longDescription = ''
       Bullet 3D Game Multiphysics Library provides state of the art collision
-      detection, soft body and rigid body dynamics. 
+      detection, soft body and rigid body dynamics.
     '';
-    homepage = http://code.google.com/p/bullet/;
+    homepage = http://bulletphysics.org;
     license = stdenv.lib.licenses.zlib;
     maintainers = with stdenv.lib.maintainers; [ aforemny ];
+    platforms = with stdenv.lib.platforms; unix;
   };
 }

@@ -1,5 +1,5 @@
 { stdenv, fetchurl
-, avahi, libusb1, libv4l, net_snmp
+, avahi, libjpeg, libusb1, libv4l, net_snmp
 , gettext, pkgconfig
 
 # List of { src name backend } attibute sets - see installFirmware below:
@@ -13,19 +13,20 @@
 }:
 
 stdenv.mkDerivation {
-  inherit src;
+  inherit src version;
 
   name = "sane-backends-${version}";
 
   outputs = [ "out" "doc" "man" ];
 
   configureFlags = []
-    ++ stdenv.lib.optional (avahi != null) "--enable-avahi"
+    ++ stdenv.lib.optional (avahi != null)   "--enable-avahi"
     ++ stdenv.lib.optional (libusb1 != null) "--enable-libusb_1_0"
     ;
 
   buildInputs = [ avahi libusb1 libv4l net_snmp ];
   nativeBuildInputs = [ gettext pkgconfig ];
+  enableParallelBuilding = true;
 
   postInstall = let
 
@@ -50,11 +51,15 @@ stdenv.mkDerivation {
     mkdir -p $out/etc/udev/rules.d/
     ./tools/sane-desc -m udev > $out/etc/udev/rules.d/49-libsane.rules || \
     cp tools/udev/libsane.rules $out/etc/udev/rules.d/49-libsane.rules
+    # the created 49-libsane references /bin/sh
+    substituteInPlace $out/etc/udev/rules.d/49-libsane.rules \
+      --replace "RUN+=\"/bin/sh" "RUN+=\"${stdenv.shell}"
+
+    substituteInPlace $out/lib/libsane.la \
+      --replace "-ljpeg" "-L${libjpeg.out}/lib -ljpeg"
   '' + stdenv.lib.concatStrings (builtins.map installFirmware compatFirmware);
 
   meta = with stdenv.lib; {
-    inherit version;
-
     description = "SANE (Scanner Access Now Easy) backends";
     longDescription = ''
       Collection of open-source SANE backends (device drivers).
@@ -63,10 +68,10 @@ stdenv.mkDerivation {
       video- and still-cameras, frame-grabbers, etc. For a list of supported
       scanners, see http://www.sane-project.org/sane-backends.html.
     '';
-    homepage = "http://www.sane-project.org/";
+    homepage = http://www.sane-project.org/;
     license = licenses.gpl2Plus;
 
-    maintainers = with maintainers; [ nckx simons ];
+    maintainers = with maintainers; [ nckx peti ];
     platforms = platforms.linux;
   };
 }

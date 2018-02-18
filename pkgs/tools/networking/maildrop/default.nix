@@ -8,7 +8,8 @@ stdenv.mkDerivation rec {
     sha256 = "1a94p2b41iy334cwfwmzi19557dn5j61abh0cp2rfc9dkc8ibhdg";
   };
 
-  buildInputs = [ pkgconfig pcre perl ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ pcre perl ];
 
   patches = [ ./maildrop.configure.hack.patch ]; # for building in chroot
 
@@ -16,5 +17,6 @@ stdenv.mkDerivation rec {
     homepage = http://www.courier-mta.org/maildrop/;
     description = "Mail filter/mail delivery agent that is used by the Courier Mail Server";
     license = licenses.gpl3;
+    platforms = platforms.linux;
   };
 }

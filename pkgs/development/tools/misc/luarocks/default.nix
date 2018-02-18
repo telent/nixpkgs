@@ -1,16 +1,16 @@
-{stdenv, fetchurl, lua, curl, makeWrapper, which}:
+{stdenv, fetchurl, lua, curl, makeWrapper, which, unzip}:
 let
   s = # Generated upstream information
   rec {
     baseName="luarocks";
-    version="2.3.0";
+    version="2.4.3";
     name="${baseName}-${version}";
-    hash="15zdchj3wkjdbypj68kwqswxhkhrfnw72nlks6df4lk0nvp8zqv8";
-    url="http://luarocks.org/releases/luarocks-2.3.0-rc2.tar.gz";
-    sha256="15zdchj3wkjdbypj68kwqswxhkhrfnw72nlks6df4lk0nvp8zqv8";
+    hash="0binkd8mpzdzvx0jw0dwm4kr1p7jny015zykf8f15fymzqr4shad";
+    url="http://luarocks.org/releases/luarocks-2.4.3.tar.gz";
+    sha256="0binkd8mpzdzvx0jw0dwm4kr1p7jny015zykf8f15fymzqr4shad";
   };
   buildInputs = [
-    lua curl makeWrapper which
+    lua curl makeWrapper which unzip
   ];
 in
 stdenv.mkDerivation {
@@ -47,6 +47,6 @@ stdenv.mkDerivation {
     description = ''A package manager for Lua'';
     license = stdenv.lib.licenses.mit ;
     maintainers = [stdenv.lib.maintainers.raskin];
-    platforms = stdenv.lib.platforms.linux;
+    platforms = stdenv.lib.platforms.linux ++ stdenv.lib.platforms.darwin;
   };
 }

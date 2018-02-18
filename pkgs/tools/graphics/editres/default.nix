@@ -8,15 +8,17 @@ stdenv.mkDerivation rec {
     sha256 = "06kv7dmw6pzlqc46dbh8k9xpb6sn4ihh0bcpxq0zpvw2lm66dx45";
   };
 
-  buildInputs = [ pkgconfig libXt libXaw libXres utilmacros ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ libXt libXaw libXres utilmacros ];
 
-  preConfigure = "configureFlags=--with-appdefaultdir=$out/share/X11/app-defaults/editres";
+  configureFlags = "--with-appdefaultdir=$(out)/share/X11/app-defaults/editres";
+
+  hardeningDisable = [ "format" ];
 
   meta = {
-    homepage = "http://cgit.freedesktop.org/xorg/app/editres/";
-    description = "a dynamic resource editor for X Toolkit applications";
+    homepage = https://cgit.freedesktop.org/xorg/app/editres/;
+    description = "A dynamic resource editor for X Toolkit applications";
 
     platforms = stdenv.lib.platforms.linux;
-    maintainers = [ stdenv.lib.maintainers.simons ];
   };
 }

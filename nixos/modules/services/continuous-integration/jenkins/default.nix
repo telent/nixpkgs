@@ -78,8 +78,16 @@ in {
         '';
       };
 
+      package = mkOption {
+        default = pkgs.jenkins;
+        defaultText = "pkgs.jenkins";
+        type = types.package;
+        description = "Jenkins package to use.";
+      };
+
       packages = mkOption {
         default = [ pkgs.stdenv pkgs.git pkgs.jdk config.programs.ssh.package pkgs.nix ];
+        defaultText = "[ pkgs.stdenv pkgs.git pkgs.jdk config.programs.ssh.package pkgs.nix ]";
         type = types.listOf types.package;
         description = ''
           Packages to add to PATH for the jenkins process.
@@ -91,11 +99,28 @@ in {
         type = with types; attrsOf str;
         description = ''
           Additional environment variables to be passed to the jenkins process.
-          As a base environment, jenkins receives NIX_PATH, SSL_CERT_FILE and
-          GIT_SSL_CAINFO from <option>environment.sessionVariables</option>,
-          NIX_REMOTE is set to "daemon" and JENKINS_HOME is set to
-          the value of <option>services.jenkins.home</option>. This option has
-          precedence and can be used to override those mentioned variables.
+          As a base environment, jenkins receives NIX_PATH from
+          <option>environment.sessionVariables</option>, NIX_REMOTE is set to
+          "daemon" and JENKINS_HOME is set to the value of
+          <option>services.jenkins.home</option>.
+          This option has precedence and can be used to override those
+          mentioned variables.
+        '';
+      };
+
+      plugins = mkOption {
+        default = null;
+        type = types.nullOr (types.attrsOf types.package);
+        description = ''
+          A set of plugins to activate. Note that this will completely
+          remove and replace any previously installed plugins. If you
+          have manually-installed plugins that you want to keep while
+          using this module, set this option to
+          <literal>null</literal>. You can generate this set with a
+          tool such as <literal>jenkinsPlugins2nix</literal>.
+        '';
+        example = literalExample ''
+          import path/to/jenkinsPlugins2nix-generated-plugins.nix { inherit (pkgs) fetchurl stdenv; }
         '';
       };
 
@@ -105,6 +130,15 @@ in {
         example = [ "--debug=9" ];
         description = ''
           Additional command line arguments to pass to Jenkins.
+        '';
+      };
+
+      extraJavaOptions = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        example = [ "-Xmx80m" ];
+        description = ''
+          Additional command line arguments to pass to the Java run time (as opposed to Jenkins).
         '';
       };
     };
@@ -135,11 +169,7 @@ in {
       environment =
         let
           selectedSessionVars =
-            lib.filterAttrs (n: v: builtins.elem n
-                [ "NIX_PATH"
-                  "SSL_CERT_FILE"
-                  "GIT_SSL_CAINFO"
-                ])
+            lib.filterAttrs (n: v: builtins.elem n [ "NIX_PATH" ])
               config.environment.sessionVariables;
         in
           selectedSessionVars //
@@ -151,28 +181,35 @@ in {
       path = cfg.packages;
 
       # Force .war (re)extraction, or else we might run stale Jenkins.
-      preStart = ''
-        rm -rf ${cfg.home}/war
-      '';
+
+      preStart =
+        let replacePlugins =
+              if isNull cfg.plugins
+              then ""
+              else
+                let pluginCmds = lib.attrsets.mapAttrsToList
+                      (n: v: "cp ${v} ${cfg.home}/plugins/${n}.hpi")
+                      cfg.plugins;
+                in ''
+                  rm -r ${cfg.home}/plugins || true
+                  mkdir -p ${cfg.home}/plugins
+                  ${lib.strings.concatStringsSep "\n" pluginCmds}
+                '';
+        in ''
+          rm -rf ${cfg.home}/war
+          ${replacePlugins}
+        '';
 
       script = ''
-        ${pkgs.jdk}/bin/java -jar ${pkgs.jenkins} --httpListenAddress=${cfg.listenAddress} \
+        ${pkgs.jdk}/bin/java ${concatStringsSep " " cfg.extraJavaOptions} -jar ${cfg.package}/webapps/jenkins.war --httpListenAddress=${cfg.listenAddress} \
                                                   --httpPort=${toString cfg.port} \
                                                   --prefix=${cfg.prefix} \
                                                   ${concatStringsSep " " cfg.extraOptions}
       '';
 
       postStart = ''
-        until ${pkgs.curl}/bin/curl -s -L ${cfg.listenAddress}:${toString cfg.port}${cfg.prefix} ; do
-          sleep 10
-        done
-        while true ; do
-          index=`${pkgs.curl}/bin/curl -s -L ${cfg.listenAddress}:${toString cfg.port}${cfg.prefix}`
-          if [[ !("$index" =~ 'Please wait while Jenkins is restarting' ||
-                  "$index" =~ 'Please wait while Jenkins is getting ready to work') ]]; then
-            exit 0
-          fi
-          sleep 30
+        until [[ $(${pkgs.curl.bin}/bin/curl -s --head -w '\n%{http_code}' http://${cfg.listenAddress}:${toString cfg.port}${cfg.prefix} | tail -n1) =~ ^(200|403)$ ]]; do
+          sleep 1
         done
       '';
 

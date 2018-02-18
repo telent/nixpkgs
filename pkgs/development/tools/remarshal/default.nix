@@ -1,20 +1,23 @@
-{ lib, goPackages, fetchFromGitHub }:
+{ stdenv, pythonPackages, fetchFromGitHub }:
 
-goPackages.buildGoPackage rec {
-  name = "remarshal-${rev}";
-  rev = "0.3.0";
-  goPackagePath = "github.com/dbohdan/remarshal";
+pythonPackages.buildPythonApplication rec {
+  name = "remarshal-${version}";
+  version = "0.6.0";
 
   src = fetchFromGitHub {
-    rev = "v${rev}";
     owner  = "dbohdan";
     repo   = "remarshal";
-    sha256 = "0lhsqca3lq3xvdwsmrngv4p6b7k2lkbfnxnk5qj6jdd5y7f4b496";
+    rev    = "v${version}";
+    sha256 = "0jslawpzghv3chamrfddnyn5p5068kjxy8d38fxvi5h06qgfb4wp";
   };
 
-  buildInputs = with goPackages; [ toml yaml-v2 ];
+  propagatedBuildInputs = with pythonPackages; [
+    dateutil
+    pytoml
+    pyyaml
+  ];
 
-  meta = with lib; {
+  meta = with stdenv.lib; {
     description = "Convert between TOML, YAML and JSON";
     license = licenses.mit;
     homepage = https://github.com/dbohdan/remarshal;

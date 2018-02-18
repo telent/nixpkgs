@@ -1,4 +1,9 @@
-{ stdenv, fetchurl, ghc, perl, gmp, ncurses, libiconv }:
+{ stdenv, fetchurl, ghc, perl, ncurses, libiconv
+
+  # If enabled GHC will be build with the GPL-free but slower integer-simple
+  # library instead of the faster but GPLed integer-gmp library.
+, enableIntegerSimple ? false, gmp
+}:
 
 stdenv.mkDerivation (rec {
   version = "7.8.4";
@@ -9,21 +14,27 @@ stdenv.mkDerivation (rec {
     sha256 = "1i4254akbb4ym437rf469gc0m40bxm31blp6s1z1g15jmnacs6f3";
   };
 
-  buildInputs = [ ghc perl gmp ncurses ];
+  patches = [ ./relocation.patch ];
+
+  buildInputs = [ ghc perl ncurses ]
+                ++ stdenv.lib.optional (!enableIntegerSimple) gmp;
 
   enableParallelBuilding = true;
 
   buildMK = ''
-    libraries/integer-gmp_CONFIGURE_OPTS += --configure-option=--with-gmp-libraries="${gmp}/lib"
-    libraries/integer-gmp_CONFIGURE_OPTS += --configure-option=--with-gmp-includes="${gmp}/include"
-    libraries/terminfo_CONFIGURE_OPTS += --configure-option=--with-curses-includes="${ncurses}/include"
-    libraries/terminfo_CONFIGURE_OPTS += --configure-option=--with-curses-libraries="${ncurses}/lib"
+    libraries/terminfo_CONFIGURE_OPTS += --configure-option=--with-curses-includes="${ncurses.dev}/include"
+    libraries/terminfo_CONFIGURE_OPTS += --configure-option=--with-curses-libraries="${ncurses.out}/lib"
     DYNAMIC_BY_DEFAULT = NO
     ${stdenv.lib.optionalString stdenv.isDarwin ''
       libraries/base_CONFIGURE_OPTS += --configure-option=--with-iconv-includes="${libiconv}/include"
       libraries/base_CONFIGURE_OPTS += --configure-option=--with-iconv-libraries="${libiconv}/lib"
     ''}
-  '';
+  '' + (if enableIntegerSimple then ''
+    INTEGER_LIBRARY=integer-simple
+  '' else ''
+    libraries/integer-gmp_CONFIGURE_OPTS += --configure-option=--with-gmp-libraries="${gmp.out}/lib"
+    libraries/integer-gmp_CONFIGURE_OPTS += --configure-option=--with-gmp-includes="${gmp.dev}/include"
+  '');
 
   preConfigure = ''
     echo "${buildMK}" > mk/build.mk
@@ -39,9 +50,9 @@ stdenv.mkDerivation (rec {
   stripDebugFlags = [ "-S" ] ++ stdenv.lib.optional (!stdenv.isDarwin) "--keep-file-symbols";
 
   meta = {
-    homepage = "http://haskell.org/ghc";
+    homepage = http://haskell.org/ghc;
     description = "The Glasgow Haskell Compiler";
-    maintainers = with stdenv.lib.maintainers; [ marcweber andres simons ];
+    maintainers = with stdenv.lib.maintainers; [ marcweber andres peti ];
     inherit (ghc.meta) license platforms;
   };
 

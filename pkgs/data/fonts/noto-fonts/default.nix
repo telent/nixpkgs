@@ -1,24 +1,24 @@
-{ stdenv, fetchurl, fetchFromGitHub, optipng, cairo, unzip, fontforge, pythonPackages, pkgconfig }:
+{ stdenv, fetchzip, fetchFromGitHub, optipng, cairo, unzip, pythonPackages, pkgconfig, pngquant, which, imagemagick }:
+
 rec {
   # 18MB
-  noto-fonts = let version = "git-2015-09-08"; in stdenv.mkDerivation {
+  noto-fonts = let version = "2017-10-24-phase3-second-cleanup"; in fetchzip {
     name = "noto-fonts-${version}";
-    src = fetchFromGitHub {
-      owner = "googlei18n";
-      repo = "noto-fonts";
-      rev = "9d677e7e47a13f6e88052833277783fe4f27671f";
-      sha256 = "1dw1142znlk19a4mzhfi9pg3jzmz8pl1ivix7sd2grg70vxscxqc";
-    };
-    phases = "unpackPhase installPhase";
-    installPhase = ''
+
+    url = "https://github.com/googlei18n/noto-fonts/archive/v${version}.zip";
+    postFetch = ''
+      unzip $downloadedFile
+
       mkdir -p $out/share/fonts/noto
-      cp hinted/*.ttf $out/share/fonts/noto
+      cp noto-fonts-*/hinted/*.ttf $out/share/fonts/noto
       # Also copy unhinted & alpha fonts for better glyph coverage,
       # if they don't have a hinted version
       # (see https://groups.google.com/d/msg/noto-font/ZJSkZta4n5Y/tZBnLcPdbS0J)
-      cp -n unhinted/*.ttf $out/share/fonts/noto
-      cp -n alpha/*.ttf $out/share/fonts/noto
+      cp -n noto-fonts-*/unhinted/*.ttf $out/share/fonts/noto
+      cp -n noto-fonts-*/alpha/*.ttf $out/share/fonts/noto
     '';
+    sha256 = "013l816cq9svdji266sccscm9sf9pfn472gq9lnqkzlwaxx9qrrl";
+
     meta = with stdenv.lib; {
       inherit version;
       description = "Beautiful and free fonts for many languages";
@@ -42,27 +42,16 @@ rec {
     };
   };
   # 89MB
-  noto-fonts-cjk = let version = "1.004"; in stdenv.mkDerivation {
+  noto-fonts-cjk = let version = "1.004"; in fetchzip {
     name = "noto-fonts-cjk-${version}";
 
-    src = fetchurl {
-      # Same as https://noto-website.storage.googleapis.com/pkgs/NotoSansCJK.ttc.zip but versioned & with no extra SIL license file
-      url = "https://raw.githubusercontent.com/googlei18n/noto-cjk/40d9f5b179a59a06b98373c76bdc3e2119e4e6b2/NotoSansCJK.ttc.zip";
-      sha256 = "1vg3si6slvk8cklq6s5c76s84kqjc4wvwzr4ysljzjpgzra2rfn6";
-    };
-
-    buildInputs = [ unzip ];
-
-    phases = "unpackPhase installPhase";
-
-    sourceRoot = ".";
-
-    installPhase = ''
-      mkdir -p $out/share/fonts/noto
-      cp *.ttc $out/share/fonts/noto
+    # Same as https://noto-website.storage.googleapis.com/pkgs/NotoSansCJK.ttc.zip but versioned & with no extra SIL license file
+    url = "https://raw.githubusercontent.com/googlei18n/noto-cjk/40d9f5b179a59a06b98373c76bdc3e2119e4e6b2/NotoSansCJK.ttc.zip";
+    postFetch = ''
+      mkdir -p $out/share/fonts
+      unzip -j $downloadedFile \*.ttc -d $out/share/fonts/noto
     '';
-
-    preferLocalBuild = true;
+    sha256 = "0ghw2azqq3nkcxsbvf53qjmrhcfsnry79rq7jsr0wwi2pn7d3dsq";
 
     meta = with stdenv.lib; {
       inherit version;
@@ -86,34 +75,30 @@ rec {
     };
   };
   # 12MB
-  noto-fonts-emoji = let version = "git-2015-08-17"; in stdenv.mkDerivation {
+  noto-fonts-emoji = let version = "2017-09-13-design-refresh"; in stdenv.mkDerivation {
     name = "noto-fonts-emoji-${version}";
 
     src = fetchFromGitHub {
       owner = "googlei18n";
       repo = "noto-emoji";
-      rev = "ffd7cfd0c84b7bf37210d0908ac94adfe3259ff2";
-      sha256 = "1pa94gw2y0b6p8r81zbjzcjgi5nrx4dqrqr6mk98wj6jbi465sh2";
+      rev = "v${version}";
+      sha256 = "1ixz03207kzh6jhmw8bpi77pxkfzq46dk26sr41m5kkvc14d14vl";
     };
 
-    buildInputs = with pythonPackages; [
-      optipng cairo fontforge python nototools fonttools pkgconfig
-    ];
+    buildInputs = [ cairo ];
+    nativeBuildInputs = [ pngquant optipng which cairo pkgconfig imagemagick ]
+                     ++ (with pythonPackages; [ python fonttools nototools ]);
 
-    #FIXME: perhaps use our pngquant instead
-    preConfigure = ''
-      for f in ./*.py ./third_party/pngquant/configure; do
-        patchShebangs "$f"
-      done
+    postPatch = ''
+      sed -i 's,^PNGQUANT :=.*,PNGQUANT := ${pngquant}/bin/pngquant,' Makefile
+      patchShebangs flag_glyph_name.py
     '';
 
-    preBuild = ''
-      export PYTHONPATH=$PYTHONPATH:$PWD
-    '';
+    enableParallelBuilding = true;
 
     installPhase = ''
       mkdir -p $out/share/fonts/noto
-      cp NotoColorEmoji.ttf NotoEmoji-Regular.ttf $out/share/fonts/noto
+      cp NotoColorEmoji.ttf fonts/NotoEmoji-Regular.ttf $out/share/fonts/noto
     '';
 
     meta = with stdenv.lib; {

@@ -1,12 +1,10 @@
 { stdenv
 , fetchurl
-, buildPythonPackage
-, pyqt4
 , pythonPackages
 }:
 let
   version = "2.3.2";
-in buildPythonPackage rec {
+in pythonPackages.buildPythonApplication rec {
   name = "mnemosyne-${version}";
   src = fetchurl {
     url    = "http://sourceforge.net/projects/mnemosyne-proj/files/mnemosyne/${name}/Mnemosyne-${version}.tar.gz";
@@ -16,12 +14,16 @@ in buildPythonPackage rec {
     pyqt4
     matplotlib
     cherrypy
-    sqlite3
     webob
   ];
   preConfigure = ''
     substituteInPlace setup.py --replace /usr $out
     find . -type f -exec grep -H sys.exec_prefix {} ';' | cut -d: -f1 | xargs sed -i s,sys.exec_prefix,\"$out\",
+  '';
+  postInstall = ''
+    mkdir -p $out/share
+    mv $out/lib/python2.7/site-packages/$out/share/locale $out/share
+    rm -r $out/lib/python2.7/site-packages/nix
   '';
   meta = {
     homepage = http://mnemosyne-proj.org/;

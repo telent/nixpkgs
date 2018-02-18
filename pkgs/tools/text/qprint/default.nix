@@ -1,4 +1,4 @@
-{ fetchurl, stdenv }:
+{ fetchurl, stdenv, buildPlatform, hostPlatform }:
 
 stdenv.mkDerivation rec {
   name = "qprint-1.1";
@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
     sha256 = "1701cnb1nl84rmcpxzq11w4cyj4385jh3gx4aqxznwf8a4fwmagz";
   };
 
-  doCheck = true;
+  doCheck = (buildPlatform == hostPlatform);
 
   checkTarget = "wringer";
 
@@ -18,9 +18,9 @@ stdenv.mkDerivation rec {
   '';
 
   meta = {
-    homepage = "http://www.fourmilab.ch/webtools/qprint/";
+    homepage = http://www.fourmilab.ch/webtools/qprint/;
     license = stdenv.lib.licenses.publicDomain;
-    description = "encode and decode Quoted-Printable files";
+    description = "Encode and decode Quoted-Printable files";
     maintainers = [ stdenv.lib.maintainers.tv ];
     platforms = stdenv.lib.platforms.all;
   };

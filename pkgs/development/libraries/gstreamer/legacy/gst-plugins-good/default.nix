@@ -1,7 +1,7 @@
-{ fetchurl, stdenv, pkgconfig, gst_plugins_base, aalib, cairo
+{ fetchurl, stdenv, lib, pkgconfig, gst-plugins-base, aalib, cairo
 , flac, libjpeg, zlib, speex, libpng, libdv, libcaca, libvpx
 , libiec61883, libavc1394, taglib, libpulseaudio, gdk_pixbuf, orc
-, glib, gstreamer, bzip2, libsoup, libshout, libintlOrEmpty
+, glib, gstreamer, bzip2, libsoup, libshout, ncurses, libintlOrEmpty
 , # Whether to build no plugins that have external dependencies
   # (except the PulseAudio plugin).
   minimalDeps ? false
@@ -20,13 +20,13 @@ stdenv.mkDerivation rec {
 
   patches = [ ./v4l.patch ./linux-headers-3.9.patch ];
 
-  configureFlags = "--enable-experimental --disable-oss";
+  configureFlags = [ "--enable-experimental" "--disable-oss" ];
 
   buildInputs =
-    [ pkgconfig glib gstreamer gst_plugins_base ]
-    ++ stdenv.lib.optional stdenv.isLinux [ libpulseaudio ]
+    [ pkgconfig glib gstreamer gst-plugins-base ]
+    ++ lib.optional stdenv.isLinux libpulseaudio
     ++ libintlOrEmpty
-    ++ stdenv.lib.optionals (!minimalDeps)
+    ++ lib.optionals (!minimalDeps)
       [ aalib libcaca cairo libdv flac libjpeg libpng speex
         taglib bzip2 libvpx gdk_pixbuf orc libsoup libshout ];
 
@@ -34,8 +34,13 @@ stdenv.mkDerivation rec {
 
   enableParallelBuilding = true;
 
+  postInstall = lib.optionalString (!minimalDeps) ''
+    substituteInPlace $out/lib/gstreamer-0.10/libgstaasink.la \
+      --replace "${ncurses.dev}/lib" "${ncurses.out}/lib"
+  '';
+
   meta = {
-    homepage = http://gstreamer.freedesktop.org;
+    homepage = https://gstreamer.freedesktop.org;
 
     description = "`Good' plug-ins for GStreamer";
 

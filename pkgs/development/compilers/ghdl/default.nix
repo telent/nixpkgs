@@ -1,64 +1,44 @@
-{ stdenv, fetchurl, gnat, zlib }:
+{ stdenv, fetchFromGitHub, gnat, zlib, llvm_35, ncurses, clang, flavour ? "mcode" }:
 
-assert stdenv.system == "i686-linux";
+# mcode only works on x86, while the llvm flavour works on both x86 and x86_64.
+
+
+assert flavour == "llvm" || flavour == "mcode";
 
 let
-  version = "0.31";
+  inherit (stdenv.lib) optional;
+  inherit (stdenv.lib) optionals;
+  version = "0.33";
 in
 stdenv.mkDerivation rec {
-  name = "ghdl-mcode-${version}";
+  name = "ghdl-${flavour}-${version}";
 
-  src = fetchurl {
-    url = "mirror://sourceforge/ghdl/ghdl-${version}.tar.gz";
-    sha256 = "1v0l9h6906b0bvnwfi2qg5nz9vjg80isc5qgjxr1yqxpkfm2xcf0";
+  src = fetchFromGitHub {
+    owner = "tgingold";
+    repo = "ghdl";
+    rev = "v${version}";
+    sha256 = "0g72rk2yzr0lrpncq2c1qcv71w3mi2hjq84r1yzgjr6d0qm87r2a";
   };
 
-  buildInputs = [ gnat zlib ];
+  buildInputs = [ gnat zlib ] ++ optionals (flavour == "llvm") [ clang ncurses ];
 
-  # Tarbomb
-  preUnpack = ''
-    mkdir ghdl
-    cd ghdl
-  '';
-
-  sourceRoot = "translate/ghdldrv";
+  configureFlags = optional (flavour == "llvm") "--with-llvm=${llvm_35}";
 
   patchPhase = ''
-    sed -i 's,$$curdir/lib,'$out'/share/ghdl_mcode/translate/lib,' Makefile
+    # Disable warnings-as-errors, because there are warnings (unused things)
+    sed -i s/-gnatwae/-gnatwa/ Makefile.in ghdl.gpr.in
   '';
 
-  postBuild = ''
-    # Build the LIB
-    ln -s ghdl_mcode ghdl
-    make install.mcode
-  '';
+  hardeningDisable = [ "all" ];
 
-  installPhase = ''
-    mkdir -p $out/bin
-    cp ghdl_mcode $out/bin
-
-    mkdir -p $out/share/ghdl_mcode/translate
-    cp -R ../lib $out/share/ghdl_mcode/translate
-    cp -R ../../libraries $out/share/ghdl_mcode
-
-    mkdir -p $out/share/man/man1
-    cp ../../doc/ghdl.1 $out/share/man/man1/ghdl_mcode.1
-
-    # Ghdl has some timestamps checks, storing file timestamps in '.cf' files.
-    # As we will change the timestamps to 1970-01-01 00:00:01, we also set the
-    # content of that .cf to that value. This way ghdl does not complain on
-    # the installed object files from the basic libraries (ieee, ...)
-    pushd $out
-    find . -name "*.cf" -exec \
-        sed 's/[0-9]*\.000" /19700101000001.000" /g' -i {} \;
-    popd
-  '';
+  enableParallelBuilding = true;
 
   meta = {
-    homepage = "http://sourceforge.net/p/ghdl-updates/wiki/Home/";
-    description = "Free VHDL simulator, mcode flavour";
+    homepage = https://sourceforge.net/p/ghdl-updates/wiki/Home/;
+    description = "Free VHDL simulator";
     maintainers = with stdenv.lib.maintainers; [viric];
-    platforms = with stdenv.lib.platforms; linux;
+    platforms = with stdenv.lib.platforms; (if flavour == "llvm" then [ "i686-linux" "x86_64-linux" ]
+      else [ "i686-linux" ]);
     license = stdenv.lib.licenses.gpl2Plus;
   };
 }

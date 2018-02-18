@@ -1,35 +1,40 @@
-{ stdenv, fetchurl, cmake, qtbase, pkgconfig, python, dbus_glib, dbus_daemon
-, telepathy_farstream, telepathy_glib, pythonDBus, fetchpatch }:
+{ stdenv, fetchurl, cmake, qtbase, pkgconfig, python2Packages, dbus_glib, dbus_daemon
+, telepathy_farstream, telepathy_glib, fetchpatch }:
 
-stdenv.mkDerivation rec {
-  name = "telepathy-qt-0.9.6";
+let
+  inherit (python2Packages) python dbus-python;
+in stdenv.mkDerivation rec {
+  name = "telepathy-qt-0.9.7";
 
   src = fetchurl {
     url = "http://telepathy.freedesktop.org/releases/telepathy-qt/${name}.tar.gz";
-    sha256 = "0j7hs055cx5g9chn3b2p0arig70m5g9547qgqvk29kxdyxxxsmqc";
+    sha256 = "0krxd4hhfx6r0ja19wh3848j7gn1rv8jrnakgmkbmi7bww5x7fi1";
   };
-  patches = [(fetchpatch {
-    name = "gst-1.6.patch";
-    url = "http://cgit.freedesktop.org/telepathy/telepathy-qt/patch"
-      + "/?id=ec4a3d62b68a57254515f01fc5ea3325ffb1dbfb";
-    sha256 = "1rh7n3xyrwpvpa3haqi35qn4mfz4396ha43w4zsqpmcyda9y65v2";
-  })];
 
   nativeBuildInputs = [ cmake pkgconfig python ];
-  propagatedBuildInputs = [ qtbase dbus_glib telepathy_farstream telepathy_glib pythonDBus ];
+  propagatedBuildInputs = [ qtbase telepathy_farstream telepathy_glib ];
+  buildInputs = [ dbus_glib ];
+  checkInputs = [ dbus_daemon dbus-python ];
 
-  buildInputs = stdenv.lib.optional doCheck dbus_daemon;
+  patches = [
+    # https://github.com/TelepathyIM/telepathy-qt/issues/25
+    (fetchpatch {
+      url = https://github.com/TelepathyIM/telepathy-qt/commit/d654dc70dbec7097e96e6d96ca74ab1b5b00ef8c.patch;
+      sha256 = "1jzd9b9rqh3c8xlq8dr7c0r8aabzf5ywv2gpkk6phh3xwngzrfbh";
+    })
+  ];
 
-  cmakeFlags = "-DDESIRED_QT_VERSION=${builtins.substring 0 1 qtbase.version}";
-
-  preBuild = ''
-    NIX_CFLAGS_COMPILE+=" `pkg-config --cflags dbus-glib-1`"
-  '';
+  # No point in building tests if they are not run
+  # On 0.9.7, they do not even build with QT4
+  cmakeFlags = stdenv.lib.optional (!doCheck) "-DENABLE_TESTS=OFF";
 
   enableParallelBuilding = true;
   doCheck = false; # giving up for now
 
-  meta = {
-    platforms = stdenv.lib.platforms.linux;
+  meta = with stdenv.lib; {
+    description = "Telepathy Qt bindings";
+    homepage = https://telepathy.freedesktop.org/components/telepathy-qt/;
+    license = licenses.lgpl21;
+    platforms = platforms.linux;
   };
 }

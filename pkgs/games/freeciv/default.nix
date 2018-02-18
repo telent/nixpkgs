@@ -1,7 +1,9 @@
 { stdenv, fetchurl, zlib, bzip2, pkgconfig, curl, lzma, gettext
 , sdlClient ? true, SDL, SDL_mixer, SDL_image, SDL_ttf, SDL_gfx, freetype, fluidsynth
-, gtkClient ? false, gtk
-, server ? true, readline }:
+, gtkClient ? false, gtk2
+, server ? true, readline
+, enableSqlite ? true, sqlite
+}:
 
 let
   inherit (stdenv.lib) optional optionals;
@@ -10,29 +12,32 @@ let
   gtkName = if gtkClient then "-gtk" else "";
 
   name = "freeciv";
-  version = "2.5.0";
+  version = "2.5.9";
 in
 stdenv.mkDerivation {
   name = "${name}${sdlName}${gtkName}-${version}";
+  inherit version;
 
   src = fetchurl {
     url = "mirror://sourceforge/freeciv/${name}-${version}.tar.bz2";
-    sha256 = "bd9f7523ea79b8d2806d0c1844a9f48506ccd18276330580319913c43051210b";
-    # sha1 = "477b60e02606e47b31a019b065353c1a6da6c305";
-    # md5 = "8a61ecd986853200326711446c573f1b";
+    sha256 = "0a2rjw6065psh14bkk6ar4i19dcicn9lz63rffr9h278b9c76g5q";
   };
 
   nativeBuildInputs = [ pkgconfig ];
 
   buildInputs = [ zlib bzip2 curl lzma gettext ]
     ++ optionals sdlClient [ SDL SDL_mixer SDL_image SDL_ttf SDL_gfx freetype fluidsynth ]
-    ++ optionals gtkClient [ gtk ]
-    ++ optional server readline;
+    ++ optionals gtkClient [ gtk2 ]
+    ++ optional server readline
+    ++ optional enableSqlite sqlite;
 
-  configureFlags = []
+  configureFlags = [ "--enable-shared" ]
     ++ optional sdlClient "--enable-client=sdl"
+    ++ optional enableSqlite "--enable-fcdb=sqlite3"
     ++ optional (!gtkClient) "--enable-fcmp=cli"
     ++ optional (!server) "--disable-server";
+
+  enableParallelBuilding = true;
 
   meta = with stdenv.lib; {
     description = "Multiplayer (or single player), turn-based strategy game";

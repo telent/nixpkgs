@@ -1,4 +1,6 @@
-{ stdenv, fetchurl, readline, compat ? false }:
+{ stdenv, fetchurl, readline, compat ? false
+, hostPlatform
+}:
 
 let
   dsoPatch = fetchurl {
@@ -14,7 +16,7 @@ stdenv.mkDerivation rec {
 
   src = fetchurl {
     url = "http://www.lua.org/ftp/${name}.tar.gz";
-    sha1 = "926b7907bc8d274e063d42804666b40a3f3c124c";
+    sha256 = "0b8034v1s82n4dg5rzcn12067ha3nxaylp2vdp8gg08kjsbzphhk";
   };
 
   nativeBuildInputs = [ readline ];
@@ -55,21 +57,15 @@ stdenv.mkDerivation rec {
   '';
 
   crossAttrs = let
-    isMingw = stdenv.cross.libc == "msvcrt";
-    isDarwin = stdenv.cross.libc == "libSystem";
+    inherit (hostPlatform) isDarwin isMingw;
   in {
     configurePhase = ''
       makeFlagsArray=(
         INSTALL_TOP=$out
         INSTALL_MAN=$out/share/man/man1
-        CC=${stdenv.cross.config}-gcc
-        STRIP=:
-        RANLIB=${stdenv.cross.config}-ranlib
         V=${luaversion}
         R=${version}
         ${if isMingw then "mingw" else stdenv.lib.optionalString isDarwin ''
-        AR="${stdenv.cross.config}-ar rcu"
-        macosx
         ''}
       )
     '' + stdenv.lib.optionalString isMingw ''
@@ -86,7 +82,7 @@ stdenv.mkDerivation rec {
   };
 
   meta = {
-    homepage = "http://www.lua.org";
+    homepage = http://www.lua.org;
     description = "Powerful, fast, lightweight, embeddable scripting language";
     longDescription = ''
       Lua combines simple procedural syntax with powerful data
@@ -97,7 +93,6 @@ stdenv.mkDerivation rec {
       for configuration, scripting, and rapid prototyping.
     '';
     license = stdenv.lib.licenses.mit;
-    hydraPlatforms = stdenv.lib.platforms.linux;
-    maintainers = [ stdenv.lib.maintainers.simons ];
+    platforms = stdenv.lib.platforms.unix;
   };
 }

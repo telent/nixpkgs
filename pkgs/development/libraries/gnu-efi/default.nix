@@ -1,15 +1,17 @@
-{ stdenv, fetchurl, pciutils }:
+{ stdenv, fetchurl, pciutils }: with stdenv.lib;
 
 stdenv.mkDerivation rec {
   name = "gnu-efi-${version}";
-  version = "3.0.3";
+  version = "3.0.6";
 
   src = fetchurl {
     url = "mirror://sourceforge/gnu-efi/${name}.tar.bz2";
-    sha256 = "1jxlypkgb8bd1c114x96i699ib0glb5aca9dv56j377x2ldg4c65";
+    sha256 = "149cyadpn2jm4zxfn1qmpm520iqssp9p07d650rs5ghgv015jl91";
   };
 
   buildInputs = [ pciutils ];
+
+  hardeningDisable = [ "stackprotector" ];
 
   makeFlags = [
     "PREFIX=\${out}"
@@ -19,11 +21,11 @@ stdenv.mkDerivation rec {
     "AR=ar"
     "RANLIB=ranlib"
     "OBJCOPY=objcopy"
-  ];
+  ] ++ stdenv.lib.optional stdenv.isArm "ARCH=arm";
 
   meta = with stdenv.lib; {
     description = "GNU EFI development toolchain";
-    homepage = http://sourceforge.net/projects/gnu-efi/;
+    homepage = https://sourceforge.net/projects/gnu-efi/;
     license = licenses.bsd3;
     platforms = platforms.linux;
   };

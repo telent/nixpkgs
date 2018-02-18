@@ -1,26 +1,36 @@
-{ stdenv, fetchgit, xorg, freetype, alsaLib, libjack2
-, lv2, pkgconfig, mesa }:
+  { stdenv, fetchFromGitHub , xorg, freetype, alsaLib, curl, libjack2
+  , lv2, pkgconfig, mesa }:
 
-stdenv.mkDerivation rec {
-  name = "helm-git-2015-09-11";
+  stdenv.mkDerivation rec {
+  version = "0.9.0";
+  name = "helm-${version}";
 
-  src = fetchgit {
-    url = "https://github.com/mtytel/helm.git";
-    rev = "ad798d4a0a2e7db52e1a7451176ff198a393cdb4";
-    sha256 = "0ic4xjikq7s2p53507ykv89844j6sqcd9mh3y59a6wnslr5wq1cw";
+  src = fetchFromGitHub {
+    owner = "mtytel";
+    repo = "helm";
+    rev = "927d2ed27f71a735c3ff2a1226ce3129d1544e7e";
+    sha256 = "17ys2vvhncx9i3ydg3xwgz1d3gqv4yr5mqi7vr0i0ca6nad6x3d4";
   };
 
   buildInputs = [
     xorg.libX11 xorg.libXcomposite xorg.libXcursor xorg.libXext
     xorg.libXinerama xorg.libXrender xorg.libXrandr
-    freetype alsaLib libjack2 pkgconfig mesa lv2
+    freetype alsaLib curl libjack2 pkgconfig mesa lv2
   ];
 
+  CXXFLAGS = "-DHAVE_LROUND";
+
+  patchPhase = ''
+    sed -i 's|usr/||g' Makefile
+  '';
+
+  buildPhase = ''
+    make lv2
+    make standalone
+  '';
+
   installPhase = ''
-    mkdir -p $out/bin
-    mkdir -p $out/lib/lv2
-    cp -a standalone/builds/linux/build/* $out/bin
-    cp -a builds/linux/LV2/* $out/lib/lv2/
+   make DESTDIR="$out" install
   '';
 
   meta = with stdenv.lib; {

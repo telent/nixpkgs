@@ -1,7 +1,8 @@
-{stdenv, fetchurl, SDL} :
+{ stdenv, fetchurl, SDL }:
 
 stdenv.mkDerivation rec {
-  name = "SDL_gfx-2.0.25";
+  name = "SDL_gfx-${version}";
+  version = "2.0.25";
 
   src = fetchurl {
     url = "http://www.ferzkopp.net/Software/SDL_gfx-2.0/${name}.tar.gz";
@@ -10,16 +11,10 @@ stdenv.mkDerivation rec {
 
   buildInputs = [ SDL ] ;
 
-  configureFlags = "--disable-mmx";
+  configureFlags = [ "--disable-mmx" ]
+    ++ stdenv.lib.optional stdenv.isDarwin "--disable-sdltest";
 
-  postInstall = ''
-    sed -i -e 's,"SDL.h",<SDL/SDL.h>,' \
-      $out/include/SDL/*.h
-    
-    ln -s $out/include/SDL/*.h $out/include/;
-  '';
-
-  meta = {
+  meta = with stdenv.lib; {
     description = "SDL graphics drawing primitives and support functions";
 
     longDescription =
@@ -41,9 +36,9 @@ stdenv.mkDerivation rec {
        '';
 
     homepage = https://sourceforge.net/projects/sdlgfx/;
-    license = stdenv.lib.licenses.lgpl2Plus;
+    license = licenses.zlib;
 
-    maintainers = [ stdenv.lib.maintainers.bjg ];
-    platforms = stdenv.lib.platforms.unix;
+    maintainers = with maintainers; [ bjg ];
+    platforms = platforms.unix;
   };
 }

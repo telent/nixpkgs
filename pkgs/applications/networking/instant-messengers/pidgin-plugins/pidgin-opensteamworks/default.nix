@@ -13,19 +13,19 @@ stdenv.mkDerivation rec {
 
   preConfigure = "cd steam-mobile";
   postInstall = ''
-    mkdir -p $out/lib/pidgin/
+    mkdir -p $out/lib/purple-2
     mkdir -p $out/share/pixmaps/pidgin/protocols/
-    cp libsteam.so $out/lib/pidgin/
+    cp libsteam.so $out/lib/purple-2/
     unzip releases/icons.zip -d $out/share/pixmaps/pidgin/protocols/
   '';
 
   buildInputs = [ pidgin unzip glib json_glib nss nspr libgnome_keyring ];
 
   meta = with stdenv.lib; {
-    homepage = https://code.google.com/p/pidgin-opensteamworks;
+    homepage = https://github.com/EionRobb/pidgin-opensteamworks;
     description = "Plugin for Pidgin 2.x which implements Steam Friends/Steam IM compatibility";
     license = licenses.gpl3;
     platforms = platforms.linux;
-    maintainters = with maintainers; [ arobyn ];
+    maintainers = with maintainers; [ arobyn ];
   };
 }

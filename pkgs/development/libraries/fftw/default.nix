@@ -4,15 +4,22 @@ with lib;
 
 assert elem precision [ "single" "double" "long-double" "quad-precision" ];
 
-let version = "3.3.4"; in
+let
+  version = "3.3.7";
+  withDoc = stdenv.cc.isGNU;
+in
 
 stdenv.mkDerivation rec {
   name = "fftw-${precision}-${version}";
 
   src = fetchurl {
     url = "ftp://ftp.fftw.org/pub/fftw/fftw-${version}.tar.gz";
-    sha256 = "10h9mzjxnwlsjziah4lri85scc05rlajz39nqf3mbh4vja8dw34g";
+    sha256 = "0wsms8narnbhfsa8chdflv2j9hzspvflblnqdn7hw8x5xdzrnq1v";
   };
+
+  outputs = [ "out" "dev" "man" ]
+    ++ optional withDoc "info"; # it's dev-doc only
+  outputBin = "dev"; # fftw-wisdom
 
   configureFlags =
     [ "--enable-shared" "--disable-static"
@@ -22,7 +29,9 @@ stdenv.mkDerivation rec {
     # all x86_64 have sse2
     # however, not all float sizes fit
     ++ optional (stdenv.isx86_64 && (precision == "single" || precision == "double") )  "--enable-sse2"
-    ++ optional stdenv.cc.isGNU "--enable-openmp";
+    ++ optional stdenv.cc.isGNU "--enable-openmp"
+    # doc generation causes Fortran wrapper generation which hard-codes gcc
+    ++ optional (!withDoc) "--disable-doc";
 
   enableParallelBuilding = true;
 

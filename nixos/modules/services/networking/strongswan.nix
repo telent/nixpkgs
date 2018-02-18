@@ -32,8 +32,10 @@ let
       ${caConf}
     '';
 
-  strongswanConf = {setup, connections, ca, secrets}: toFile "strongswan.conf" ''
+  strongswanConf = {setup, connections, ca, secrets, managePlugins, enabledPlugins}: toFile "strongswan.conf" ''
     charon {
+      ${if managePlugins then "load_modular = no" else ""}
+      ${if managePlugins then ("load = " + (concatStringsSep " " enabledPlugins)) else ""}
       plugins {
         stroke {
           secrets_file = ${ipsecSecrets secrets}
@@ -112,17 +114,36 @@ in
         file.
       '';
     };
+
+    managePlugins = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        If set to true, this option will disable automatic plugin loading and
+        then tell strongSwan to enable the plugins specified in the
+        <option>enabledPlugins</option> option.
+      '';
+    };
+
+    enabledPlugins = mkOption {
+      type = types.listOf types.str;
+      default = [];
+      description = ''
+        A list of additional plugins to enable if
+        <option>managePlugins</option> is true.
+      '';
+    };
   };
 
   config = with cfg; mkIf enable {
     systemd.services.strongswan = {
       description = "strongSwan IPSec Service";
       wantedBy = [ "multi-user.target" ];
-      path = with pkgs; [ config.system.sbin.modprobe iproute iptables utillinux ]; # XXX Linux
+      path = with pkgs; [ kmod iproute iptables utillinux ]; # XXX Linux
       wants = [ "keys.target" ];
-      after = [ "network.target" "keys.target" ];
+      after = [ "network-online.target" "keys.target" ];
       environment = {
-        STRONGSWAN_CONF = strongswanConf { inherit setup connections ca secrets; };
+        STRONGSWAN_CONF = strongswanConf { inherit setup connections ca secrets managePlugins enabledPlugins; };
       };
       serviceConfig = {
         ExecStart  = "${pkgs.strongswan}/sbin/ipsec start --nofork";

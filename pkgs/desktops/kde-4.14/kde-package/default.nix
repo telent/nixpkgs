@@ -1,11 +1,11 @@
-{ callPackage, runCommand, stdenv, fetchurl, qt4, cmake-2_8, automoc4, perl, pkgconfig
+{ callPackage, runCommand, stdenv, fetchurl, qt4, cmake_2_8, automoc4, perl, pkgconfig
 , release, branch, ignoreList, extraSubpkgs
 }:
 
 let
   inherit (stdenv.lib) filter fold;
   inherit (builtins) getAttr hasAttr remoteAttrs listToAttrs tail head;
-  cmake = cmake-2_8;
+  cmake = cmake_2_8;
 in
 rec {
   manifest = import (./. + "/${release}.nix");
@@ -86,7 +86,7 @@ rec {
        };})
         ''
           mkdir -pv $out/nix-support
-          echo "${toString list}" | tee $out/nix-support/propagated-user-env-packages
+          printWords ${toString list} | tee $out/nix-support/propagated-user-env-packages
         '';
 
   # Given manifest module data, return the module
@@ -113,14 +113,18 @@ rec {
   removeNames = subst: big:
     fold (s: out: filter (x: x.name != s) out) big subst;
 
-  modules = listToAttrs (map kdeModuleNV manifest.modules);
+  allModules = listToAttrs (map kdeModuleNV manifest.modules);
+
+  modules =
+    let unsplit = filter (a: ! (a ? pkgs)) manifest.modules;
+    in listToAttrs (map kdeModuleNV unsplit);
 
   splittedModuleList =
     let
       splitted = filter (a: a ? pkgs) manifest.modules;
       names = map ({module, sane ? module, ...}: sane) splitted;
     in
-    map (m: m.projects) (stdenv.lib.attrVals names modules);
+    map (m: m.projects) (stdenv.lib.attrVals names allModules);
 
   individual =
     stdenv.lib.zipAttrsWith

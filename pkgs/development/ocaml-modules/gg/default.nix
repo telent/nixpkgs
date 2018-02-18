@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, ocaml, findlib, opam }:
+{ stdenv, fetchurl, ocaml, findlib, ocamlbuild, opam }:
 
 let
   inherit (stdenv.lib) getVersion versionAtLeast;
@@ -19,7 +19,7 @@ stdenv.mkDerivation rec {
     sha256 = "0czj41sr8jsivl3z8wyblf9k971j3kx2wc3s0c1nhzcc8allg9i2";
   };
 
-  buildInputs = [ ocaml findlib opam ];
+  buildInputs = [ ocaml findlib ocamlbuild opam ];
 
   createFindlibDestdir = true;
 
@@ -41,7 +41,7 @@ stdenv.mkDerivation rec {
       raster data.
     '';
     homepage = "${webpage}";
-    platforms = ocaml.meta.platforms;
+    platforms = ocaml.meta.platforms or [];
     license = licenses.bsd3;
     maintainers = [ maintainers.jirkamarsik ];
   };

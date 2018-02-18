@@ -17,6 +17,7 @@ my $wd = getcwd;
 
 my $debug = $ENV{'DEBUG'};
 my $autoModules = $ENV{'AUTO_MODULES'};
+my $preferBuiltin = $ENV{'PREFER_BUILTIN'};
     
 $SIG{PIPE} = 'IGNORE';
 
@@ -73,7 +74,7 @@ sub runConfig {
                 my $question = $1; my $name = $2; my $alts = $3;
                 my $answer = "";
                 # Build everything as a module if possible.
-                $answer = "m" if $autoModules && $alts =~ /\/m/;
+                $answer = "m" if $autoModules && $alts =~ /\/m/ && !($preferBuiltin && $alts =~ /Y/);
                 $answer = $answers{$name} if defined $answers{$name};
                 print STDERR "QUESTION: $question, NAME: $name, ALTS: $alts, ANSWER: $answer\n" if $debug;
                 print OUT "$answer\n";
@@ -91,17 +92,17 @@ sub runConfig {
                 print STDERR "CHOICE: $1, ANSWER: $answer\n" if $debug;
                 print OUT "$answer\n" if $1 =~ /-/;
             }
-        
+
             # Some questions lack the option name ("bla bla [Y/n/m/...] ").
             elsif ($line =~ /(.*) \[(.*)\] ###$/) {
                 print OUT "\n";
             }
-            
+
             else {
                 warn "don't know how to answer this question: $line\n";
                 print OUT "\n";
             }
-        
+
             $line = "";
             %choices = ();
         }
@@ -124,7 +125,10 @@ my %config;
 open CONFIG, "<.config" or die;
 while (<CONFIG>) {
     chomp;
-    if (/^CONFIG_([A-Za-z0-9_]+)=(.*)$/) {
+    if (/^CONFIG_([A-Za-z0-9_]+)="(.*)"$/) {
+        # String options have double quotes, e.g. 'CONFIG_NLS_DEFAULT="utf8"' and allow escaping.
+        ($config{$1} = $2) =~ s/\\([\\"])/$1/g;
+    } elsif (/^CONFIG_([A-Za-z0-9_]+)=(.*)$/) {
         $config{$1} = $2;
     } elsif (/^# CONFIG_([A-Za-z0-9_]+) is not set$/) {
         $config{$1} = "n";
@@ -134,8 +138,8 @@ close CONFIG;
 
 foreach my $name (sort (keys %answers)) {
     my $f = $requiredAnswers{$name} && $ENV{'ignoreConfigErrors'} ne "1"
-        ? sub { die @_; } : sub { warn @_; };
+        ? sub { die "error: " . $_[0]; } : sub { warn "warning: " . $_[0]; };
     &$f("unused option: $name\n") unless defined $config{$name};
-    &$f("option not set correctly: $name\n")
+    &$f("option not set correctly: $name (wanted '$answers{$name}', got '$config{$name}')\n")
         if $config{$name} && $config{$name} ne $answers{$name};
 }

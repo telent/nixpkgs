@@ -3,16 +3,11 @@
  */
 args @ {pkgs}: with args; with pkgs;
 let
-  inherit (pkgs) stdenv fetchgit fetchurl subversion;
-
-  gitBase = lib.makeOverridable (import ./git) {
-    inherit fetchurl stdenv curl openssl zlib expat perl python gettext gnugrep
-      asciidoc xmlto docbook2x docbook_xsl docbook_xml_dtd_45 libxslt cpio tcl
-      tk makeWrapper subversionClient gzip libiconv;
+  gitBase = callPackage ./git {
     texinfo = texinfo5;
-    svnSupport = false;		# for git-svn support
-    guiSupport = false;		# requires tcl/tk
-    sendEmailSupport = false;	# requires plenty of perl libraries
+    svnSupport = false;         # for git-svn support
+    guiSupport = false;         # requires tcl/tk
+    sendEmailSupport = false;   # requires plenty of perl libraries
     perlLibs = [perlPackages.LWP perlPackages.URI perlPackages.TermReadKey];
     smtpPerlLibs = [
       perlPackages.NetSMTP perlPackages.NetSMTPSSL
@@ -20,24 +15,26 @@ let
       perlPackages.MIMEBase64 perlPackages.AuthenSASL
       perlPackages.DigestHMAC
     ];
+    gitwebPerlLibs = with perlPackages; [ CGI HTMLParser ];
   };
 
 in
 rec {
+  # Try to keep this generally alphabetized
 
-  # support for bugzilla
-  gitBz = import ./git-bz {
-    inherit fetchgit stdenv makeWrapper python asciidoc xmlto # docbook2x docbook_xsl docbook_xml_dtd_45 libxslt
-      ;
-    inherit (pythonPackages) pysqlite;
-  };
+  bfg-repo-cleaner = callPackage ./bfg-repo-cleaner { };
+
+  bitbucket-server-cli = callPackage ./bitbucket-server-cli { };
+
+  darcsToGit = callPackage ./darcs-to-git { };
+
+  diff-so-fancy = callPackage ./diff-so-fancy { };
+
+  ghq = callPackage ./ghq { };
 
   git = appendToName "minimal" gitBase;
 
-  # Git with SVN support, but without GUI.
-  gitSVN = lowPrio (appendToName "with-svn" (gitBase.override {
-    svnSupport = true;
-  }));
+  git-fame = callPackage ./git-fame {};
 
   # The full-featured Git.
   gitFull = gitBase.override {
@@ -46,71 +43,83 @@ rec {
     sendEmailSupport = !stdenv.isDarwin;
   };
 
-  git-annex = pkgs.haskellPackages.git-annex-with-assistant;
+  # Git with SVN support, but without GUI.
+  gitSVN = lowPrio (appendToName "with-svn" (gitBase.override {
+    svnSupport = true;
+  }));
+
+  git-annex = pkgs.haskellPackages.git-annex;
   gitAnnex = git-annex;
 
-  qgit = import ./qgit {
-    inherit fetchurl stdenv;
-    inherit (xorg) libXext libX11;
-    qt = qt4;
+  git-annex-metadata-gui = libsForQt5.callPackage ./git-annex-metadata-gui {
+    inherit (python3Packages) buildPythonApplication pyqt5 git-annex-adapter;
   };
 
-  qgitGit = import ./qgit/qgit-git.nix {
-    inherit fetchurl sourceFromHead stdenv;
-    inherit (xorg) libXext libX11;
-    qt = qt4;
+  git-annex-remote-b2 = callPackage ./git-annex-remote-b2 { };
+
+  git-annex-remote-rclone = callPackage ./git-annex-remote-rclone { };
+
+  # support for bugzilla
+  git-bz = callPackage ./git-bz { };
+
+  git-codeowners = callPackage ./git-codeowners { };
+
+  git-cola = callPackage ./git-cola { };
+
+  git-crypt = callPackage ./git-crypt { };
+
+  git-dit = callPackage ./git-dit { };
+
+  git-extras = callPackage ./git-extras { };
+
+  git-hub = callPackage ./git-hub { };
+
+  git-imerge = callPackage ./git-imerge { };
+
+  git-octopus = callPackage ./git-octopus { };
+
+  git-open = callPackage ./git-open { };
+
+  git-radar = callPackage ./git-radar { };
+
+  git-recent = callPackage ./git-recent {
+    utillinux = if stdenv.isLinux then utillinuxMinimal else null;
   };
 
-  stgit = import ./stgit {
-    inherit fetchurl stdenv python git;
-  };
+  git-remote-hg = callPackage ./git-remote-hg { };
 
-  topGit = lib.makeOverridable (import ./topgit) {
-    inherit stdenv fetchurl;
-  };
+  git-secret = callPackage ./git-secret { };
 
-  tig = callPackage ./tig { };
+  git-stree = callPackage ./git-stree { };
 
-  transcrypt = callPackage ./transcrypt { };
+  git2cl = callPackage ./git2cl { };
 
-  hub = import ./hub {
-    inherit go;
-    inherit stdenv fetchgit;
+  gitFastExport = callPackage ./fast-export { };
+
+  gitRemoteGcrypt = callPackage ./git-remote-gcrypt { };
+
+  gitflow = callPackage ./gitflow { };
+
+  hub = callPackage ./hub {
     inherit (darwin) Security;
   };
 
-  gitFastExport = import ./fast-export {
-    inherit fetchgit stdenv mercurial coreutils git makeWrapper subversion;
+  qgit = qt5.callPackage ./qgit { };
+
+  stgit = callPackage ./stgit {
   };
 
-  git2cl = import ./git2cl {
-    inherit fetchgit stdenv perl;
-  };
+  subgit = callPackage ./subgit { };
 
-  svn2git = import ./svn2git {
-    inherit stdenv fetchurl ruby makeWrapper;
+  svn2git = callPackage ./svn2git {
     git = gitSVN;
   };
 
   svn2git_kde = callPackage ./svn2git-kde { };
 
-  subgit = callPackage ./subgit { };
+  tig = callPackage ./tig { };
 
-  darcsToGit = callPackage ./darcs-to-git { };
+  topGit = callPackage ./topgit { };
 
-  gitflow = callPackage ./gitflow { };
-
-  git-radar = callPackage ./git-radar { };
-
-  git-remote-hg = callPackage ./git-remote-hg { };
-
-  gitRemoteGcrypt = callPackage ./git-remote-gcrypt { };
-
-  git-extras = callPackage ./git-extras { };
-
-  git-cola = callPackage ./git-cola { };
-
-  git-imerge = callPackage ./git-imerge { };
-
-  git-crypt = callPackage ./git-crypt { };
+  transcrypt = callPackage ./transcrypt { };
 }

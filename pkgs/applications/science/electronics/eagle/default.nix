@@ -14,18 +14,18 @@ in
 
 stdenv.mkDerivation rec {
   name = "eagle-${version}";
-  version = "7.5.0";
+  version = "7.7.0";
 
   src =
     if stdenv.system == "i686-linux" then
       fetchurl {
-        url = "ftp://ftp.cadsoft.de/eagle/program/7.5/eagle-lin32-${version}.run";
-        sha256 = "1yfpfv2bqppc95964dhn38g0hq198wnz88lq2dmh517z7jlq9j5g";
+        url = "ftp://ftp.cadsoft.de/eagle/program/7.7/eagle-lin32-${version}.run";
+        sha256 = "16fa66p77xigc7zvzfm7737mllrcs6nrgk2p7wvkjw3p9lvbz7z1";
       }
     else if stdenv.system == "x86_64-linux" then
       fetchurl {
-        url = "ftp://ftp.cadsoft.de/eagle/program/7.5/eagle-lin64-${version}.run";
-        sha256 = "0msd0sn8yfln96mf7j5rc3b8amprxn87vmpq4wsz2cnmgd8xq0s9";
+        url = "ftp://ftp.cadsoft.de/eagle/program/7.7/eagle-lin64-${version}.run";
+        sha256 = "18dcn6wqph1sqh0ah98qzfi05wip8a8ifbkaq79iskbrsi8iqnrg";
       }
     else
       throw "Unsupported system: ${stdenv.system}";
@@ -73,7 +73,7 @@ stdenv.mkDerivation rec {
     mkdir -p "$out"/bin
     cat > "$out"/bin/eagle << EOF
     #!${stdenv.shell}
-    export LD_LIBRARY_PATH="${stdenv.cc.cc}/lib:${libPath}"
+    export LD_LIBRARY_PATH="${stdenv.cc.cc.lib}/lib:${libPath}"
     export LD_PRELOAD="$out/lib/eagle_fixer.so"
     export QT_XKB_CONFIG_ROOT="${xkeyboardconfig}/share/X11/xkb"
     exec "$dynlinker" "$out/eagle-${version}/bin/eagle" "\$@"

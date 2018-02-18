@@ -1,4 +1,4 @@
-{ stdenv, fetchsvn, libxml2, gtk, curl, pkgconfig } :
+{ stdenv, fetchsvn, libxml2, gtk2, curl, pkgconfig } :
 
 let
   version = "31801";
@@ -15,7 +15,7 @@ stdenv.mkDerivation {
     ignoreExternals = true;
   };
 
-  buildInputs = [ libxml2 gtk curl ];
+  buildInputs = [ libxml2 gtk2 curl ];
 
   nativeBuildInputs = [ pkgconfig ];
 
@@ -25,7 +25,7 @@ stdenv.mkDerivation {
       
   meta = with stdenv.lib; {
     description = "Open Street Map viewer";
-    homepage = http://sourceforge.net/projects/gosmore/;
+    homepage = https://sourceforge.net/projects/gosmore/;
     maintainers = with maintainers; [
       raskin
     ];

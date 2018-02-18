@@ -1,19 +1,22 @@
 { stdenv, fetchurl, pkgconfig, perl, texinfo, yasm
 , alsaLib, bzip2, fontconfig, freetype, gnutls, libiconv, lame, libass, libogg
-, libtheora, libva, libvdpau, libvorbis, libvpx, lzma, libpulseaudio, SDL, soxr
-, x264, xvidcore, zlib
+, libtheora, libva, libvorbis, libvpx, lzma, libpulseaudio, soxr
+, x264, x265, xvidcore, zlib, libopus
+, hostPlatform
 , openglSupport ? false, mesa ? null
 # Build options
 , runtimeCpuDetectBuild ? true # Detect CPU capabilities at runtime
 , multithreadBuild ? true # Multithreading via pthreads/win32 threads
+, sdlSupport ? !stdenv.isArm, SDL ? null, SDL2 ? null
+, vdpauSupport ? !stdenv.isArm, libvdpau ? null
 # Developer options
 , debugDeveloper ? false
 , optimizationsDeveloper ? true
 , extraWarningsDeveloper ? false
 # Darwin frameworks
-, Cocoa
+, Cocoa, darwinFrameworks ? [ Cocoa ]
 # Inherit generics
-, branch, sha256, version, ...
+, branch, sha256, version, patches ? [], ...
 }:
 
 /* Maintainer notes:
@@ -39,7 +42,7 @@
  */
 
 let
-  inherit (stdenv) icCygwin isDarwin isFreeBSD isLinux;
+  inherit (stdenv) icCygwin isDarwin isFreeBSD isLinux isArm;
   inherit (stdenv.lib) optional optionals enableFeature;
 
   cmpVer = builtins.compareVersions;
@@ -51,8 +54,10 @@ let
   # Version specific fix
   verFix = withoutFix: fixVer: withFix: if reqMatch fixVer then withFix else withoutFix;
 
-  # Disable dependency that needs fixes before it will work on Darwin
-  disDarwinFix = origArg: minVer: fixArg: if (isDarwin && reqMin minVer) then fixArg else origArg;
+  # Disable dependency that needs fixes before it will work on Darwin or Arm
+  disDarwinOrArmFix = origArg: minVer: fixArg: if ((isDarwin || isArm) && reqMin minVer) then fixArg else origArg;
+
+  vaapiSupport = reqMin "0.6" && ((isLinux || isFreeBSD) && !isArm);
 in
 
 assert openglSupport -> mesa != null;
@@ -67,7 +72,12 @@ stdenv.mkDerivation rec {
     inherit sha256;
   };
 
-  patchPhase = ''patchShebangs .'';
+  postPatch = ''patchShebangs .'';
+  inherit patches;
+
+  outputs = [ "bin" "dev" "out" "man" ]
+    ++ optional (reqMin "1.0") "doc" ; # just dev-doc
+  setOutputFlags = false; # doesn't accept all and stores configureFlags in libs!
 
   configureFlags = [
     # License
@@ -114,18 +124,20 @@ stdenv.mkDerivation rec {
       "--enable-libmp3lame"
       (ifMinVer "1.2" "--enable-iconv")
       "--enable-libtheora"
-      (ifMinVer "0.6" (enableFeature (isLinux || isFreeBSD) "vaapi"))
+      (ifMinVer "0.6" (enableFeature vaapiSupport "vaapi"))
       "--enable-vdpau"
       "--enable-libvorbis"
-      (disDarwinFix (ifMinVer "0.6" "--enable-libvpx") "0.6" "--disable-libvpx")
+      (disDarwinOrArmFix (ifMinVer "0.6" "--enable-libvpx") "0.6" "--disable-libvpx")
       (ifMinVer "2.4" "--enable-lzma")
       (ifMinVer "2.2" (enableFeature openglSupport "opengl"))
-      (disDarwinFix (ifMinVer "0.9" "--enable-libpulse") "0.9" "--disable-libpulse")
-      (ifMinVer "2.5" "--enable-sdl") # Only configurable since 2.5, auto detected before then
+      (disDarwinOrArmFix (ifMinVer "0.9" "--enable-libpulse") "0.9" "--disable-libpulse")
+      (ifMinVer "2.5" (if sdlSupport && reqMin "3.2" then "--enable-sdl2" else if sdlSupport then "--enable-sdl" else null)) # autodetected before 2.5, SDL1 support removed in 3.2 for SDL2
       (ifMinVer "1.2" "--enable-libsoxr")
       "--enable-libx264"
       "--enable-libxvid"
       "--enable-zlib"
+      (ifMinVer "2.8" "--enable-libopus")
+      (ifMinVer "2.8" "--enable-libx265")
     # Developer flags
       (enableFeature debugDeveloper "debug")
       (enableFeature optimizationsDeveloper "optimizations")
@@ -139,47 +151,39 @@ stdenv.mkDerivation rec {
 
   buildInputs = [
     bzip2 fontconfig freetype gnutls libiconv lame libass libogg libtheora
-    libvdpau libvorbis lzma SDL soxr x264 xvidcore zlib
+    libvdpau libvorbis lzma soxr x264 x265 xvidcore zlib libopus
   ] ++ optional openglSupport mesa
-    ++ optionals (!isDarwin) [ libvpx libpulseaudio ] # Need to be fixed on Darwin
-    ++ optional (isLinux || isFreeBSD) libva
+    ++ optionals (!isDarwin && !isArm) [ libvpx libpulseaudio ] # Need to be fixed on Darwin and ARM
+    ++ optional ((isLinux || isFreeBSD) && !isArm) libva
     ++ optional isLinux alsaLib
-    ++ optional isDarwin Cocoa;
+    ++ optionals isDarwin darwinFrameworks
+    ++ optional vdpauSupport libvdpau
+    ++ optional sdlSupport (if reqMin "3.2" then SDL2 else SDL);
+
 
   enableParallelBuilding = true;
 
+  postFixup = ''
+    moveToOutput bin "$bin"
+    moveToOutput share/ffmpeg/examples "$doc"
+  '';
+
   /* Cross-compilation is untested, consider this an outline, more work
      needs to be done to portions of the build to get it to work correctly */
-  crossAttrs = let
-    os = ''
-      if [ "${stdenv.cross.config}" = "*cygwin*" ] ; then
-        # Probably should look for mingw too
-        echo "cygwin"
-      elif [ "${stdenv.cross.config}" = "*darwin*" ] ; then
-        echo "darwin"
-      elif [ "${stdenv.cross.config}" = "*freebsd*" ] ; then
-        echo "freebsd"
-      elif [ "${stdenv.cross.config}" = "*linux*" ] ; then
-        echo "linux"
-      elif [ "${stdenv.cross.config}" = "*netbsd*" ] ; then
-        echo "netbsd"
-      elif [ "${stdenv.cross.config}" = "*openbsd*" ] ; then
-        echo "openbsd"
-      fi
-    '';
-  in {
-    dontSetConfigureCross = true;
+  crossAttrs = {
+    configurePlatforms = [];
     configureFlags = configureFlags ++ [
-      "--cross-prefix=${stdenv.cross.config}-"
+      "--cross-prefix=${stdenv.cc.targetPrefix}"
       "--enable-cross-compile"
-      "--target_os=${os}"
-      "--arch=${stdenv.cross.arch}"
+      "--target_os=${hostPlatform.parsed.kernel}"
+      "--arch=${hostPlatform.arch}"
     ];
   };
 
+  installFlags = [ "install-man" ];
+
   passthru = {
-    vaapiSupport = if reqMin "0.6" && (isLinux || isFreeBSD) then true else false;
-    vdpauSupport = true;
+    inherit vaapiSupport vdpauSupport;
   };
 
   meta = with stdenv.lib; {

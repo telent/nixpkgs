@@ -25,35 +25,41 @@ let
       homepage = https://owncloud.org;
       maintainers = with stdenv.lib.maintainers; [ matejc ];
       license = stdenv.lib.licenses.agpl3Plus;
+      platforms = with stdenv.lib.platforms; unix;
     };
 
   });
 
 in {
 
-  owncloud705 = common {
-    versiona = "7.0.5";
-    sha256 = "1j21b7ljvbhni9l0b1cpzlhsjy36scyas1l1j222mqdg2srfsi9y";
-  };
-
   owncloud70 = common {
-    versiona = "7.0.12";
-    sha256 = "d1a0f73f5094ec1149b50e2409b5fea0a9bebb16d663789d4b8f98fed341aa91";
+    versiona = "7.0.15";
+    sha256 = "1b2a0fccxlkqyyzsymx7qw8qbhsks3i6h1ybvxv8nn8hgw33nqv7";
   };
 
   owncloud80 = common {
-    versiona = "8.0.10";
-    sha256 = "3054b997f258178b57efc526e14384829ac8ab94757191f2d03c13fcb0a3cd93";
+    versiona = "8.0.16";
+    sha256 = "1pgfawrmx6n02h7h6g5wk0sa1kgablqa8ljfiywyw8znxxa5lnrm";
   };
 
   owncloud81 = common {
-    versiona = "8.1.5";
-    sha256 = "6d8687e40af32c5ca5adfea3fee556ed987b77ad15a1ead5d40cc87a8b76f4b4";
+    versiona = "8.1.11";
+    sha256 = "04izfzj3ckcs0x882kkggp6y7zcrhdihm71wkd9vk6j5fn8k9am0";
   };
 
   owncloud82 = common {
-    versiona = "8.2.2";
-    sha256 = "d5b935f904744b8b40b310f19679702387c852498d0dc7aaeda4555a3db9ad5b";
+    versiona = "8.2.9";
+    sha256 = "09gzpxd9gjg8h57m8j0r6xnr85fdb951ykwmjby811c6730769pw";
+  };
+
+  owncloud90 = common {
+    versiona = "9.0.7";
+    sha256 = "1j6xrd4dhc0v0maa3z8n392nfc9hrnvbxxyqr8g8kz88w9vbqa6h";
+  };
+
+  owncloud91 = common {
+    versiona = "9.1.3";
+    sha256 = "1sgnsj2ng14lh05n5kc3jv03xk6xnkyx7xj1rasxlqgvzwsyp8g0";
   };
 
 }

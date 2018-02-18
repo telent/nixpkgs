@@ -1,16 +1,15 @@
 { stdenv, fetchurl, openconnect, intltool, pkgconfig, networkmanager, libsecret
-, withGnome ? true, gnome3, procps, module_init_tools }:
+, withGnome ? true, gnome3, procps, kmod }:
 
 stdenv.mkDerivation rec {
-  name = "${pname}${if withGnome then "-gnome" else ""}-${version}";
-  pname = "NetworkManager-openconnect";
-  version = "1.0.2";
-
-# FixMe: Change version back to "networkmanager.version"
+  name    = "${pname}${if withGnome then "-gnome" else ""}-${version}";
+  pname   = "NetworkManager-openconnect";
+  major   = "1.2";
+  version = "${major}.4";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/${pname}/1.0/${pname}-${version}.tar.xz";
-    sha256 = "03k05s3aaxcwrip3g3r13bx80wbg7vh5sssc7mvg27c4cdc0a2hj";
+    url    = "mirror://gnome/sources/${pname}/${major}/${pname}-${version}.tar.xz";
+    sha256 = "15j98wwspv6mcmy91w30as5qc1bzsnhlk060xhjy4qrvd37y0xx1";
   };
 
   buildInputs = [ openconnect networkmanager libsecret ]
@@ -25,19 +24,10 @@ stdenv.mkDerivation rec {
 
   preConfigure = ''
      substituteInPlace "configure" \
-       --replace "/sbin/sysctl" "${procps}/sbin/sysctl"
+       --replace "/sbin/sysctl" "${procps}/bin/sysctl"
      substituteInPlace "src/nm-openconnect-service.c" \
-       --replace "/usr/sbin/openconnect" "${openconnect}/sbin/openconnect" \
-       --replace "/sbin/modprobe" "${module_init_tools}/sbin/modprobe"
-  '';
-
-  postConfigure = ''
-     substituteInPlace "./auth-dialog/Makefile" \
-       --replace "-Wstrict-prototypes" "" \
-       --replace "-Werror" ""
-     substituteInPlace "properties/Makefile" \
-       --replace "-Wstrict-prototypes" "" \
-       --replace "-Werror" ""
+       --replace "/usr/sbin/openconnect" "${openconnect}/bin/openconnect" \
+       --replace "/sbin/modprobe" "${kmod}/bin/modprobe"
   '';
 
   meta = {

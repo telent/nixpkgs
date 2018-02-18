@@ -1,21 +1,45 @@
-{ stdenv, fetchurl, automoc4, cmake, perl, pkgconfig
-, kdelibs, kdepimlibs, boost }:
+{
+  mkDerivation, lib,
+  fetchurl, fetchpatch,
+  extra-cmake-modules,
+  qtbase, boost,
+  akonadi-calendar, akonadi-notes, akonadi-search, kidentitymanagement, kontactinterface, kldap,
+  krunner, kwallet
+}:
 
-stdenv.mkDerivation rec {
-  name = "zanshin-0.2.1";
+mkDerivation rec {
+  pname = "zanshin";
+  version = "0.4.1";
+  name = "${pname}-${version}";
 
   src = fetchurl {
-    url = "http://files.kde.org/zanshin/${name}.tar.bz2";
-    sha256 = "155k72vk7kw0p0x9dhlky6q017kanzcbwvp4dpf1hcbr1dsr55fx";
+    url = "https://files.kde.org/${pname}/${name}.tar.bz2";
+    sha256 = "1llqm4w4mhmdirgrmbgwrpqyn47phwggjdghf164k3qw0bi806as";
   };
 
-  nativeBuildInputs = [ automoc4 cmake perl pkgconfig ];
+  patches = [
+    (fetchpatch {
+      name = "zanshin-fix-qt59-build.patch";
+      url = "https://phabricator.kde.org/R4:77ad64872f69ad9f7abe3aa8e103a12b95e100a4?diff=1";
+      sha256 = "0p497gqd3jmhbmqzh46zp6zwf6j1q77a9jp0in49xhgc2kj5ar7x";
+    })
+  ];
 
-  buildInputs = [ kdelibs kdepimlibs boost ];
+  nativeBuildInputs = [
+    extra-cmake-modules
+  ];
 
-  meta = {
-    description = "GTD for KDE";
-    maintainers = [ stdenv.lib.maintainers.urkud ];
-    inherit (kdelibs.meta) platforms;
+  buildInputs = [
+    qtbase boost
+    akonadi-calendar akonadi-notes akonadi-search kidentitymanagement kontactinterface kldap
+    krunner kwallet
+  ];
+
+  meta = with lib; {
+    description = "A powerful yet simple application to manage your day to day actions, getting your mind like water";
+    homepage = https://zanshin.kde.org/;
+    maintainers = with maintainers; [ zraexy ];
+    platforms = platforms.linux;
+    license = licenses.gpl2Plus;
   };
 }

@@ -2,13 +2,13 @@
 
 stdenv.mkDerivation rec {
   name = "cadvisor-${version}";
-  version = "0.10.1";
+  version = "0.26.1";
 
   src = fetchFromGitHub {
     owner = "google";
     repo = "cadvisor";
-    rev = "${version}";
-    sha256 = "0k0qfhw755k3ripsfkhml0ixaglhy64hdzxrjvlmbgc50s3j37vh";
+    rev = "v${version}";
+    sha256 = "0rv245acz2r12c6ga2ln01961sh36w15ay0nfpfcg8inz679dnvg";
   };
 
   buildInputs = [ go ];
@@ -29,6 +29,6 @@ stdenv.mkDerivation rec {
     homepage = https://github.com/google/cadvisor;
     license = licenses.asl20;
     maintainers = with maintainers; [ offline ];
-    platforms = platforms.unix;
+    platforms = platforms.linux;
   };
 }

@@ -1,18 +1,21 @@
 { stdenv, fetchurl, pkgconfig, glib, python, udev, libgudev }:
 
 stdenv.mkDerivation rec {
-  name = "libmbim-1.12.2";
+  name = "libmbim-1.14.2";
 
   src = fetchurl {
-    url = "http://www.freedesktop.org/software/libmbim/${name}.tar.xz";
-    sha256 = "0abv0h9c3kbw4bq1b9270sg189jcjj3x3wa91bj836ynwg9m34wl";
+    url = "https://www.freedesktop.org/software/libmbim/${name}.tar.xz";
+    sha256 = "1krirl9881dnx7l29zhvagk2qlhi26vpvkzdifjklhrjhimzxji2";
   };
+
+  outputs = [ "out" "dev" "man" ];
 
   preConfigure = ''
     patchShebangs .
   '';
 
-  buildInputs = [ pkgconfig glib udev libgudev python ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ glib udev libgudev python ];
 
   meta = with stdenv.lib; {
     homepage = http://www.freedesktop.org/software/libmbim/;

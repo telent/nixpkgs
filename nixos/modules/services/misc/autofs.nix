@@ -20,15 +20,16 @@ in
 
       enable = mkOption {
         default = false;
-        description = "
+        description = ''
           Mount filesystems on demand. Unmount them automatically.
-          You may also be interested in afuese.
-        ";
+          You may also be interested in afuse.
+        '';
       };
 
       autoMaster = mkOption {
+        type = types.str;
         example = literalExample ''
-          autoMaster = let
+          let
             mapConf = pkgs.writeText "auto" '''
              kernel    -ro,soft,intr       ftp.kernel.org:/pub/linux
              boot      -fstype=ext2        :/dev/hda1
@@ -44,10 +45,9 @@ in
             /auto file:''${mapConf}
           '''
         '';
-        description = "
-          file contents of /etc/auto.master. See man auto.master
-          See man 5 auto.master and man 5 autofs.
-        ";
+        description = ''
+          Contents of <literal>/etc/auto.master</literal> file. See <command>auto.master(5)</command> and <command>autofs(5)</command>.
+        '';
       };
 
       timeout = mkOption {
@@ -57,9 +57,9 @@ in
 
       debug = mkOption {
         default = false;
-        description = "
-        pass -d and -7 to automount and write log to /var/log/autofs
-        ";
+        description = ''
+          Pass -d and -7 to automount and write log to the system journal.
+        '';
       };
 
     };
@@ -74,12 +74,20 @@ in
     boot.kernelModules = [ "autofs4" ];
 
     systemd.services.autofs =
-      { description = "Filesystem automounter";
+      { description = "Automounts filesystems on demand";
+        after = [ "network.target" "ypbind.service" "sssd.service" "network-online.target" ];
+        wants = [ "network-online.target" ];
         wantedBy = [ "multi-user.target" ];
-        after = [ "network.target" ];
+
+        preStart = ''
+          # There should be only one autofs service managed by systemd, so this should be safe.
+          rm -f /tmp/autofs-running
+        '';
 
         serviceConfig = {
-          ExecStart = "${pkgs.autofs5}/sbin/automount ${if cfg.debug then "-d" else ""} -f -t ${builtins.toString cfg.timeout} ${autoMaster} ${if cfg.debug then "-l7" else ""}";
+          Type = "forking";
+          PIDFile = "/run/autofs.pid";
+          ExecStart = "${pkgs.autofs5}/bin/automount ${optionalString cfg.debug "-d"} -p /run/autofs.pid -t ${builtins.toString cfg.timeout} ${autoMaster}";
           ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
         };
       };

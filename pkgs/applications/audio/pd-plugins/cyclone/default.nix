@@ -5,11 +5,13 @@ stdenv.mkDerivation rec {
   version = "0.1-alpha55";
 
   src = fetchurl {
-    url = "http://downloads.sourceforge.net/project/pure-data/libraries/cyclone/${name}.tar.gz";
+    url = "mirror://sourceforge/project/pure-data/libraries/cyclone/${name}.tar.gz";
     sha256 = "1yys9xrlz09xgnqk2gqdl8vw6xj6l9d7km2lkihidgjql0jx5b5i";
   };
 
   buildInputs = [ puredata ];
+
+  hardeningDisable = [ "format" ];
 
   patchPhase = ''
     for file in `grep -r -l g_canvas.h`

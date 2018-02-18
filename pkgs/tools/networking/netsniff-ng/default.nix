@@ -2,17 +2,19 @@
 , libnetfilter_conntrack, libnl, libpcap, libsodium, liburcu, ncurses, perl
 , pkgconfig, zlib }:
 
-let version = "0.6.0"; in
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "netsniff-ng-${version}";
+  version = "0.6.2";
 
   # Upstream recommends and supports git
   src = fetchFromGitHub rec {
     repo = "netsniff-ng";
     owner = repo;
     rev = "v${version}";
-    sha256 = "0vfs1vsrsbiqxp6nrdibxa60wivapjhj3sdpa4v90m3pfnqif46z";
+    sha256 = "1lz4hwgwdq3znlqjmvl7cw3g3ilbayn608h0hwqdf7v2jq6n67kg";
   };
+
+  patches = [ ./glibc-2.26.patch ];
 
   buildInputs = [ bison flex geoip geolite-legacy libcli libnet libnl
     libnetfilter_conntrack libpcap libsodium liburcu ncurses perl
@@ -22,7 +24,7 @@ stdenv.mkDerivation {
   configurePhase = ''
     patchShebangs configure
     substituteInPlace configure --replace "which" "command -v"
-    NACL_INC_DIR=${libsodium}/include/sodium NACL_LIB=sodium ./configure
+    NACL_INC_DIR=${libsodium.dev}/include/sodium NACL_LIB=sodium ./configure
   '';
 
   enableParallelBuilding = true;
@@ -41,7 +43,6 @@ stdenv.mkDerivation {
   '';
 
   meta = with stdenv.lib; {
-    inherit version;
     description = "Swiss army knife for daily Linux network plumbing";
     longDescription = ''
       netsniff-ng is a free Linux networking toolkit. Its gain of performance

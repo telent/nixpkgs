@@ -18,6 +18,9 @@ stdenv.mkDerivation {
     do
       $(ln -s $coreDir/*.so $out/lib/.)
     done)
+
+    ln -s -t $out ${retroarch}/share
+
     makeWrapper ${retroarch}/bin/retroarch $out/bin/retroarch \
       --suffix-each LD_LIBRARY_PATH ':' "$cores" \
       --add-flags "-L $out/lib/ --menu" \
@@ -27,7 +30,7 @@ stdenv.mkDerivation {
   preferLocalBuild = true;
 
   meta = with retroarch.meta; {
-    inherit license homepage;
+    inherit license homepage platforms maintainers;
     description = description
                   + " (with cores: "
                   + lib.concatStrings (lib.intersperse ", " (map (x: ""+x.name) cores))

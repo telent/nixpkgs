@@ -1,12 +1,21 @@
-{ stdenv, fetchurl, glib, pkgconfig, perl, intltool, gobjectIntrospection }:
-stdenv.mkDerivation {
-  name = "libgtop-2.32.0";
+{ stdenv, fetchurl, glib, pkgconfig, perl, intltool, gobjectIntrospection, libintlOrEmpty }:
+stdenv.mkDerivation rec {
+  name = "libgtop-${version}";
+  major = "2.38";
+  version = "${major}.0";
 
   src = fetchurl {
-    url = mirror://gnome/sources/libgtop/2.32/libgtop-2.32.0.tar.xz;
-    sha256 = "13hpml2vfm23816qggr5fvxj75ndb1dq4rgmi7ik6azj69ij8hw4";
+    url = "mirror://gnome/sources/libgtop/${major}/${name}.tar.xz";
+    sha256 = "04mnxgzyb26wqk6qij4iw8cxwl82r8pcsna5dg8vz2j3pdi0wv2g";
   };
 
   propagatedBuildInputs = [ glib ];
+  buildInputs = libintlOrEmpty;
   nativeBuildInputs = [ pkgconfig perl intltool gobjectIntrospection ];
+
+  NIX_LDFLAGS = stdenv.lib.optionalString stdenv.isDarwin "-lintl";
+
+  meta = {
+    platforms = with stdenv.lib.platforms; linux ++ darwin;
+  };
 }

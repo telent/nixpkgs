@@ -1,20 +1,24 @@
-{ stdenv, ruby, bundler, fetchgit }:
+{ stdenv, ruby, bundler, fetchFromGitLab, go }:
 
 stdenv.mkDerivation rec {
-  version = "2.1.0";
+  version = "5.9.3";
   name = "gitlab-shell-${version}";
 
-  srcs = fetchgit {
-    url = "https://gitlab.com/gitlab-org/gitlab-shell.git";
-    rev = "ebbb9d80811c23d49a7d1b75d7a7d2b8ffe7437b";
-    sha256 = "fe69ab85d75a3871b4afa11ebc17f43008d135bbdbd6c581f6bebee2a4a3c75d";
+  srcs = fetchFromGitLab {
+    owner = "gitlab-org";
+    repo = "gitlab-shell";
+    rev = "v${version}";
+    sha256 = "12iil8ap9lbd7skj7xr2v6lsyjdd97svbmyj0n2j8m819fv0x27p";
   };
 
   buildInputs = [
-    ruby bundler
+    ruby bundler go
   ];
 
+  patches = [ ./remove-hardcoded-locations.patch ./fixes.patch ];
+
   installPhase = ''
+    ruby bin/compile
     mkdir -p $out/
     cp -R . $out/
 
@@ -46,11 +50,17 @@ stdenv.mkDerivation rec {
     #
     # TODO: Are there any security implications? The commit adding
     # unsetenv_others didn't mention anything...
-    # 
+    #
     # Kernel::exec({'PATH' => ENV['PATH'], 'LD_LIBRARY_PATH' => ENV['LD_LIBRARY_PATH'], 'GL_ID' => ENV['GL_ID']}, *args, unsetenv_others: true)
     substituteInPlace lib/gitlab_shell.rb --replace\
         " *args, unsetenv_others: true)"\
         " *args)"
   '';
 
+  meta = with stdenv.lib; {
+    homepage = http://www.gitlab.com/;
+    platforms = platforms.unix;
+    maintainers = with maintainers; [ fpletz ];
+    license = licenses.mit;
+  };
 }

@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, qt4, bison, flex, eigen, boost, mesa, glew, opencsg, cgal
+{ stdenv, fetchurl, qt4, qmake4Hook, bison, flex, eigen, boost, mesa, glew, opencsg, cgal
 , mpfr, gmp, glib, pkgconfig, harfbuzz, qscintilla, gettext
 }:
 
@@ -12,13 +12,11 @@ stdenv.mkDerivation rec {
   };
 
   buildInputs = [
-    qt4 bison flex eigen boost mesa glew opencsg cgal mpfr gmp glib
+    qt4 qmake4Hook bison flex eigen boost mesa glew opencsg cgal mpfr gmp glib
     pkgconfig harfbuzz qscintilla gettext
   ];
 
-  configurePhase = ''
-    qmake PREFIX="$out" VERSION=${version}
-  '';
+  qmakeFlags = [ "VERSION=${version}" ];
 
   doCheck = false;
 
@@ -26,7 +24,7 @@ stdenv.mkDerivation rec {
     description = "3D parametric model compiler";
     longDescription = ''
       OpenSCAD is a software for creating solid 3D CAD objects. It is free
-      software and available for Linux/UNIX, MS Windows and Mac OS X.
+      software and available for Linux/UNIX, MS Windows and macOS.
 
       Unlike most free software for creating 3D models (such as the famous
       application Blender) it does not focus on the artistic aspects of 3D
@@ -35,7 +33,7 @@ stdenv.mkDerivation rec {
       machine parts but pretty sure is not what you are looking for when you are more
       interested in creating computer-animated movies.
     '';
-    homepage = "http://openscad.org/";
+    homepage = http://openscad.org/;
     license = stdenv.lib.licenses.gpl2;
     platforms = stdenv.lib.platforms.linux;
     maintainers = with stdenv.lib.maintainers; 

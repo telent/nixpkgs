@@ -1,5 +1,5 @@
-{ stdenv, fetchurl, SDL, ftgl, pkgconfig, libpng, libjpeg, pcre, SDL_image, glew
-, mesa, boost, glm }:
+{ stdenv, fetchurl, SDL2, ftgl, pkgconfig, libpng, libjpeg, pcre, SDL2_image, glew
+, mesa, boost, glm, freetype }:
 
 stdenv.mkDerivation rec {
   name = "logstalgia-${version}";
@@ -10,11 +10,12 @@ stdenv.mkDerivation rec {
     sha256 = "1qghz1j3jmfj093br2hfyibayg3fmhg8fvp5ix9n9rbvzc1zslsm";
   };
 
-  buildInputs = [ glew SDL ftgl pkgconfig libpng libjpeg pcre SDL_image mesa boost
-                  glm ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ glew SDL2 ftgl libpng libjpeg pcre SDL2_image mesa boost
+                  glm freetype ];
 
   meta = with stdenv.lib; {
-    homepage = http://code.google.com/p/logstalgia;
+    homepage = http://logstalgia.io/;
     description = "Website traffic visualization tool";
     license = licenses.gpl3Plus;
 

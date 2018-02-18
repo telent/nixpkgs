@@ -1,19 +1,20 @@
 { stdenv, fetchurl, cmake, coin3d, xercesc, ode, eigen, qt4, opencascade, gts
-, boost, zlib, python, swig, gfortran, soqt, libf2c, makeWrapper
-, matplotlib, pycollada, pyside, pysideTools, pysideShiboken }:
+, boost, zlib, python27Packages, swig, gfortran, soqt, libf2c, makeWrapper }:
 
-stdenv.mkDerivation rec {
+let
+  pythonPackages = python27Packages;
+in stdenv.mkDerivation rec {
   name = "freecad-${version}";
-  version = "0.15";
+  version = "0.16.6712";
 
   src = fetchurl {
-    url = https://github.com/FreeCAD/FreeCAD/archive/0.15.tar.gz;
-    sha256 = "1vndvywvq86hyhmg629bkn5ag4lk2mg1pl4dq7jvbjvbrczb12fc";
+    url = "https://github.com/FreeCAD/FreeCAD/archive/${version}.tar.gz";
+    sha256 = "14hs26gvv7gbg9misxq34v4nrds2sbxjhj4yyw5kq3zbvl517alp";
   };
 
-  buildInputs = [ cmake coin3d xercesc ode eigen qt4 opencascade gts boost
+  buildInputs = with pythonPackages; [ cmake coin3d xercesc ode eigen qt4 opencascade gts boost
     zlib python swig gfortran soqt libf2c makeWrapper matplotlib
-    pycollada pyside pysideShiboken pysideTools
+    pycollada pyside pysideShiboken pysideTools pivy
   ];
 
   enableParallelBuilding = true;
@@ -35,7 +36,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "General purpose Open Source 3D CAD/MCAD/CAx/CAE/PLM modeler";
-    homepage = http://www.freecadweb.org/;
+    homepage = https://www.freecadweb.org/;
     license = licenses.lgpl2Plus;
     maintainers = [ maintainers.viric ];
     platforms = platforms.linux;

@@ -1,6 +1,4 @@
-{ stdenv, fetchurl, nspr, perl, zlib, sqlite
-, includeTools ? false
-}:
+{ stdenv, fetchurl, nspr, perl, zlib, sqlite }:
 
 let
 
@@ -11,50 +9,41 @@ let
 
 in stdenv.mkDerivation rec {
   name = "nss-${version}";
-  version = "3.21";
+  version = "3.33";
 
   src = fetchurl {
-    url = "http://ftp.mozilla.org/pub/mozilla.org/security/nss/releases/NSS_3_21_RTM/src/${name}.tar.gz";
-    sha256 = "3f7a5b027d7cdd5c0e4ff7544da33fdc6f56c2f8c27fff02938fd4a6fbe87239";
+    url = "mirror://mozilla/security/nss/releases/NSS_3_33_RTM/src/${name}.tar.gz";
+    sha256 = "1r44qa4j7sri50mxxbnrpm6fxprwrhv76whi7bfq73j06syxmw4q";
   };
 
-  buildInputs = [ nspr perl zlib sqlite ];
+  buildInputs = [ perl zlib sqlite ];
+
+  propagatedBuildInputs = [ nspr ];
 
   prePatch = ''
     xz -d < ${nssPEM} | patch -p1
   '';
 
   patches =
-    [ ./nss-3.21-gentoo-fixups.patch
+    [
       # Based on http://patch-tracker.debian.org/patch/series/dl/nss/2:3.15.4-1/85_security_load.patch
       ./85_security_load.patch
     ];
 
-  postPatch = ''
-    # Fix up the patch from Gentoo.
-    sed -i \
-      -e "/^PREFIX =/s|= /usr|= $out|" \
-      -e '/@libdir@/s|gentoo/nss|lib|' \
-      -e '/ln -sf/d' \
-      nss/config/Makefile
+  patchFlags = "-p0";
 
-    # Note for spacing/tab nazis: The TAB characters are intentional!
-    cat >> nss/config/Makefile <<INSTALL_TARGET
-    install:
-    	mkdir -p \$(DIST)/lib/pkgconfig
-    	cp nss.pc \$(DIST)/lib/pkgconfig
-    INSTALL_TARGET
-  '';
+  outputs = [ "out" "dev" "tools" ];
 
   preConfigure = "cd nss";
 
   makeFlags = [
-    "NSPR_INCLUDE_DIR=${nspr}/include/nspr"
-    "NSPR_LIB_DIR=${nspr}/lib"
+    "NSPR_INCLUDE_DIR=${nspr.dev}/include/nspr"
+    "NSPR_LIB_DIR=${nspr.out}/lib"
     "NSDISTMODE=copy"
     "BUILD_OPT=1"
     "SOURCE_PREFIX=\$(out)"
     "NSS_ENABLE_ECC=1"
+    "USE_SYSTEM_ZLIB=1"
     "NSS_USE_SYSTEM_SQLITE=1"
   ] ++ stdenv.lib.optional stdenv.is64bit "USE_64=1";
 
@@ -66,9 +55,31 @@ in stdenv.mkDerivation rec {
     mv $out/*.OBJ/* $out/
     rmdir $out/*.OBJ
 
-    cp -av config/nss-config $out/bin/nss-config
-
     ln -s lib $out/lib64
+
+    # Upstream issue: https://bugzilla.mozilla.org/show_bug.cgi?id=530672
+    # https://gitweb.gentoo.org/repo/gentoo.git/plain/dev-libs/nss/files/nss-3.32-gentoo-fixups.patch?id=af1acce6c6d2c3adb17689261dfe2c2b6771ab8a
+    NSS_MAJOR_VERSION=`grep "NSS_VMAJOR" lib/nss/nss.h | awk '{print $3}'`
+    NSS_MINOR_VERSION=`grep "NSS_VMINOR" lib/nss/nss.h | awk '{print $3}'`
+    NSS_PATCH_VERSION=`grep "NSS_VPATCH" lib/nss/nss.h | awk '{print $3}'`
+    PREFIX="$out"
+
+    mkdir -p $out/lib/pkgconfig
+    sed -e "s,%prefix%,$PREFIX," \
+        -e "s,%exec_prefix%,$PREFIX," \
+        -e "s,%libdir%,$PREFIX/lib64," \
+        -e "s,%includedir%,$dev/include/nss," \
+        -e "s,%NSS_VERSION%,$NSS_MAJOR_VERSION.$NSS_MINOR_VERSION.$NSS_PATCH_VERSION,g" \
+        -e "s,%NSPR_VERSION%,4.16,g" \
+        pkg/pkg-config/nss.pc.in > $out/lib/pkgconfig/nss.pc
+    chmod 0644 $out/lib/pkgconfig/nss.pc
+
+    sed -e "s,@prefix@,$PREFIX," \
+        -e "s,@MOD_MAJOR_VERSION@,$NSS_MAJOR_VERSION," \
+        -e "s,@MOD_MINOR_VERSION@,$NSS_MINOR_VERSION," \
+        -e "s,@MOD_PATCH_VERSION@,$NSS_PATCH_VERSION," \
+        pkg/pkg-config/nss-config.in > $out/bin/nss-config
+    chmod 0755 $out/bin/nss-config
   '';
 
   postFixup = ''
@@ -77,8 +88,11 @@ in stdenv.mkDerivation rec {
       libfile="$out/lib/lib$libname.so"
       LD_LIBRARY_PATH=$out/lib $out/bin/shlibsign -v -i "$libfile"
     done
-  '' + stdenv.lib.optionalString (!includeTools) ''
-    find $out/bin -type f \( -name nss-config -o -delete \)
+
+    moveToOutput bin "$tools"
+    moveToOutput bin/nss-config "$dev"
+    moveToOutput lib/libcrmf.a "$dev" # needed by firefox, for example
+    rm "$out"/lib/*.a
   '';
 
   meta = {

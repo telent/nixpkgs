@@ -3,7 +3,7 @@
   fetchurl,
   gfortran,
   cmake,
-  python,
+  python2,
   atlas ? null,
   shared ? false
 }:
@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
 
   propagatedBuildInputs = [ atlasMaybeShared ];
   buildInputs = [ gfortran cmake ];
-  nativeBuildInputs = [ python ];
+  nativeBuildInputs = [ python2 ];
 
   cmakeFlags = [
     "-DUSE_OPTIMIZED_BLAS=ON"
@@ -44,7 +44,7 @@ stdenv.mkDerivation rec {
   doCheck = ! shared;
 
   checkPhase = "
-    sed -i 's,^#!.*,#!${python}/bin/python,' lapack_testing.py
+    sed -i 's,^#!.*,#!${python2.interpreter},' lapack_testing.py
     ctest
   ";
 
@@ -57,10 +57,8 @@ stdenv.mkDerivation rec {
   meta = with stdenv.lib; {
     inherit version;
     description = "Linear Algebra PACKage";
-    homepage = "http://www.netlib.org/lapack/";
+    homepage = http://www.netlib.org/lapack/;
     license = licenses.bsd3;
-
     platforms = platforms.all;
-    maintainers = [ maintainers.simons ];
   };
 }

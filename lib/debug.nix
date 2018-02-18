@@ -1,4 +1,6 @@
-let lib = import ./default.nix;
+{ lib }:
+
+let
 
 inherit (builtins) trace attrNamesToStr isAttrs isFunction isList isInt
         isString isBool head substring attrNames;
@@ -19,11 +21,39 @@ rec {
   traceXMLVal = x: trace (builtins.toXML x) x;
   traceXMLValMarked = str: x: trace (str + builtins.toXML x) x;
 
+  # strict trace functions (traced structure is fully evaluated and printed)
+
+  /* `builtins.trace`, but the value is `builtins.deepSeq`ed first. */
+  traceSeq = x: y: trace (builtins.deepSeq x x) y;
+
+  /* Like `traceSeq`, but only down to depth n.
+   * This is very useful because lots of `traceSeq` usages
+   * lead to an infinite recursion.
+   */
+  traceSeqN = depth: x: y: with lib;
+    let snip = v: if      isList  v then noQuotes "[…]" v
+                  else if isAttrs v then noQuotes "{…}" v
+                  else v;
+        noQuotes = str: v: { __pretty = const str; val = v; };
+        modify = n: fn: v: if (n == 0) then fn v
+                      else if isList  v then map (modify (n - 1) fn) v
+                      else if isAttrs v then mapAttrs
+                        (const (modify (n - 1) fn)) v
+                      else v;
+    in trace (generators.toPretty { allowPrettyValues = true; }
+               (modify depth snip x)) y;
+
+  /* `traceSeq`, but the same value is traced and returned */
+  traceValSeq = v: traceVal (builtins.deepSeq v v);
+  /* `traceValSeq` but with fixed depth */
+  traceValSeqN = depth: v: traceSeqN depth v v;
+
+
   # this can help debug your code as well - designed to not produce thousands of lines
-  traceShowVal = x : trace (showVal x) x;
+  traceShowVal = x: trace (showVal x) x;
   traceShowValMarked = str: x: trace (str + showVal x) x;
-  attrNamesToStr = a : lib.concatStringsSep "; " (map (x : "${x}=") (attrNames a));
-  showVal = x :
+  attrNamesToStr = a: lib.concatStringsSep "; " (map (x: "${x}=") (attrNames a));
+  showVal = x:
       if isAttrs x then
           if x ? outPath then "x is a derivation, name ${if x ? name then x.name else "<no name>"}, { ${attrNamesToStr x} }"
           else "x is attr set { ${attrNamesToStr x} }"
@@ -39,9 +69,9 @@ rec {
 
   # trace the arguments passed to function and its result
   # maybe rewrite these functions in a traceCallXml like style. Then one function is enough
-  traceCall  = n : f : a : let t = n2 : x : traceShowValMarked "${n} ${n2}:" x; in t "result" (f (t "arg 1" a));
-  traceCall2 = n : f : a : b : let t = n2 : x : traceShowValMarked "${n} ${n2}:" x; in t "result" (f (t "arg 1" a) (t "arg 2" b));
-  traceCall3 = n : f : a : b : c : let t = n2 : x : traceShowValMarked "${n} ${n2}:" x; in t "result" (f (t "arg 1" a) (t "arg 2" b) (t "arg 3" c));
+  traceCall  = n: f: a: let t = n2: x: traceShowValMarked "${n} ${n2}:" x; in t "result" (f (t "arg 1" a));
+  traceCall2 = n: f: a: b: let t = n2: x: traceShowValMarked "${n} ${n2}:" x; in t "result" (f (t "arg 1" a) (t "arg 2" b));
+  traceCall3 = n: f: a: b: c: let t = n2: x: traceShowValMarked "${n} ${n2}:" x; in t "result" (f (t "arg 1" a) (t "arg 2" b) (t "arg 3" c));
 
   # FIXME: rename this?
   traceValIfNot = c: x:
@@ -67,29 +97,11 @@ rec {
 
   # create a test assuming that list elements are true
   # usage: { testX = allTrue [ true ]; }
-  testAllTrue = expr : { inherit expr; expected = map (x: true) expr; };
+  testAllTrue = expr: { inherit expr; expected = map (x: true) expr; };
 
-  # evaluate everything once so that errors will occur earlier
-  # hacky: traverse attrs by adding a dummy
-  # ignores functions (should this behavior change?) See strictf
-  #
-  # Note: This should be a primop! Something like seq of haskell would be nice to
-  # have as well. It's used fore debugging only anyway
-  strict = x :
-    let
-        traverse = x :
-          if isString x then true
-          else if isAttrs x then
-            if x ? outPath then true
-            else all id (mapAttrsFlatten (n: traverse) x)
-          else if isList x then
-            all id (map traverse x)
-          else if isBool x then true
-          else if isFunction x then true
-          else if isInt x then true
-          else if x == null then true
-          else true; # a (store) path?
-    in if traverse x then x else throw "else never reached";
+  strict = v:
+    trace "Warning: strict is deprecated and will be removed in the next release"
+      (builtins.seq v v);
 
   # example: (traceCallXml "myfun" id 3) will output something like
   # calling myfun arg 1: 3 result: 3

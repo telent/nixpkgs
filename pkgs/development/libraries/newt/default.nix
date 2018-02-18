@@ -14,16 +14,24 @@ stdenv.mkDerivation rec {
 
   buildInputs = [ slang popt ];
 
+  NIX_LDFLAGS = "-lncurses";
+
+  preConfigure = ''
+    # If CPP is set explicitly, configure and make will not agree about which
+    # programs to use at different stages.
+    unset CPP
+  '';
+
   crossAttrs = {
-    makeFlags = "CROSS_COMPILE=${stdenv.cross.config}-";
+    makeFlags = "CROSS_COMPILE=${stdenv.cc.targetPrefix}";
   };
 
-  meta = {
+  meta = with stdenv.lib; {
     homepage = https://fedorahosted.org/newt/;
     description = "Library for color text mode, widget based user interfaces";
 
-    license = stdenv.lib.licenses.lgpl2;
-    platforms = stdenv.lib.platforms.linux;
-    maintainers = [ stdenv.lib.maintainers.viric ];
+    license = licenses.lgpl2;
+    platforms = platforms.linux;
+    maintainers = [ maintainers.viric ];
   };
 }

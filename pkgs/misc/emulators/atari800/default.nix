@@ -18,7 +18,7 @@ stdenv.mkDerivation rec{
   preConfigure = "cd src";
 
   meta = {
-    homepage = "http://atari800.sourceforge.net/";
+    homepage = http://atari800.sourceforge.net/;
     description = "An Atari 8-bit emulator";
     longDescription = ''
       Atari800 is the emulator of Atari 8-bit computer systems and
@@ -27,6 +27,7 @@ stdenv.mkDerivation rec{
       other systems supported by the SDL library.
     '';
     maintainers = [ maintainers.AndersonTorres ];
-    license = licenses.gpl2Plus;    
-  };    
+    license = licenses.gpl2Plus;
+    platforms = stdenv.lib.platforms.linux;
+  };
 }

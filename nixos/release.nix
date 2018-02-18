@@ -1,19 +1,37 @@
 { nixpkgs ? { outPath = ./..; revCount = 56789; shortRev = "gfedcba"; }
 , stableBranch ? false
-, supportedSystems ? [ "x86_64-linux" "i686-linux" ]
+, supportedSystems ? [ "x86_64-linux" "aarch64-linux" ]
 }:
 
 with import ../lib;
 
 let
 
-  version = builtins.readFile ../.version;
+  version = fileContents ../.version;
   versionSuffix =
     (if stableBranch then "." else "pre") + "${toString nixpkgs.revCount}.${nixpkgs.shortRev}";
 
   forAllSystems = genAttrs supportedSystems;
 
-  callTest = fn: args: forAllSystems (system: hydraJob (import fn ({ inherit system; } // args)));
+  importTest = fn: args: system: import fn ({
+    inherit system;
+  } // args);
+
+  callTest = fn: args: forAllSystems (system: hydraJob (importTest fn args system));
+
+  callSubTests = fn: args: let
+    discover = attrs: let
+      subTests = filterAttrs (const (hasAttr "test")) attrs;
+    in mapAttrs (const (t: hydraJob t.test)) subTests;
+
+    discoverForSystem = system: mapAttrs (_: test: {
+      ${system} = test;
+    }) (discover (importTest fn args system));
+
+  # If the test is only for a particular system, use only the specified
+  # system instead of generating attributes for all available systems.
+  in if args ? system then discover (import fn args)
+     else foldAttrs mergeAttrs {} (map discoverForSystem supportedSystems);
 
   pkgs = import nixpkgs { system = "x86_64-linux"; };
 
@@ -25,34 +43,14 @@ let
 
 
   makeIso =
-    { module, type, description ? type, maintainers ? ["eelco"], system }:
+    { module, type, maintainers ? ["eelco"], system }:
 
     with import nixpkgs { inherit system; };
 
-    let
-
-      config = (import lib/eval-config.nix {
-        inherit system;
-        modules = [ module versionModule { isoImage.isoBaseName = "nixos-${type}"; } ];
-      }).config;
-
-      iso = config.system.build.isoImage;
-
-    in
-      # Declare the ISO as a build product so that it shows up in Hydra.
-      hydraJob (runCommand "nixos-iso-${config.system.nixosVersion}"
-        { meta = {
-            description = "NixOS installation CD (${description}) - ISO image for ${system}";
-            maintainers = map (x: lib.maintainers.${x}) maintainers;
-          };
-          inherit iso;
-          passthru = { inherit config; };
-          preferLocalBuild = true;
-        }
-        ''
-          mkdir -p $out/nix-support
-          echo "file iso" $iso/iso/*.iso* >> $out/nix-support/hydra-build-products
-        ''); # */
+    hydraJob ((import lib/eval-config.nix {
+      inherit system;
+      modules = [ module versionModule { isoImage.isoBaseName = "nixos-${type}"; } ];
+    }).config.system.build.isoImage);
 
 
   makeSystemTarball =
@@ -91,13 +89,34 @@ let
       });
   }).config));
 
+  makeNetboot = config:
+    let
+      config_evaled = import lib/eval-config.nix config;
+      build = config_evaled.config.system.build;
+      kernelTarget = config_evaled.pkgs.stdenv.platform.kernelTarget;
+    in
+      pkgs.symlinkJoin {
+        name="netboot";
+        paths=[
+          build.netbootRamdisk
+          build.kernel
+          build.netbootIpxeScript
+        ];
+        postBuild = ''
+          mkdir -p $out/nix-support
+          echo "file ${kernelTarget} $out/${kernelTarget}" >> $out/nix-support/hydra-build-products
+          echo "file initrd $out/initrd" >> $out/nix-support/hydra-build-products
+          echo "file ipxe $out/netboot.ipxe" >> $out/nix-support/hydra-build-products
+        '';
+      };
+
 
 in rec {
 
   channel = import lib/make-channel.nix { inherit pkgs nixpkgs version versionSuffix; };
 
   manual = buildFromConfig ({ pkgs, ... }: { }) (config: config.system.build.manual.manual);
-  manualPDF = (buildFromConfig ({ pkgs, ... }: { }) (config: config.system.build.manual.manualPDF)).x86_64-linux;
+  manualEpub = (buildFromConfig ({ pkgs, ... }: { }) (config: config.system.build.manual.manualEpub));
   manpages = buildFromConfig ({ pkgs, ... }: { }) (config: config.system.build.manual.manpages);
   options = (buildFromConfig ({ pkgs, ... }: { }) (config: config.system.build.manual.optionsJSON)).x86_64-linux;
 
@@ -105,6 +124,22 @@ in rec {
   # Build the initial ramdisk so Hydra can keep track of its size over time.
   initialRamdisk = buildFromConfig ({ pkgs, ... }: { }) (config: config.system.build.initialRamdisk);
 
+  netboot = {
+    x86_64-linux = makeNetboot {
+      system = "x86_64-linux";
+      modules = [
+        ./modules/installer/netboot/netboot-minimal.nix
+        versionModule
+      ];
+    };
+  } // (optionalAttrs (elem "aarch64-linux" supportedSystems) {
+    aarch64-linux = makeNetboot {
+      system = "aarch64-linux";
+      modules = [
+        ./modules/installer/netboot/netboot-minimal.nix
+        versionModule
+      ];
+    };});
 
   iso_minimal = forAllSystems (system: makeIso {
     module = ./modules/installer/cd-dvd/installation-cd-minimal.nix;
@@ -112,15 +147,15 @@ in rec {
     inherit system;
   });
 
-  iso_graphical = forAllSystems (system: makeIso {
-    module = ./modules/installer/cd-dvd/installation-cd-graphical.nix;
+  iso_graphical = genAttrs [ "x86_64-linux" ] (system: makeIso {
+    module = ./modules/installer/cd-dvd/installation-cd-graphical-kde.nix;
     type = "graphical";
     inherit system;
   });
 
   # A variant with a more recent (but possibly less stable) kernel
   # that might support more hardware.
-  iso_minimal_new_kernel = forAllSystems (system: makeIso {
+  iso_minimal_new_kernel = genAttrs [ "x86_64-linux" ] (system: makeIso {
     module = ./modules/installer/cd-dvd/installation-cd-minimal-new-kernel.nix;
     type = "minimal-new-kernel";
     inherit system;
@@ -128,35 +163,17 @@ in rec {
 
 
   # A bootable VirtualBox virtual appliance as an OVA file (i.e. packaged OVF).
-  ova = forAllSystems (system:
+  ova = genAttrs [ "x86_64-linux" ] (system:
 
     with import nixpkgs { inherit system; };
 
-    let
-
-      config = (import lib/eval-config.nix {
-        inherit system;
-        modules =
-          [ versionModule
-            ./modules/installer/virtualbox-demo.nix
-          ];
-      }).config;
-
-    in
-      # Declare the OVA as a build product so that it shows up in Hydra.
-      hydraJob (runCommand "nixos-ova-${config.system.nixosVersion}-${system}"
-        { meta = {
-            description = "NixOS VirtualBox appliance (${system})";
-            maintainers = maintainers.eelco;
-          };
-          ova = config.system.build.virtualBoxOVA;
-          preferLocalBuild = true;
-        }
-        ''
-          mkdir -p $out/nix-support
-          fn=$(echo $ova/*.ova)
-          echo "file ova $fn" >> $out/nix-support/hydra-build-products
-        '') # */
+    hydraJob ((import lib/eval-config.nix {
+      inherit system;
+      modules =
+        [ versionModule
+          ./modules/installer/virtualbox-demo.nix
+        ];
+    }).config.system.build.virtualBoxOVA)
 
   );
 
@@ -212,98 +229,133 @@ in rec {
   # Run the tests for each platform.  You can run a test by doing
   # e.g. ‘nix-build -A tests.login.x86_64-linux’, or equivalently,
   # ‘nix-build tests/login.nix -A result’.
+  tests.atd = callTest tests/atd.nix {};
+  tests.acme = callTest tests/acme.nix {};
   tests.avahi = callTest tests/avahi.nix {};
   tests.bittorrent = callTest tests/bittorrent.nix {};
   tests.blivet = callTest tests/blivet.nix {};
+  tests.boot = callSubTests tests/boot.nix {};
+  tests.boot-stage1 = callTest tests/boot-stage1.nix {};
   tests.cadvisor = hydraJob (import tests/cadvisor.nix { system = "x86_64-linux"; });
-  tests.chromium = callTest tests/chromium.nix {};
+  tests.chromium = (callSubTests tests/chromium.nix { system = "x86_64-linux"; }).stable;
   tests.cjdns = callTest tests/cjdns.nix {};
-  tests.containers = callTest tests/containers.nix {};
+  tests.cloud-init = callTest tests/cloud-init.nix {};
+  tests.containers-ipv4 = callTest tests/containers-ipv4.nix {};
+  tests.containers-ipv6 = callTest tests/containers-ipv6.nix {};
+  tests.containers-bridge = callTest tests/containers-bridge.nix {};
+  tests.containers-imperative = callTest tests/containers-imperative.nix {};
+  tests.containers-extra_veth = callTest tests/containers-extra_veth.nix {};
+  tests.containers-physical_interfaces = callTest tests/containers-physical_interfaces.nix {};
+  tests.containers-restart_networking = callTest tests/containers-restart_networking.nix {};
+  tests.containers-tmpfs = callTest tests/containers-tmpfs.nix {};
+  tests.containers-hosts = callTest tests/containers-hosts.nix {};
+  tests.containers-macvlans = callTest tests/containers-macvlans.nix {};
+  tests.couchdb = callTest tests/couchdb.nix {};
   tests.docker = hydraJob (import tests/docker.nix { system = "x86_64-linux"; });
-  tests.dockerRegistry = hydraJob (import tests/docker-registry.nix { system = "x86_64-linux"; });
+  tests.docker-edge = hydraJob (import tests/docker-edge.nix { system = "x86_64-linux"; });
+  tests.dovecot = callTest tests/dovecot.nix {};
+  tests.dnscrypt-proxy = callTest tests/dnscrypt-proxy.nix { system = "x86_64-linux"; };
+  tests.ecryptfs = callTest tests/ecryptfs.nix {};
   tests.etcd = hydraJob (import tests/etcd.nix { system = "x86_64-linux"; });
   tests.ec2-nixops = hydraJob (import tests/ec2.nix { system = "x86_64-linux"; }).boot-ec2-nixops;
   tests.ec2-config = hydraJob (import tests/ec2.nix { system = "x86_64-linux"; }).boot-ec2-config;
+  tests.elk = hydraJob (import tests/elk.nix { system = "x86_64-linux"; });
+  tests.env = callTest tests/env.nix {};
+  tests.ferm = callTest tests/ferm.nix {};
   tests.firefox = callTest tests/firefox.nix {};
   tests.firewall = callTest tests/firewall.nix {};
   tests.fleet = hydraJob (import tests/fleet.nix { system = "x86_64-linux"; });
   #tests.gitlab = callTest tests/gitlab.nix {};
+  tests.gitolite = callTest tests/gitolite.nix {};
+  tests.gocd-agent = callTest tests/gocd-agent.nix {};
+  tests.gocd-server = callTest tests/gocd-server.nix {};
   tests.gnome3 = callTest tests/gnome3.nix {};
   tests.gnome3-gdm = callTest tests/gnome3-gdm.nix {};
+  tests.grafana = callTest tests/grafana.nix {};
+  tests.graphite = callTest tests/graphite.nix {};
+  tests.hardened = callTest tests/hardened.nix { };
+  tests.hibernate = callTest tests/hibernate.nix {};
+  tests.hound = callTest tests/hound.nix {};
   tests.i3wm = callTest tests/i3wm.nix {};
-  tests.installer.grub1 = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).grub1.test);
-  tests.installer.lvm = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).lvm.test);
-  tests.installer.luksroot = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).luksroot.test);
-  tests.installer.separateBoot = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).separateBoot.test);
-  tests.installer.separateBootFat = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).separateBootFat.test);
-  tests.installer.simple = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).simple.test);
-  tests.installer.simpleLabels = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).simpleLabels.test);
-  tests.installer.simpleProvided = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).simpleProvided.test);
-  tests.installer.swraid = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).swraid.test);
-  tests.installer.btrfsSimple = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).btrfsSimple.test);
-  tests.installer.btrfsSubvols = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).btrfsSubvols.test);
-  tests.installer.btrfsSubvolDefault = forAllSystems (system: hydraJob (import tests/installer.nix { inherit system; }).btrfsSubvolDefault.test);
+  tests.initrd-network-ssh = callTest tests/initrd-network-ssh {};
+  tests.installer = callSubTests tests/installer.nix {};
   tests.influxdb = callTest tests/influxdb.nix {};
   tests.ipv6 = callTest tests/ipv6.nix {};
   tests.jenkins = callTest tests/jenkins.nix {};
-  tests.kde4 = callTest tests/kde4.nix {};
-  tests.kubernetes = hydraJob (import tests/kubernetes.nix { system = "x86_64-linux"; });
+  tests.plasma5 = callTest tests/plasma5.nix {};
+  tests.keymap = callSubTests tests/keymap.nix {};
+  tests.initrdNetwork = callTest tests/initrd-network.nix {};
+  tests.kafka_0_9 = callTest tests/kafka_0_9.nix {};
+  tests.kafka_0_10 = callTest tests/kafka_0_10.nix {};
+  tests.kafka_0_11 = callTest tests/kafka_0_11.nix {};
+  tests.kafka_1_0 = callTest tests/kafka_1_0.nix {};
+  tests.kernel-copperhead = callTest tests/kernel-copperhead.nix {};
+  tests.kernel-latest = callTest tests/kernel-latest.nix {};
+  tests.kernel-lts = callTest tests/kernel-lts.nix {};
+  tests.kubernetes = hydraJob (import tests/kubernetes/default.nix { system = "x86_64-linux"; });
   tests.latestKernel.login = callTest tests/login.nix { latestKernel = true; };
+  tests.ldap = callTest tests/ldap.nix {};
   #tests.lightdm = callTest tests/lightdm.nix {};
   tests.login = callTest tests/login.nix {};
   #tests.logstash = callTest tests/logstash.nix {};
   tests.mathics = callTest tests/mathics.nix {};
+  tests.mesos = callTest tests/mesos.nix {};
   tests.misc = callTest tests/misc.nix {};
+  tests.mongodb = callTest tests/mongodb.nix {};
   tests.mumble = callTest tests/mumble.nix {};
   tests.munin = callTest tests/munin.nix {};
+  tests.mutableUsers = callTest tests/mutable-users.nix {};
   tests.mysql = callTest tests/mysql.nix {};
+  tests.mysqlBackup = callTest tests/mysql-backup.nix {};
   tests.mysqlReplication = callTest tests/mysql-replication.nix {};
   tests.nat.firewall = callTest tests/nat.nix { withFirewall = true; };
+  tests.nat.firewall-conntrack = callTest tests/nat.nix { withFirewall = true; withConntrackHelpers = true; };
   tests.nat.standalone = callTest tests/nat.nix { withFirewall = false; };
-  tests.networking.networkd.loopback = callTest tests/networking.nix { networkd = true; test = "loopback"; };
-  tests.networking.networkd.static = callTest tests/networking.nix { networkd = true; test = "static"; };
-  tests.networking.networkd.dhcpSimple = callTest tests/networking.nix { networkd = true; test = "dhcpSimple"; };
-  tests.networking.networkd.dhcpOneIf = callTest tests/networking.nix { networkd = true; test = "dhcpOneIf"; };
-  tests.networking.networkd.bond = callTest tests/networking.nix { networkd = true; test = "bond"; };
-  tests.networking.networkd.bridge = callTest tests/networking.nix { networkd = true; test = "bridge"; };
-  tests.networking.networkd.macvlan = callTest tests/networking.nix { networkd = true; test = "macvlan"; };
-  tests.networking.networkd.sit = callTest tests/networking.nix { networkd = true; test = "sit"; };
-  tests.networking.networkd.vlan = callTest tests/networking.nix { networkd = true; test = "vlan"; };
-  tests.networking.scripted.loopback = callTest tests/networking.nix { networkd = false; test = "loopback"; };
-  tests.networking.scripted.static = callTest tests/networking.nix { networkd = false; test = "static"; };
-  tests.networking.scripted.dhcpSimple = callTest tests/networking.nix { networkd = false; test = "dhcpSimple"; };
-  tests.networking.scripted.dhcpOneIf = callTest tests/networking.nix { networkd = false; test = "dhcpOneIf"; };
-  tests.networking.scripted.bond = callTest tests/networking.nix { networkd = false; test = "bond"; };
-  tests.networking.scripted.bridge = callTest tests/networking.nix { networkd = false; test = "bridge"; };
-  tests.networking.scripted.macvlan = callTest tests/networking.nix { networkd = false; test = "macvlan"; };
-  tests.networking.scripted.sit = callTest tests/networking.nix { networkd = false; test = "sit"; };
-  tests.networking.scripted.vlan = callTest tests/networking.nix { networkd = false; test = "vlan"; };
+  tests.networking.networkd = callSubTests tests/networking.nix { networkd = true; };
+  tests.networking.scripted = callSubTests tests/networking.nix { networkd = false; };
   # TODO: put in networking.nix after the test becomes more complete
   tests.networkingProxy = callTest tests/networking-proxy.nix {};
   tests.nfs3 = callTest tests/nfs.nix { version = 3; };
   tests.nfs4 = callTest tests/nfs.nix { version = 4; };
-  tests.nixosPinVersion = callTest tests/nixos-pin-version.nix {};
+  tests.nginx = callTest tests/nginx.nix { };
+  tests.nghttpx = callTest tests/nghttpx.nix { };
+  tests.leaps = callTest tests/leaps.nix { };
   tests.nsd = callTest tests/nsd.nix {};
   tests.openssh = callTest tests/openssh.nix {};
-  tests.panamax = hydraJob (import tests/panamax.nix { system = "x86_64-linux"; });
+  tests.owncloud = callTest tests/owncloud.nix {};
+  tests.pam-oath-login = callTest tests/pam-oath-login.nix {};
+  #tests.panamax = hydraJob (import tests/panamax.nix { system = "x86_64-linux"; });
   tests.peerflix = callTest tests/peerflix.nix {};
+  tests.php-pcre = callTest tests/php-pcre.nix {};
+  tests.postgresql = callSubTests tests/postgresql.nix {};
+  tests.pgmanage = callTest tests/pgmanage.nix {};
+  tests.postgis = callTest tests/postgis.nix {};
+  #tests.pgjwt = callTest tests/pgjwt.nix {};
   tests.printing = callTest tests/printing.nix {};
+  tests.prometheus = callTest tests/prometheus.nix {};
   tests.proxy = callTest tests/proxy.nix {};
   tests.pumpio = callTest tests/pump.io.nix {};
+  # tests.quagga = callTest tests/quagga.nix {};
   tests.quake3 = callTest tests/quake3.nix {};
+  tests.radicale = callTest tests/radicale.nix {};
   tests.runInMachine = callTest tests/run-in-machine.nix {};
-  tests.sddm = callTest tests/sddm.nix {};
-  tests.sddm-kde5 = callTest tests/sddm-kde5.nix {};
+  tests.samba = callTest tests/samba.nix {};
+  tests.sddm = callSubTests tests/sddm.nix {};
   tests.simple = callTest tests/simple.nix {};
+  tests.slim = callTest tests/slim.nix {};
+  tests.smokeping = callTest tests/smokeping.nix {};
+  tests.snapper = callTest tests/snapper.nix {};
+  tests.statsd = callTest tests/statsd.nix {};
+  tests.switchTest = callTest tests/switch-test.nix {};
+  tests.taskserver = callTest tests/taskserver.nix {};
   tests.tomcat = callTest tests/tomcat.nix {};
   tests.udisks2 = callTest tests/udisks2.nix {};
-  tests.virtualbox = hydraJob (import tests/virtualbox.nix { system = "x86_64-linux"; });
+  tests.vault = callTest tests/vault.nix {};
+  tests.virtualbox = callSubTests tests/virtualbox.nix { system = "x86_64-linux"; };
+  tests.wordpress = callTest tests/wordpress.nix {};
   tests.xfce = callTest tests/xfce.nix {};
-  tests.bootBiosCdrom = forAllSystems (system: hydraJob (import tests/boot.nix { inherit system; }).bootBiosCdrom);
-  tests.bootBiosUsb = forAllSystems (system: hydraJob (import tests/boot.nix { inherit system; }).bootBiosUsb);
-  tests.bootUefiCdrom = forAllSystems (system: hydraJob (import tests/boot.nix { inherit system; }).bootUefiCdrom);
-  tests.bootUefiUsb = forAllSystems (system: hydraJob (import tests/boot.nix { inherit system; }).bootUefiUsb);
-
+  tests.xmonad = callTest tests/xmonad.nix {};
+  tests.zookeeper = callTest tests/zookeeper.nix {};
 
   /* Build a bunch of typical closures so that Hydra can keep track of
      the evolution of closure sizes. */
@@ -326,8 +378,8 @@ in rec {
 
     kde = makeClosure ({ pkgs, ... }:
       { services.xserver.enable = true;
-        services.xserver.displayManager.kdm.enable = true;
-        services.xserver.desktopManager.kde4.enable = true;
+        services.xserver.displayManager.sddm.enable = true;
+        services.xserver.desktopManager.plasma5.enable = true;
       });
 
     xfce = makeClosure ({ pkgs, ... }:

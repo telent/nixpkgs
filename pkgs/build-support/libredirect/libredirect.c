@@ -47,6 +47,7 @@ static void init()
 
 static const char * rewrite(const char * path, char * buf)
 {
+    if (path == NULL) return path;
     for (int n = 0; n < nrRedirects; ++n) {
         int len = strlen(from[n]);
         if (strncmp(path, from[n], len) != 0) continue;
@@ -136,4 +137,11 @@ int posix_spawn(pid_t * pid, const char * path,
         char * const argv[], char * const envp[]) = dlsym(RTLD_NEXT, "posix_spawn");
     char buf[PATH_MAX];
     return posix_spawn_real(pid, rewrite(path, buf), file_actions, attrp, argv, envp);
+}
+
+int execv(const char *path, char *const argv[])
+{
+    int (*execv_real) (const char *path, char *const argv[]) = dlsym(RTLD_NEXT, "execv");
+    char buf[PATH_MAX];
+    return execv_real(rewrite(path, buf), argv);
 }

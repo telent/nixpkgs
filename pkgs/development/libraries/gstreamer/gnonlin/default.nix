@@ -7,7 +7,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Gstreamer Non-Linear Multimedia Editing Plugins";
-    homepage    = "http://gstreamer.freedesktop.org";
+    homepage    = "https://gstreamer.freedesktop.org";
     longDescription = ''
       Gnonlin is a library built on top of GStreamer which provides 
       support for writing non-linear audio and video editing
@@ -15,13 +15,14 @@ stdenv.mkDerivation rec {
     '';
     license     = licenses.lgpl2Plus;
     platforms   = platforms.unix;
-    maintainers = with maintainers; [ iyzsong ];
   };
 
   src = fetchurl {
     url = "${meta.homepage}/src/gnonlin/${name}.tar.xz";
     sha256 = "0zv60rq2h736a6fivd3a3wp59dj1jar7b2vwzykahvl168b7wrid";
   };
+
+  outputs = [ "out" "dev" ];
 
   nativeBuildInputs = [ pkgconfig ];
 

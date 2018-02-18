@@ -10,7 +10,8 @@ stdenv.mkDerivation {
     sha256 = "1k6n758r9dhjmc1pnpk6qzpg0q7pkq2hf18z3b0s2z198jpkg9s3";
   };
 
-  buildInputs = [ pkgconfig poppler ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ poppler ];
 
   installFlags = [ "PREFIX=$(out)" "MANDIR=$(out)/share/man" ];
 
@@ -19,5 +20,6 @@ stdenv.mkDerivation {
     homepage = https://github.com/TrilbyWhite/Leela;
     license = stdenv.lib.licenses.gpl3;
     maintainers = [ stdenv.lib.maintainers.puffnfresh ];
+    platforms = stdenv.lib.platforms.linux;
   };
 }

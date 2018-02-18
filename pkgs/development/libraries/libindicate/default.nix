@@ -4,13 +4,15 @@
 , pkgconfig, autoconf
 , glib, dbus_glib, libdbusmenu-glib
 , gtkVersion, gtk2 ? null, gtk3 ? null
-, python, pygobject, pygtk, gobjectIntrospection, vala, gnome_doc_utils
-, monoSupport ? false, mono ? null, gtk-sharp ? null
+, pythonPackages, gobjectIntrospection, vala_0_23, gnome_doc_utils
+, monoSupport ? false, mono ? null, gtk-sharp-2_0 ? null
  }:
 
 with lib;
 
-stdenv.mkDerivation rec {
+let
+  inherit (pythonPackages) python pygobject2 pygtk;
+in stdenv.mkDerivation rec {
   name = let postfix = if gtkVersion == "2" && monoSupport then "sharp" else "gtk${gtkVersion}";
           in "libindicate-${postfix}-${version}";
   version = "${versionMajor}.${versionMinor}";
@@ -26,9 +28,9 @@ stdenv.mkDerivation rec {
 
   buildInputs = [
     glib dbus_glib libdbusmenu-glib
-    python pygobject pygtk gobjectIntrospection vala gnome_doc_utils
+    python pygobject2 pygtk gobjectIntrospection vala_0_23 gnome_doc_utils
   ] ++ (if gtkVersion == "2"
-    then [ gtk2 ] ++ optionals monoSupport [ mono gtk-sharp ]
+    then [ gtk2 ] ++ optionals monoSupport [ mono gtk-sharp-2_0 ]
     else [ gtk3 ]);
 
   postPatch = ''
@@ -36,8 +38,10 @@ stdenv.mkDerivation rec {
       --replace '=codegendir pygtk-2.0' '=codegendir pygobject-2.0' \
       --replace 'pyglib-2.0-python$PYTHON_VERSION' 'pyglib-2.0-python'
     autoconf
-    substituteInPlace {configure,ltmain.sh,m4/libtool.m4} \
-      --replace /usr/bin/file ${file}/bin/file
+    for f in {configure,ltmain.sh,m4/libtool.m4}; do
+      substituteInPlace $f \
+        --replace /usr/bin/file ${file}/bin/file
+    done
   '';
 
   configureFlags = [
@@ -54,7 +58,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Library for raising indicators via DBus";
-    homepage = "https://launchpad.net/libindicate";
+    homepage = https://launchpad.net/libindicate;
     license = with licenses; [ lgpl21 lgpl3 ];
     platforms = platforms.linux;
     maintainers = [ maintainers.msteen ];

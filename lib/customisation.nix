@@ -1,6 +1,6 @@
+{ lib }:
 let
 
-  lib = import ./default.nix;
   inherit (builtins) attrNames isFunction;
 
 in
@@ -10,15 +10,15 @@ rec {
 
   /* `overrideDerivation drv f' takes a derivation (i.e., the result
      of a call to the builtin function `derivation') and returns a new
-     derivation in which the attributes of the original are overriden
+     derivation in which the attributes of the original are overridden
      according to the function `f'.  The function `f' is called with
      the original derivation attributes.
 
      `overrideDerivation' allows certain "ad-hoc" customisation
-     scenarios (e.g. in ~/.nixpkgs/config.nix).  For instance, if you
-     want to "patch" the derivation returned by a package function in
-     Nixpkgs to build another version than what the function itself
-     provides, you can do something like this:
+     scenarios (e.g. in ~/.config/nixpkgs/config.nix).  For instance,
+     if you want to "patch" the derivation returned by a package
+     function in Nixpkgs to build another version than what the
+     function itself provides, you can do something like this:
 
        mySed = overrideDerivation pkgs.gnused (oldAttrs: {
          name = "sed-4.2.2-pre";
@@ -51,21 +51,41 @@ rec {
        else { }));
 
 
+  /* `makeOverridable` takes a function from attribute set to attribute set and
+     injects `override` attibute which can be used to override arguments of
+     the function.
+
+       nix-repl> x = {a, b}: { result = a + b; }
+
+       nix-repl> y = lib.makeOverridable x { a = 1; b = 2; }
+
+       nix-repl> y
+       { override = «lambda»; overrideDerivation = «lambda»; result = 3; }
+
+       nix-repl> y.override { a = 10; }
+       { override = «lambda»; overrideDerivation = «lambda»; result = 12; }
+
+     Please refer to "Nixpkgs Contributors Guide" section
+     "<pkg>.overrideDerivation" to learn about `overrideDerivation` and caveats
+     related to its use.
+  */
   makeOverridable = f: origArgs:
     let
       ff = f origArgs;
       overrideWith = newArgs: origArgs // (if builtins.isFunction newArgs then newArgs origArgs else newArgs);
     in
-      if builtins.isAttrs ff then (ff //
-        { override = newArgs: makeOverridable f (overrideWith newArgs);
-          overrideDerivation = fdrv:
-            makeOverridable (args: overrideDerivation (f args) fdrv) origArgs;
-        })
-      else if builtins.isFunction ff then
-        { override = newArgs: makeOverridable f (overrideWith newArgs);
-          __functor = self: ff;
-          overrideDerivation = throw "overrideDerivation not yet supported for functors";
-        }
+      if builtins.isAttrs ff then (ff // {
+        override = newArgs: makeOverridable f (overrideWith newArgs);
+        overrideDerivation = fdrv:
+          makeOverridable (args: overrideDerivation (f args) fdrv) origArgs;
+        ${if ff ? overrideAttrs then "overrideAttrs" else null} = fdrv:
+          makeOverridable (args: (f args).overrideAttrs fdrv) origArgs;
+      })
+      else if builtins.isFunction ff then {
+        override = newArgs: makeOverridable f (overrideWith newArgs);
+        __functor = self: ff;
+        overrideDerivation = throw "overrideDerivation not yet supported for functors";
+      }
       else ff;
 
 
@@ -104,11 +124,9 @@ rec {
     let
       f = if builtins.isFunction fn then fn else import fn;
       auto = builtins.intersectAttrs (builtins.functionArgs f) autoArgs;
-      finalArgs = auto // args;
-      pkgs = f finalArgs;
-      mkAttrOverridable = name: pkg: pkg // {
-        override = newArgs: mkAttrOverridable name (f (finalArgs // newArgs)).${name};
-      };
+      origArgs = auto // args;
+      pkgs = f origArgs;
+      mkAttrOverridable = name: pkg: makeOverridable (newArgs: (f newArgs).${name}) origArgs;
     in lib.mapAttrs mkAttrOverridable pkgs;
 
 
@@ -129,7 +147,7 @@ rec {
         };
 
       outputsList = map outputToAttrListElement outputs;
-  in commonAttrs.${drv.outputName};
+  in commonAttrs // { outputUnspecified = true; };
 
 
   /* Strip a derivation of all non-essential attributes, returning
@@ -167,7 +185,7 @@ rec {
   /* Make a set of packages with a common scope. All packages called
      with the provided `callPackage' will be evaluated with the same
      arguments. Any package in the set may depend on any other. The
-     `override' function allows subsequent modification of the package
+     `overrideScope' function allows subsequent modification of the package
      set in a consistent way, i.e. all packages in the set will be
      called with the overridden packages. The package sets may be
      hierarchical: the packages in the set are called with the scope
@@ -177,9 +195,10 @@ rec {
     let self = f self // {
           newScope = scope: newScope (self // scope);
           callPackage = self.newScope {};
-          override = g: makeScope newScope (self_:
-            let super = f self_;
-            in super // g super self_);
+          overrideScope = g:
+            makeScope newScope
+            (self_: let super = f self_; in super // g super self_);
+          packages = f;
         };
     in self;
 

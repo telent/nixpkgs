@@ -18,6 +18,8 @@ stdenv.mkDerivation rec {
     "--with-tcl=${tcl}/lib"
   ];
 
+  hardeningDisable = [ "format" ];
+
   NIX_CFLAGS_COMPILE = "-fstack-protector-all";
   NIX_LDFLAGS = "-L${libsepol}/lib -L${libselinux}/lib";
 
@@ -26,7 +28,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "SELinux Tools";
-    homepage = "http://oss.tresys.com/projects/setools/";
+    homepage = http://oss.tresys.com/projects/setools/;
     license = stdenv.lib.licenses.gpl2;
     platforms = stdenv.lib.platforms.linux;
   };

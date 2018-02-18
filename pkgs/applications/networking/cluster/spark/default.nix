@@ -1,31 +1,56 @@
-{ stdenv, fetchurl, makeWrapper, jre, pythonPackages
+{ stdenv, fetchzip, makeWrapper, jre, pythonPackages
+, RSupport? true, R
 , mesosSupport ? true, mesos
+, version
 }:
+
+let
+  versionMap = {
+    "1.6.3" = {
+                hadoopVersion = "cdh4";
+                sparkSha256 = "00il083cjb9xqzsma2ifphq9ggichwndrj6skh2z5z9jk3z0lgyn";
+              };
+    "2.2.0" = {
+                hadoopVersion = "hadoop2.7";
+                sparkSha256 = "0wjjn2pgalrcji8avhj5d48kl1mf7rhrdxhzf29dbiszq4fkx0s6";
+              };
+  };
+in
+
+with versionMap.${version};
 
 with stdenv.lib;
 
 stdenv.mkDerivation rec {
-  name    = "spark-${version}";
-  version = "1.4.0";
 
-  src = fetchurl {
-    url    = "mirror://apache/spark/${name}/${name}-bin-cdh4.tgz";
-    sha256 = "1w60xzzg9mcymin1pmqwx1mvcqmdpfyxhd2dmw5alhnrzi21ycxi";
+  name = "spark-${version}";
+
+  src = fetchzip {
+    url    = "mirror://apache/spark/${name}/${name}-bin-${hadoopVersion}.tgz";
+    sha256 = sparkSha256;
   };
 
   buildInputs = [ makeWrapper jre pythonPackages.python pythonPackages.numpy ]
-    ++ optional mesosSupport [ mesos ];
+    ++ optional RSupport R
+    ++ optional mesosSupport mesos;
 
-  untarDir = "${name}-bin-cdh4";
+  untarDir = "${name}-bin-${hadoopVersion}";
   installPhase = ''
-    mkdir -p $out/{lib/${untarDir}/conf,bin}
+    mkdir -p $out/{lib/${untarDir}/conf,bin,/share/java}
     mv * $out/lib/${untarDir}
+
+    sed -e 's/INFO, console/WARN, console/' < \
+       $out/lib/${untarDir}/conf/log4j.properties.template > \
+       $out/lib/${untarDir}/conf/log4j.properties
 
     cat > $out/lib/${untarDir}/conf/spark-env.sh <<- EOF
     export JAVA_HOME="${jre}"
     export SPARK_HOME="$out/lib/${untarDir}"
     export PYSPARK_PYTHON="${pythonPackages.python}/bin/${pythonPackages.python.executable}"
     export PYTHONPATH="\$PYTHONPATH:$PYTHONPATH"
+    ${optionalString RSupport
+      ''export SPARKR_R_SHELL="${R}/bin/R"
+        export PATH=$PATH:"${R}/bin/R"''}
     ${optionalString mesosSupport
       ''export MESOS_NATIVE_LIBRARY="$MESOS_NATIVE_LIBRARY"''}
     EOF
@@ -33,10 +58,11 @@ stdenv.mkDerivation rec {
     for n in $(find $out/lib/${untarDir}/bin -type f ! -name "*.*"); do
       makeWrapper "$n" "$out/bin/$(basename $n)"
     done
+    ln -s $out/lib/${untarDir}/lib/spark-assembly-*.jar $out/share/java
   '';
 
   meta = {
-    description      = "Lightning-fast cluster computing";
+    description      = "Apache Spark is a fast and general engine for large-scale data processing";
     homepage         = "http://spark.apache.org";
     license          = stdenv.lib.licenses.asl20;
     platforms        = stdenv.lib.platforms.all;

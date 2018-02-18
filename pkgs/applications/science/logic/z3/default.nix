@@ -1,39 +1,29 @@
-{ stdenv, fetchFromGitHub, python }:
+{ stdenv, fetchFromGitHub, python2, fixDarwinDylibNames }:
 
-stdenv.mkDerivation rec {
+let
+  python = python2;
+in stdenv.mkDerivation rec {
   name = "z3-${version}";
-  version = "4.4.0";
+  version = "4.5.0-2017-11-06";
 
   src = fetchFromGitHub {
     owner  = "Z3Prover";
     repo   = "z3";
-    rev    = "7f6ef0b6c0813f2e9e8f993d45722c0e5b99e152";
-    sha256 = "1xllvq9fcj4cz34biq2a9dn2sj33bdgrzyzkj26hqw70wkzv1kzx";
+    rev    = "3350f32e1f2c01c9df63b7d71899796a18ce2272";
+    sha256 = "00jn0njn5h9v49pl67yxj6225m6334ndrx6mp37vcqac05pdbpw7";
   };
 
-  buildInputs = [ python ];
+  buildInputs = [ python fixDarwinDylibNames ];
   enableParallelBuilding = true;
 
-  configurePhase = "python scripts/mk_make.py --prefix=$out && cd build";
-
-  # z3's install phase is stupid because it tries to calculate the
-  # python package store location itself, meaning it'll attempt to
-  # write files into the nix store, and fail.
-  soext = if stdenv.system == "x86_64-darwin" then ".dylib" else ".so";
-  installPhase = ''
-    mkdir -p $out/bin $out/lib/${python.libPrefix}/site-packages $out/include
-    cp ../src/api/z3*.h       $out/include
-    cp ../src/api/c++/z3*.h   $out/include
-    cp z3                     $out/bin
-    cp libz3${soext}          $out/lib
-    cp libz3${soext}          $out/lib/${python.libPrefix}/site-packages
-    cp z3*.pyc                $out/lib/${python.libPrefix}/site-packages
-    cp ../src/api/python/*.py $out/lib/${python.libPrefix}/site-packages
+  configurePhase = ''
+    ${python.interpreter} scripts/mk_make.py --prefix=$out --python --pypkgdir=$out/${python.sitePackages}
+    cd build
   '';
 
   meta = {
     description = "A high-performance theorem prover and SMT solver";
-    homepage    = "http://github.com/Z3Prover/z3";
+    homepage    = "https://github.com/Z3Prover/z3";
     license     = stdenv.lib.licenses.mit;
     platforms   = stdenv.lib.platforms.unix;
     maintainers = [ stdenv.lib.maintainers.thoughtpolice ];

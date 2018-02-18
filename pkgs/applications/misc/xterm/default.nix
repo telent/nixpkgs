@@ -1,28 +1,37 @@
-{ stdenv, fetchurl, xorg, ncurses, freetype, fontconfig, pkgconfig }:
+{ stdenv, fetchurl, xorg, ncurses, freetype, fontconfig, pkgconfig, makeWrapper
+, enableDecLocator ? true
+}:
 
 stdenv.mkDerivation rec {
-  name = "xterm-320";
+  name = "xterm-330";
 
   src = fetchurl {
-    url = "ftp://invisible-island.net/xterm/${name}.tgz";
-    sha256 = "19r4rs5pjq944m7aiqligazf6wgmv4f023x3bx183h1l8dbvn3d6";
+    url = "http://invisible-mirror.net/archives/xterm/${name}.tgz";
+    sha256 = "1psnfmqd23v9gxj8a98nzrgvymrk0p1whwqi92gy15bbkzrgkvks";
   };
 
   buildInputs =
     [ xorg.libXaw xorg.xproto xorg.libXt xorg.libXext xorg.libX11 xorg.libSM xorg.libICE
-      ncurses freetype fontconfig pkgconfig xorg.libXft xorg.luit
+      ncurses freetype fontconfig pkgconfig xorg.libXft xorg.luit makeWrapper
     ];
+
+  patches = [
+    ./sixel-256.support.patch
+  ];
 
   configureFlags = [
     "--enable-wide-chars"
     "--enable-256-color"
+    "--enable-sixel-graphics"
+    "--enable-regis-graphics"
     "--enable-load-vt-fonts"
     "--enable-i18n"
     "--enable-doublechars"
     "--enable-luit"
     "--enable-mini-luit"
     "--with-tty-group=tty"
-  ];
+    "--with-app-defaults=$(out)/lib/X11/app-defaults"
+  ] ++ stdenv.lib.optional enableDecLocator "--enable-dec-locator";
 
   # Work around broken "plink.sh".
   NIX_LDFLAGS = "-lXmu -lXt -lICE -lX11 -lfontconfig";
@@ -36,10 +45,19 @@ stdenv.mkDerivation rec {
     echo '#define USE_UTMP_SETGID 1'
   '';
 
+  postInstall = ''
+    for bin in $out/bin/*; do
+      wrapProgram $bin --set XAPPLRESDIR $out/lib/X11/app-defaults/
+    done
+
+    install -D -t $out/share/applications xterm.desktop
+    install -D -t $out/share/icons/hicolor/48x48/apps icons/xterm-color_48x48.xpm
+  '';
+
   meta = {
     homepage = http://invisible-island.net/xterm;
     license = "BSD";
-    maintainers = with stdenv.lib.maintainers; [viric];
+    maintainers = with stdenv.lib.maintainers; [viric vrthra];
     platforms = with stdenv.lib.platforms; linux ++ darwin;
   };
 }

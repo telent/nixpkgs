@@ -1,15 +1,19 @@
-{ fetchurl, stdenv, curl, openssl, zlib, expat, perl, python, gettext, cpio, gnugrep, gzip
+{ fetchurl, stdenv, curl, openssl, zlib, expat, perl, python, gettext, cpio
+, gnugrep, gnused, gawk, coreutils # needed at runtime by git-filter-branch etc
+, gzip, openssh, pcre2
 , asciidoc, texinfo, xmlto, docbook2x, docbook_xsl, docbook_xml_dtd_45
 , libxslt, tcl, tk, makeWrapper, libiconv
-, svnSupport, subversionClient, perlLibs, smtpPerlLibs
+, svnSupport, subversionClient, perlLibs, smtpPerlLibs, gitwebPerlLibs
 , guiSupport
 , withManual ? true
 , pythonSupport ? true
+, withpcre2 ? true
 , sendEmailSupport
+, darwin
 }:
 
 let
-  version = "2.7.0";
+  version = "2.15.1";
   svn = subversionClient.override { perlBindings = true; };
 in
 
@@ -18,38 +22,62 @@ stdenv.mkDerivation {
 
   src = fetchurl {
     url = "https://www.kernel.org/pub/software/scm/git/git-${version}.tar.xz";
-    sha256 = "03bvb8s5j8i54qbi3yayl42bv0wf2fpgnh1a2lkhbj79zi7b77zs";
+    sha256 = "0p04linqdywdf7m1hqa904fzqvgzplsxlzdqrn96j1j5gpyr174r";
   };
+
+  hardeningDisable = [ "format" ];
 
   patches = [
     ./docbook2texi.patch
     ./symlinks-in-bin.patch
-    ./cert-path.patch
-    ./ssl-cert-file.patch
+    ./git-sh-i18n.patch
+    ./ssh-path.patch
+    ./git-send-email-honor-PATH.patch
   ];
 
-  buildInputs = [curl openssl zlib expat gettext cpio makeWrapper libiconv]
+  postPatch = ''
+    for x in connect.c git-gui/lib/remote_add.tcl ; do
+      substituteInPlace "$x" \
+        --subst-var-by ssh "${openssh}/bin/ssh"
+    done
+  '';
+
+  buildInputs = [curl openssl zlib expat gettext cpio makeWrapper libiconv perl]
     ++ stdenv.lib.optionals withManual [ asciidoc texinfo xmlto docbook2x
          docbook_xsl docbook_xml_dtd_45 libxslt ]
-    ++ stdenv.lib.optionals guiSupport [tcl tk];
+    ++ stdenv.lib.optionals guiSupport [tcl tk]
+    ++ stdenv.lib.optionals withpcre2 [ pcre2 ]
+    ++ stdenv.lib.optionals stdenv.isDarwin [ darwin.Security ];
+
 
   # required to support pthread_cancel()
-  NIX_LDFLAGS = stdenv.lib.optionalString (!stdenv.isDarwin) "-lgcc_s";
+  NIX_LDFLAGS = stdenv.lib.optionalString (!stdenv.cc.isClang) "-lgcc_s"
+              + stdenv.lib.optionalString (stdenv.isFreeBSD) "-lthr";
 
-  # without this, git fails when trying to check for /etc/gitconfig existence
-  propagatedSandboxProfile = stdenv.lib.sandbox.allowDirectoryList "/etc";
-
-  makeFlags = "prefix=\${out} sysconfdir=/etc/ PERL_PATH=${perl}/bin/perl SHELL_PATH=${stdenv.shell} "
+  makeFlags = "prefix=\${out} PERL_PATH=${perl}/bin/perl SHELL_PATH=${stdenv.shell} "
       + (if pythonSupport then "PYTHON_PATH=${python}/bin/python" else "NO_PYTHON=1")
       + (if stdenv.isSunOS then " INSTALL=install NO_INET_NTOP= NO_INET_PTON=" else "")
-      + (if stdenv.isDarwin then " NO_APPLE_COMMON_CRYPTO=1" else "");
+      + (if stdenv.isDarwin then " NO_APPLE_COMMON_CRYPTO=1" else " sysconfdir=/etc/ ");
 
+  # build git-credential-osxkeychain if darwin
+  postBuild = stdenv.lib.optionalString stdenv.isDarwin ''
+    pushd $PWD/contrib/credential/osxkeychain/
+    make
+    popd
+  '';
 
   # FIXME: "make check" requires Sparse; the Makefile must be tweaked
   # so that `SPARSE_FLAGS' corresponds to the current architecture...
   #doCheck = true;
 
-  installFlags = "NO_INSTALL_HARDLINKS=1";
+  installFlags = "NO_INSTALL_HARDLINKS=1"
+    + (if withpcre2 then " USE_LIBPCRE2=1" else "");
+
+
+  preInstall = stdenv.lib.optionalString stdenv.isDarwin ''
+    mkdir -p $out/bin
+    mv $PWD/contrib/credential/osxkeychain/git-credential-osxkeychain $out/bin
+  '';
 
   postInstall =
     ''
@@ -67,6 +95,7 @@ stdenv.mkDerivation {
       # Install contrib stuff.
       mkdir -p $out/share/git
       mv contrib $out/share/git/
+      ln -s "$out/share/git/contrib/credential/netrc/git-credential-netrc" $out/bin/
       mkdir -p $out/share/emacs/site-lisp
       ln -s "$out/share/git/contrib/emacs/"*.el $out/share/emacs/site-lisp/
       mkdir -p $out/etc/bash_completion.d
@@ -78,32 +107,70 @@ stdenv.mkDerivation {
           --replace ' grep' ' ${gnugrep}/bin/grep' \
           --replace ' egrep' ' ${gnugrep}/bin/egrep'
 
-      # Fix references to the perl binary. Note that the tab character
-      # in the patterns is important.
-      sed -i -e 's|	perl -ne|	${perl}/bin/perl -ne|g' \
-             -e 's|	perl -e|	${perl}/bin/perl -e|g' \
-             $out/libexec/git-core/{git-am,git-submodule}
+      # Fix references to the perl, sed, awk and various coreutil binaries used by
+      # shell scripts that git calls (e.g. filter-branch)
+      SCRIPT="$(cat <<'EOS'
+        BEGIN{
+          @a=(
+            '${perl}/bin/perl', '${gnugrep}/bin/grep', '${gnused}/bin/sed', '${gawk}/bin/awk',
+            '${coreutils}/bin/cut', '${coreutils}/bin/basename', '${coreutils}/bin/dirname',
+            '${coreutils}/bin/wc', '${coreutils}/bin/tr'
+          );
+        }
+        foreach $c (@a) {
+          $n=(split("/", $c))[-1];
+          s|(?<=[^#][^/.-])\b''${n}(?=\s)|''${c}|g
+        }
+      EOS
+      )"
+      perl -0777 -i -pe "$SCRIPT" \
+        $out/libexec/git-core/git-{sh-setup,filter-branch,merge-octopus,mergetool,quiltimport,request-pull,stash,submodule,subtree,web--browse}
+
+      # Fix references to gettext.
+      substituteInPlace $out/libexec/git-core/git-sh-i18n \
+          --subst-var-by gettext ${gettext}
 
       # gzip (and optionally bzip2, xz, zip) are runtime dependencies for
       # gitweb.cgi, need to patch so that it's found
       sed -i -e "s|'compressor' => \['gzip'|'compressor' => ['${gzip}/bin/gzip'|" \
           $out/share/gitweb/gitweb.cgi
+      # Give access to CGI.pm and friends (was removed from perl core in 5.22)
+      for p in ${stdenv.lib.concatStringsSep " " gitwebPerlLibs}; do
+          sed -i -e "/use CGI /i use lib \"$p/lib/perl5/site_perl\";" \
+              "$out/share/gitweb/gitweb.cgi"
+      done
 
       # Also put git-http-backend into $PATH, so that we can use smart
       # HTTP(s) transports for pushing
       ln -s $out/libexec/git-core/git-http-backend $out/bin/git-http-backend
+
+      # wrap perl commands
+      gitperllib=$out/lib/perl5/site_perl
+      for i in ${builtins.toString perlLibs}; do
+        gitperllib=$gitperllib:$i/lib/perl5/site_perl
+      done
+      wrapProgram $out/libexec/git-core/git-cvsimport \
+                  --set GITPERLLIB "$gitperllib"
+      wrapProgram $out/libexec/git-core/git-add--interactive \
+                  --set GITPERLLIB "$gitperllib"
+      wrapProgram $out/libexec/git-core/git-archimport \
+                  --set GITPERLLIB "$gitperllib"
+      wrapProgram $out/libexec/git-core/git-instaweb \
+                  --set GITPERLLIB "$gitperllib"
+      wrapProgram $out/libexec/git-core/git-cvsexportcommit \
+                  --set GITPERLLIB "$gitperllib"
     ''
 
    + (if svnSupport then
 
       ''# wrap git-svn
         gitperllib=$out/lib/perl5/site_perl
-        for i in ${builtins.toString perlLibs} ${svn}; do
+        for i in ${builtins.toString perlLibs} ${svn.out}; do
           gitperllib=$gitperllib:$i/lib/perl5/site_perl
         done
         wrapProgram $out/libexec/git-core/git-svn     \
                      --set GITPERLLIB "$gitperllib"   \
-                     --prefix PATH : "${svn}/bin" ''
+                     --prefix PATH : "${svn.out}/bin" ''
        else '' # replace git-svn by notification script
         notSupported $out/libexec/git-core/git-svn
        '')
@@ -136,12 +203,20 @@ stdenv.mkDerivation {
        for prog in bin/gitk libexec/git-core/git-gui; do
          notSupported "$out/$prog"
        done
-     '');
+     '')
+   + stdenv.lib.optionalString stdenv.isDarwin ''
+    # enable git-credential-osxkeychain by default if darwin
+    cat > $out/etc/gitconfig << EOF
+[credential]
+	helper = osxkeychain
+EOF
+  '';
+
 
   enableParallelBuilding = true;
 
   meta = {
-    homepage = http://git-scm.com/;
+    homepage = https://git-scm.com/;
     description = "Distributed version control system";
     license = stdenv.lib.licenses.gpl2;
 
@@ -151,6 +226,6 @@ stdenv.mkDerivation {
     '';
 
     platforms = stdenv.lib.platforms.all;
-    maintainers = with stdenv.lib.maintainers; [ simons the-kenny wmertens ];
+    maintainers = with stdenv.lib.maintainers; [ peti the-kenny wmertens ];
   };
 }

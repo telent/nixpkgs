@@ -1,13 +1,11 @@
 { stdenv, fetchurl, attr, keyutils }:
 
-let
-  version = "0.05.00";
+stdenv.mkDerivation rec {
   name = "stress-ng-${version}";
-in stdenv.mkDerivation {
-  inherit name;
+  version = "0.06.14";
 
   src = fetchurl {
-    sha256 = "0ppri86z6fj48nm5l0x1r8mh7mwaf7bvhmi10jz6a8w7apnc181w";
+    sha256 = "06kycxfwkdrm2vs9xk8cb6c1mki29ymrrqwwxxqx4icnwvq135hv";
     url = "http://kernel.ubuntu.com/~cking/tarballs/stress-ng/${name}.tar.gz";
   };
 
@@ -17,18 +15,21 @@ in stdenv.mkDerivation {
     substituteInPlace Makefile --replace "/usr" ""
   '';
 
-  enableParallelBuilding = true;
+  # Won't build on i686 because the binary will be linked again in the
+  # install phase without checking the dependencies. This will prevent
+  # triggering the rebuild. Why this only happens on i686 remains a
+  # mystery, though. :-(
+  enableParallelBuilding = (!stdenv.isi686);
 
   installFlags = [ "DESTDIR=$(out)" ];
 
   meta = with stdenv.lib; {
-    inherit version;
     description = "Stress test a computer system";
     longDescription = ''
       Stress test a system in various selectable ways, exercising both various
       physical subsystems and various operating system kernel interfaces:
-      - over 60 different stress tests
-      - over 50 CPU specific stress tests that exercise floating point,
+      - over 130 different stress tests
+      - over 70 CPU specific stress tests that exercise floating point,
         integer, bit manipulation and control flow
       - over 20 virtual memory stress tests
       stress-ng was originally intended to make a machine work hard and trip

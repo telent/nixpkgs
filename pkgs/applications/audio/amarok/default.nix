@@ -1,8 +1,8 @@
 { stdenv, fetchurl, lib, automoc4, cmake, perl, pkgconfig
 , qtscriptgenerator, gettext, curl , libxml2, mysql, taglib
-, taglib_extras, loudmouth , kdelibs , qca2, libmtp, liblastfm, libgpod
+, taglib_extras, loudmouth , kdelibs4, qca2, libmtp, liblastfm, libgpod
 , phonon , strigi, soprano, qjson, ffmpeg, libofa, nepomuk_core ? null
-, lz4, lzo, snappy, libaio
+, lz4, lzo, snappy, libaio, pcre
 }:
 
 stdenv.mkDerivation rec {
@@ -21,10 +21,10 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ automoc4 cmake perl pkgconfig ];
 
   buildInputs = [
-    qtscriptgenerator stdenv.cc.libc gettext curl libxml2 mysql.lib
-    taglib taglib_extras loudmouth kdelibs phonon strigi soprano qca2
+    qtscriptgenerator stdenv.cc.libc gettext curl libxml2 mysql.server/*libmysqld*/
+    taglib taglib_extras loudmouth kdelibs4 phonon strigi soprano qca2
     libmtp liblastfm libgpod qjson ffmpeg libofa nepomuk_core
-    lz4 lzo snappy libaio
+    lz4 lzo snappy libaio pcre
   ];
 
   # This is already fixed upstream, will be release in 2.9
@@ -34,13 +34,15 @@ stdenv.mkDerivation rec {
 
   cmakeFlags = "-DKDE4_BUILD_TESTS=OFF";
 
+  enableParallelBuilding = true;
+
   propagatedUserEnvPkgs = [ qtscriptgenerator ];
 
   meta = {
     repositories.git = git://anongit.kde.org/amarok.git;
     description = "Popular music player for KDE";
     license = "GPL";
-    homepage = http://amarok.kde.org;
-    inherit (kdelibs.meta) platforms maintainers;
+    homepage = https://amarok.kde.org;
+    inherit (kdelibs4.meta) platforms;
   };
 }

@@ -1,17 +1,18 @@
-{ stdenv, fetchurl, udev, libgudev, polkit, dbus_glib, ppp, intltool, pkgconfig, libmbim, libqmi }:
+{ stdenv, fetchurl, udev, libgudev, polkit, dbus_glib, ppp, intltool, pkgconfig
+, libmbim, libqmi, systemd }:
 
 stdenv.mkDerivation rec {
   name = "ModemManager-${version}";
-  version = "1.4.6";
+  version = "1.6.8";
 
   src = fetchurl {
     url = "http://www.freedesktop.org/software/ModemManager/${name}.tar.xz";
-    sha256 = "1kd5nn5rm88c8rgmzwy2fsf3cr7fai7r85mi61kcby0hcgsapv8c";
+    sha256 = "0xj3ng7qcqxkib5qkprwghcivaz0mn449fw08l67h1zbpz23bh7z";
   };
 
   nativeBuildInputs = [ intltool pkgconfig ];
 
-  buildInputs = [ udev libgudev polkit dbus_glib ppp libmbim libqmi ];
+  buildInputs = [ udev libgudev polkit dbus_glib ppp libmbim libqmi systemd ];
 
   configureFlags = [
     "--with-polkit"
@@ -19,6 +20,7 @@ stdenv.mkDerivation rec {
     "--with-systemdsystemunitdir=$(out)/etc/systemd/system"
     "--sysconfdir=/etc"
     "--localstatedir=/var"
+    "--with-suspend-resume=systemd"
   ];
 
   installFlags = [ "DESTDIR=\${out}" ];
@@ -44,7 +46,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "WWAN modem manager, part of NetworkManager";
-    maintainers = [ stdenv.lib.maintainers.urkud ];
+    maintainers = [ ];
     platforms = stdenv.lib.platforms.linux;
   };
 }

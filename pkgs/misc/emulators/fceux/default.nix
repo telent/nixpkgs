@@ -1,4 +1,4 @@
-{stdenv, fetchurl, scons, zlib, SDL, lua5, pkgconfig}:
+{stdenv, fetchurl, scons, zlib, SDL, lua5_1, pkgconfig}:
 
 stdenv.mkDerivation {
   name = "fceux-2.2.2";
@@ -8,8 +8,9 @@ stdenv.mkDerivation {
     sha256 = "1qg5bygla8ka30b7wqvq6dv84xc7pq0jspffh2jz75d1njyi2kc0";
   };
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    scons zlib SDL lua5 pkgconfig
+    scons zlib SDL lua5_1
   ];
 
   phases = "unpackPhase buildPhase";
@@ -23,12 +24,13 @@ stdenv.mkDerivation {
     export CC="gcc"
     export CXX="g++"
     mkdir -p "$out" "$out/share/applications" "$out/share/pixmaps"
-    scons --prefix="$out" OPENGL=false GTK=false CREATE_AVI=false LOGO=false SYSTEM_LUA=false install
+    scons --prefix="$out" OPENGL=false GTK=false CREATE_AVI=false LOGO=false install
   '';
 
   meta = {
     description = "A Nintendo Entertainment System (NES) Emulator";
     license = stdenv.lib.licenses.gpl2;
     homepage = http://www.fceux.com/;
+    platforms = stdenv.lib.platforms.linux;
   };
 }

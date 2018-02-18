@@ -27,7 +27,7 @@ stdenv.mkDerivation {
   name = "libfoo-1.2.3";
   src = fetchurl {
     url = http://example.org/libfoo-1.2.3.tar.bz2;
-    md5 = "e1ec107956b6ddcb0b8b0679367e9ac9";
+    sha256 = "0x2g1jqygyr5wiwg4ma1nd7w4ydpy82z9gkcv8vh2v8dn3y58v5m";
   };
 }</programlisting>
 
@@ -179,6 +179,237 @@ genericBuild
 </section>
 
 
+<section xml:id="ssec-stdenv-dependencies"><title>Specifying dependencies</title>
+
+<para>
+  As described in the Nix manual, almost any drv file store path in the a new derivation's attribute set will in fact induce a dependency on that derivation.
+  <varname>mkDerivation</varname>, however, takes a few attributes intended to, between them, include all the dependencies of a package.
+  This is done both for structure and consistency, but also so that certain other setup can take place.
+  For example, certain dependencies need their bin directories added to the <envar>PATH</envar>.
+  That is built-in, but other setup is done via a pluggable mechanism that works in conjunction with these dependency attributes.
+  See <xref linkend="ssec-setup-hooks"/> for details.
+</para>
+<para>
+  Dependencies can be broken down along three axes: their host and target platforms relative to the new derivation's, and whether they are propagated.
+  The platform distinctions are motivated by cross compilation; see <xref linkend="chap-cross"/> for exactly what each platform means.
+  <footnote><para>
+    The build platform is ignored because it is a mere implementation detail of the package satisfying the dependency:
+    As a general programming principle, dependencies are always <emphasis>specified</emphasis> as interfaces, not concrete implementation.
+  </para></footnote>
+  But even if one is not cross compiling, the platforms imply whether or not the dependency is needed at run-time or build-time, a concept that makes perfect sense outside of cross compilation.
+  For now, the run-time/build-time distinction is just a hint for mental clarity, but in the future it perhaps could be enforced.
+</para>
+<para>
+  The extension of <envar>PATH</envar> with dependencies, alluded to above, proceeds according to the relative platforms alone.
+  The process is carried only for dependencies whose host platform matches the new derivation's build platform–i.e. which runs on the directory where the new derivation will be built.
+  <footnote><para>Currently, that means all dependencies are put on the <envar>PATH</envar> for native builds, but in the future to match cross that may not be the case—the platforms would be assumed to be unique for consistency between cross and native builds.</para></footnote>
+  Of those, for each dependency <replaceable>dir</replaceable>, <filename><replaceable>dir</replaceable>/bin</filename>, if present, is added to the <envar>PATH</envar> environment variable.
+</para>
+<para>
+  The dependency is propagated when it forces some of its other-transitive (non-immediate) downstream dependencies to also take it on as an immediate dependency.
+  Nix itself already takes a package's transitive dependencies into account, but this propagation ensures nixpkgs-specific infrastructure like setup hooks (mentioned above) also are run as if the propagated dependency.
+</para>
+<para>
+  It is important to note dependencies are not necessary propagated as the same sort of dependency that they were before, but rather as the corresponding sort so that the platform rules still line up.
+  The exact rules for dependency propagation can be given by assigning each sort of dependency two integers based one how it's host and target platforms are offset from the depending derivation's platforms.
+  Those offsets are given are given below in the descriptions of each dependency list attribute.
+  Informally, we traverse propagated inputs, accumulating an dependency for each transitive path such that:
+  <itemizedlist>
+    <listitem>
+      <para>
+      The type of dependency is determined by the sum of the offsets assigned to each edge of the path
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+      The path is only included if the subpaths sharing the starting point never go out of bounds (<literal>&lt; -2</literal>, <literal>&gt; 1</literal>).
+      This is a fancy way of saying we prune as we go.
+      </para>
+    </listitem>
+  </itemizedlist>
+  Formally:
+  <programlisting>
+propagated-dep(h0, _, A, B)
+propagated-dep(h1, t1, B, C)
+h0 + h1 in {-1, 0, 1}
+h0 + t1 in {-1, 0, 1}
+-------------------------------------- Transitive property
+propagated-dep(h0 + h1, h0 + t1, A, C)</programlisting>
+  <programlisting>
+dep(h0, _, A, B)
+propagated-dep(h1, t1, B, C)
+h0 + h1 in {-2, -1, 0, 1}
+h0 + t1 in {-1, 0, 1}
+-------------------------------------- Take immediate deps' propagated deps
+propagated-dep(h0 + h1, h0 + t1, A, C)</programlisting>
+  <programlisting>
+propagated-dep(h, t, A, B)
+-------------------------------------- Propagated deps count as deps
+dep(h, t, A, B)</programlisting>
+</para>
+
+<variablelist>
+  <title>Variables specifying dependencies</title>
+
+   <varlistentry>
+     <term><varname>depsBuildBuild</varname></term>
+     <listitem>
+       <para>
+         A list of dependencies whose host and target platforms are the new derivation's build platform.
+         This means a <literal>-1</literal> host and <literal>-1</literal> target offset from the new derivation's platforms.
+         They are programs/libraries used at build time that furthermore produce programs/libraries also used at build time.
+         If the dependency doesn't care about the target platform (i.e. isn't a compiler or similar tool), put it in <varname>nativeBuildInputs</varname>instead.
+         The most common use for this <literal>buildPackages.stdenv.cc</literal>, the default C compiler for this role.
+         That example crops up more than one might think in old commonly used C libraries.
+       </para>
+       <para>
+         Since these packages are able to be run at build time, that are always added to the <envar>PATH</envar>, as described above.
+         But since these packages are only guaranteed to be able to run then, they shouldn't persist as run-time dependencies.
+         This isn't currently enforced, but could be in the future.
+       </para>
+     </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>nativeBuildInputs</varname></term>
+    <listitem>
+      <para>
+        A list of dependencies whose host platform is the new derivation's build platform, and target platform is the new derivation's host platform.
+        This means a <literal>-1</literal> host offset and <literal>0</literal> target offset from the new derivation's platforms.
+        They are programs/libraries used at build time that, if they are a compiler or similar tool, produce code to run at run time—i.e. tools used to build the new derivation.
+        If the dependency doesn't care about the target platform (i.e. isn't a compiler or similar tool), put it here, rather than in <varname>depsBuildBuild</varname> or <varname>depsBuildTarget</varname>.
+        This would be called <varname>depsBuildHost</varname> but for historical continuity.
+      </para>
+      <para>
+         Since these packages are able to be run at build time, that are added to the <envar>PATH</envar>, as described above.
+         But since these packages only are guaranteed to be able to run then, they shouldn't persist as run-time dependencies.
+         This isn't currently enforced, but could be in the future.
+       </para>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>depsBuildTarget</varname></term>
+    <listitem>
+      <para>
+        A list of dependencies whose host platform is the new derivation's build platform, and target platform is the new derivation's target platform.
+        This means a <literal>-1</literal> host offset and <literal>1</literal> target offset from the new derivation's platforms.
+        They are programs used at build time that produce code to run at run with code produced by the depending package.
+        Most commonly, these would tools used to build the runtime or standard library the currently-being-built compiler will inject into any code it compiles.
+        In many cases, the currently-being built compiler is itself employed for that task, but when that compiler won't run (i.e. its build and host platform differ) this is not possible.
+        Other times, the compiler relies on some other tool, like binutils, that is always built separately so the dependency is unconditional.
+      </para>
+      <para>
+        This is a somewhat confusing dependency to wrap ones head around, and for good reason.
+        As the only one where the platform offsets are not adjacent integers, it requires thinking of a bootstrapping stage <emphasis>two</emphasis> away from the current one.
+        It and it's use-case go hand in hand and are both considered poor form:
+        try not to need this sort dependency, and try not avoid building standard libraries / runtimes in the same derivation as the compiler produces code using them.
+        Instead strive to build those like a normal library, using the newly-built compiler just as a normal library would.
+        For these reason's this attribute is prefixed with <literal>__</literal> to warn potential users.
+        Do not use this attribute unless you are packaging a compiler and are sure it is needed.
+     </para>
+     <para>
+       Since these packages are able to be run at build time, that are added to the <envar>PATH</envar>, as described above.
+       But since these packages only are guaranteed to be able to run then, they shouldn't persist as run-time dependencies.
+       This isn't currently enforced, but could be in the future.
+     </para>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>depsHostHost</varname></term>
+    <listitem><para>
+      A list of dependencies whose host and target platforms match the new derivation's host platform.
+      This means a both <literal>0</literal> host offset and <literal>0</literal> target offset from the new derivation's host platform.
+      These are packages used at run-time to generate code also used at run-time.
+      In practice, that would usually be tools used by compilers for metaprogramming/macro systems, or libraries used by the macros/metaprogramming code itself.
+      It's always preferable to use a <varname>depsBuildBuild</varname> dependency in the derivation being built than a <varname>depsHostHost</varname> on the tool doing the building for this purpose.
+      Again, to ward off unintentional use, a <literal>__</literal> prefix was added.
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>buildInputs</varname></term>
+    <listitem>
+      <para>
+        A list of dependencies whose host platform and target platform match the new derivation's.
+        This means a <literal>0</literal> host offset and <literal>1</literal> target offset from the new derivation's host platform.
+        This would be called <varname>depsHostTarget</varname> but for historical continuity.
+        If the dependency doesn't care about the target platform (i.e. isn't a compiler or similar tool), put it here, rather than in <varname>depsBuildBuild</varname>.
+      </para>
+      <para>
+        These often are programs/libraries used by the new derivation at <emphasis>run</emphasis>-time, but that isn't always the case.
+        For example, the machine code in a statically linked library is only used at run time, but the derivation containing the library is only needed at build time.
+        Even in the dynamic case, the library may also be needed at build time to appease the linker.
+      </para>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>depsTargetTarget</varname></term>
+    <listitem><para>
+      A list of dependencies whose host platform matches the new derivation's target platform.
+      This means a <literal>1</literal> offset from the new derivation's platforms.
+      These are packages that run on the target platform, e.g. the standard library or run-time deps of standard library that a compiler insists on knowing about.
+      It's poor form in almost all cases for a package to depend on another from a future stage [future stage corresponding positive offset], so this attribute is prefixed with `__` to warn potential users.
+      Do not use this attribute unless you are packaging a compiler and are sure it is needed.
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>depsBuildBuildPropagated</varname></term>
+    <listitem><para>
+      The propagated equivalent of <varname>depsBuildBuild</varname>.
+      This perhaps never ought to be used, but it is included for consistency [see below for the others].
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>propagatedNativeBuildInputs</varname></term>
+    <listitem><para>
+      The propagated equivalent of <varname>nativeBuildInputs</varname>.
+      This would be called <varname>depsBuildHostPropagated</varname> but for historical continuity.
+      For example, if package <varname>Y</varname> has <literal>propagatedNativeBuildInputs = [X]</literal>, and package <varname>Z</varname> has <literal>buildInputs = [Y]</literal>, then package <varname>Z</varname> will be built as if it included package <varname>X</varname> in its <varname>nativeBuildInputs</varname>.
+      If instead, package <varname>Z</varname> has <literal>nativeBuildInputs = [Y]</literal>, then <varname>Z</varname> will be built as if it included <varname>X</varname> in the <varname>depsBuildBuild</varname> of package <varname>Z</varname>, because of the sum of the two <literal>-1</literal> host offsets.
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>depsBuildTargetPropagated</varname></term>
+    <listitem><para>
+      The propagated equivalent of <varname>depsBuildTarget</varname>.
+      This is prefixed for the same reason of alerting potential users.
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>depsHostHostPropagated</varname></term>
+    <listitem><para>
+      The propagated equivalent of <varname>depsHostHost</varname>.
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>propagatedBuildInputs</varname></term>
+    <listitem><para>
+      The propagated equivalent of <varname>buildInputs</varname>.
+      This would be called <varname>depsHostTargetPropagated</varname> but for historical continuity.
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>depsTargetTarget</varname></term>
+    <listitem><para>
+      The propagated equivalent of <varname>depsTargetTarget</varname>.
+      This is prefixed for the same reason of alerting potential users.
+    </para></listitem>
+  </varlistentry>
+
+</variablelist>
+
+</section>
+
+
 <section xml:id="ssec-stdenv-attributes"><title>Attributes</title>
 
 <variablelist>
@@ -187,40 +418,78 @@ genericBuild
 
   <varlistentry>
     <term><varname>NIX_DEBUG</varname></term>
-    <listitem><para>If set, <literal>stdenv</literal> will print some
-    debug information during the build.  In particular, the
-    <command>gcc</command> and <command>ld</command> wrapper scripts
-    will print out the complete command line passed to the wrapped
-    tools.</para></listitem>
+    <listitem><para>
+      A natural number indicating how much information to log.
+      If set to 1 or higher, <literal>stdenv</literal> will print moderate debug information during the build.
+      In particular, the <command>gcc</command> and <command>ld</command> wrapper scripts will print out the complete command line passed to the wrapped tools.
+      If set to 6 or higher, the <literal>stdenv</literal> setup script will be run with <literal>set -x</literal> tracing.
+      If set to 7 or higher, the <command>gcc</command> and <command>ld</command> wrapper scripts will also be run with <literal>set -x</literal> tracing.
+    </para></listitem>
+  </varlistentry>
+
+</variablelist>
+
+<variablelist>
+  <title>Variables affecting build properties</title>
+
+  <varlistentry>
+    <term><varname>enableParallelBuilding</varname></term>
+    <listitem>
+      <para>If set to <literal>true</literal>, <literal>stdenv</literal> will
+      pass specific flags to <literal>make</literal> and other build tools to
+      enable parallel building with up to <literal>build-cores</literal>
+      workers.</para>
+
+      <para>Unless set to <literal>false</literal>, some build systems with good
+      support for parallel building including <literal>cmake</literal>,
+      <literal>meson</literal>, and <literal>qmake</literal> will set it to
+      <literal>true</literal>.</para>
+    </listitem>
   </varlistentry>
 
   <varlistentry>
-    <term><varname>buildInputs</varname></term>
-    <listitem><para>A list of dependencies used by
-    <literal>stdenv</literal> to set up the environment for the build.
-    For each dependency <replaceable>dir</replaceable>, the directory
-    <filename><replaceable>dir</replaceable>/bin</filename>, if it
-    exists, is added to the <envar>PATH</envar> environment variable.
-    Other environment variables are also set up via a pluggable
-    mechanism.  For instance, if <varname>buildInputs</varname>
-    contains Perl, then the <filename>lib/site_perl</filename>
-    subdirectory of each input is added to the <envar>PERL5LIB</envar>
-    environment variable.  See <xref linkend="ssec-setup-hooks"/> for
-    details.</para></listitem>
+    <term><varname>preferLocalBuild</varname></term>
+    <listitem><para>If set, specifies that the package is so lightweight
+    in terms of build operations (e.g. write a text file from a Nix string
+    to the store) that there's no need to look for it in binary caches --
+    it's faster to just build it locally. It also tells Hydra and other
+    facilities that this package doesn't need to be exported in binary
+    caches (noone would use it, after all).</para></listitem>
   </varlistentry>
-  
+
+</variablelist>
+
+<variablelist>
+  <title>Special variables</title>
+
   <varlistentry>
-    <term><varname>propagatedBuildInputs</varname></term>
-    <listitem><para>Like <varname>buildInputs</varname>, but these
-    dependencies are <emphasis>propagated</emphasis>: that is, the
-    dependencies listed here are added to the
-    <varname>buildInputs</varname> of any package that uses
-    <emphasis>this</emphasis> package as a dependency.  So if package
-    Y has <literal>propagatedBuildInputs = [X]</literal>, and package
-    Z has <literal>buildInputs = [Y]</literal>, then package X will
-    appear in Z’s build environment automatically.</para></listitem>
+    <term><varname>passthru</varname></term>
+    <listitem><para>This is an attribute set which can be filled with arbitrary
+    values. For example:
+
+<programlisting>
+passthru = {
+  foo = "bar";
+  baz = {
+    value1 = 4;
+    value2 = 5;
+  };
+}
+</programlisting>
+
+</para>
+
+    <para>Values inside it are not passed to the builder, so you can change
+    them without triggering a rebuild. However, they can be accessed outside of a
+    derivation directly, as if they were set inside a derivation itself, e.g.
+    <literal>hello.baz.value1</literal>. We don't specify any usage or
+    schema of <literal>passthru</literal> - it is meant for values that would be
+    useful outside the derivation in other parts of a Nix expression (e.g. in other
+    derivations). An example would be to convey some specific dependency of your
+    derivation which contains a program with plugins support.  Later, others who
+    make derivations with plugins can use passed-through dependency to ensure that
+    their plugin would be binary-compatible with built program.</para></listitem>
   </varlistentry>
-  
 
 </variablelist>
 
@@ -242,7 +511,13 @@ containing some shell commands to be executed, or by redefining the
 shell function
 <varname><replaceable>name</replaceable>Phase</varname>.  The former
 is convenient to override a phase from the derivation, while the
-latter is convenient from a build script.</para>
+latter is convenient from a build script.
+
+However, typically one only wants to <emphasis>add</emphasis> some
+commands to a phase, e.g. by defining <literal>postInstall</literal>
+or <literal>preFixup</literal>, as skipping some of the default actions
+may have unexpected consequences.
+</para>
 
 
 <section xml:id="ssec-controlling-phases"><title>Controlling
@@ -265,7 +540,7 @@ executed and in what order:
       $preInstallPhases installPhase fixupPhase $preDistPhases
       distPhase $postPhases</literal>.
       </para>
-      
+
       <para>Usually, if you just want to add a few phases, it’s more
       convenient to set one of the variables below (such as
       <varname>preInstallPhases</varname>), as you then don’t specify
@@ -500,8 +775,8 @@ script) if it exists.</para>
 
   <varlistentry>
     <term><varname>configureFlags</varname></term>
-    <listitem><para>Additional arguments passed to the configure
-    script.</para></listitem>
+    <listitem><para>A list of strings passed as additional arguments to the
+    configure script.</para></listitem>
   </varlistentry>
 
   <varlistentry>
@@ -559,6 +834,16 @@ script) if it exists.</para>
   </varlistentry>
 
   <varlistentry>
+    <term><varname>configurePlatforms</varname></term>
+    <listitem><para>
+      By default, when cross compiling, the configure script has <option>--build=...</option> and <option>--host=...</option> passed.
+      Packages can instead pass <literal>[ "build" "host" "target" ]</literal> or a subset to control exactly which platform flags are passed.
+      Compilers and other tools should use this to also pass the target platform, for example.
+      <footnote><para>Eventually these will be passed when in native builds too, to improve determinism: build-time guessing, as is done today, is a risk of impurity.</para></footnote>
+    </para></listitem>
+  </varlistentry>
+
+  <varlistentry>
     <term><varname>preConfigure</varname></term>
     <listitem><para>Hook executed at the start of the configure
     phase.</para></listitem>
@@ -601,11 +886,17 @@ nothing.</para>
 
   <varlistentry>
     <term><varname>makeFlags</varname></term>
-    <listitem><para>Additional flags passed to
+    <listitem><para>A list of strings passed as additional flags to
     <command>make</command>.  These flags are also used by the default
     install and check phase.  For setting make flags specific to the
-    build phase, use <varname>buildFlags</varname> (see
-    below).</para></listitem>
+    build phase, use <varname>buildFlags</varname> (see below).
+
+<programlisting>
+makeFlags = [ "PREFIX=$(out)" ];
+</programlisting>
+
+    <note><para>The flags are quoted in bash, but environment variables can
+    be specified by using the make syntax.</para></note></para></listitem>
   </varlistentry>
 
   <varlistentry>
@@ -628,7 +919,7 @@ makeFlagsArray=(CFLAGS="-O0 -g" LDFLAGS="-lfoo -lbar")
 
   <varlistentry>
     <term><varname>buildFlags</varname> / <varname>buildFlagsArray</varname></term>
-    <listitem><para>Additional flags passed to
+    <listitem><para>A list of strings passed as additional flags to
     <command>make</command>.  Like <varname>makeFlags</varname> and
     <varname>makeFlagsArray</varname>, but only used by the build
     phase.</para></listitem>
@@ -649,7 +940,7 @@ makeFlagsArray=(CFLAGS="-O0 -g" LDFLAGS="-lfoo -lbar")
 </variablelist>
 
 
-<para> 
+<para>
 You can set flags for <command>make</command> through the
 <varname>makeFlags</varname> variable.</para>
 
@@ -696,7 +987,7 @@ doCheck = true;</programlisting>
 
   <varlistentry>
     <term><varname>checkFlags</varname> / <varname>checkFlagsArray</varname></term>
-    <listitem><para>Additional flags passed to
+    <listitem><para>A list of strings passed as additional flags to
     <command>make</command>.  Like <varname>makeFlags</varname> and
     <varname>makeFlagsArray</varname>, but only used by the check
     phase.</para></listitem>
@@ -716,7 +1007,7 @@ doCheck = true;</programlisting>
 
 </variablelist>
 
-  
+
 </section>
 
 
@@ -751,7 +1042,7 @@ installTargets = "install-bin install-doc";</programlisting>
 
   <varlistentry>
     <term><varname>installFlags</varname> / <varname>installFlagsArray</varname></term>
-    <listitem><para>Additional flags passed to
+    <listitem><para>A list of strings passed as additional flags to
     <command>make</command>.  Like <varname>makeFlags</varname> and
     <varname>makeFlagsArray</varname>, but only used by the install
     phase.</para></listitem>
@@ -783,12 +1074,12 @@ install phase.  The default <function>fixupPhase</function> does the
 following:
 
 <itemizedlist>
-      
+
   <listitem><para>It moves the <filename>man/</filename>,
   <filename>doc/</filename> and <filename>info/</filename>
   subdirectories of <envar>$out</envar> to
   <filename>share/</filename>.</para></listitem>
-      
+
   <listitem><para>It strips libraries and executables of debug
   information.</para></listitem>
 
@@ -899,7 +1190,7 @@ following:
     phase.</para></listitem>
   </varlistentry>
 
-  <varlistentry>
+  <varlistentry xml:id="stdenv-separateDebugInfo">
     <term><varname>separateDebugInfo</varname></term>
     <listitem><para>If set to <literal>true</literal>, the standard
     environment will enable debug information in C/C++ builds. After
@@ -931,6 +1222,41 @@ set debug-file-directory ~/.nix-profile/lib/debug
 
 </section>
 
+<section xml:id="ssec-installCheck-phase"><title>The installCheck phase</title>
+
+<para>The installCheck phase checks whether the package was installed
+correctly by running its test suite against the installed directories.
+The default <function>installCheck</function> calls <command>make
+installcheck</command>.</para>
+
+<variablelist>
+  <title>Variables controlling the installCheck phase</title>
+
+  <varlistentry>
+    <term><varname>doInstallCheck</varname></term>
+    <listitem><para>If set to a non-empty string, the installCheck phase is
+    executed, otherwise it is skipped (default).  Thus you should set
+
+    <programlisting>doInstallCheck = true;</programlisting>
+
+    in the derivation to enable install checks.</para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>preInstallCheck</varname></term>
+    <listitem><para>Hook executed at the start of the installCheck
+    phase.</para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>postInstallCheck</varname></term>
+    <listitem><para>Hook executed at the end of the installCheck
+    phase.</para></listitem>
+  </varlistentry>
+
+</variablelist>
+
+</section>
 
 <section xml:id="ssec-distribution-phase"><title>The distribution
 phase</title>
@@ -999,13 +1325,41 @@ functions.</para>
 
 <variablelist>
 
-  
+
+  <varlistentry xml:id='fun-makeWrapper'>
+    <term><function>makeWrapper</function>
+    <replaceable>executable</replaceable>
+    <replaceable>wrapperfile</replaceable>
+    <replaceable>args</replaceable></term>
+    <listitem><para>Constructs a wrapper for a program with various
+    possible arguments. For example:
+
+<programlisting>
+# adds `FOOBAR=baz` to `$out/bin/foo`’s environment
+makeWrapper $out/bin/foo $wrapperfile --set FOOBAR baz
+
+# prefixes the binary paths of `hello` and `git`
+# Be advised that paths often should be patched in directly
+# (via string replacements or in `configurePhase`).
+makeWrapper $out/bin/foo $wrapperfile --prefix PATH : ${lib.makeBinPath [ hello git ]}
+</programlisting>
+
+    There’s many more kinds of arguments, they are documented in
+    <literal>nixpkgs/pkgs/build-support/setup-hooks/make-wrapper.sh</literal>.</para>
+
+    <para><literal>wrapProgram</literal> is a convenience function you probably
+    want to use most of the time.</para>
+
+    </listitem>
+  </varlistentry>
+
+
   <varlistentry xml:id='fun-substitute'>
     <term><function>substitute</function>
     <replaceable>infile</replaceable>
     <replaceable>outfile</replaceable>
     <replaceable>subs</replaceable></term>
-    
+
     <listitem>
       <para>Performs string substitution on the contents of
       <replaceable>infile</replaceable>, writing the result to
@@ -1017,7 +1371,7 @@ functions.</para>
             <term><option>--replace</option>
             <replaceable>s1</replaceable>
             <replaceable>s2</replaceable></term>
-            <listitem><para>Replace every occurence of the string
+            <listitem><para>Replace every occurrence of the string
             <replaceable>s1</replaceable> by
             <replaceable>s2</replaceable>.</para></listitem>
           </varlistentry>
@@ -1025,7 +1379,7 @@ functions.</para>
           <varlistentry>
             <term><option>--subst-var</option>
             <replaceable>varName</replaceable></term>
-            <listitem><para>Replace every occurence of
+            <listitem><para>Replace every occurrence of
             <literal>@<replaceable>varName</replaceable>@</literal> by
             the contents of the environment variable
             <replaceable>varName</replaceable>.  This is useful for
@@ -1033,16 +1387,16 @@ functions.</para>
             <literal>@<replaceable>...</replaceable>@</literal> in the
             template as placeholders.</para></listitem>
           </varlistentry>
-          
+
           <varlistentry>
             <term><option>--subst-var-by</option>
             <replaceable>varName</replaceable>
             <replaceable>s</replaceable></term>
-            <listitem><para>Replace every occurence of
+            <listitem><para>Replace every occurrence of
             <literal>@<replaceable>varName</replaceable>@</literal> by
             the string <replaceable>s</replaceable>.</para></listitem>
           </varlistentry>
-          
+
         </variablelist>
 
       </para>
@@ -1070,7 +1424,7 @@ substitute ./foo.in ./foo.out \
 
     </listitem>
   </varlistentry>
-  
+
 
   <varlistentry xml:id='fun-substituteInPlace'>
     <term><function>substituteInPlace</function>
@@ -1081,12 +1435,12 @@ substitute ./foo.in ./foo.out \
     <replaceable>file</replaceable>.</para></listitem>
   </varlistentry>
 
-  
+
   <varlistentry xml:id='fun-substituteAll'>
     <term><function>substituteAll</function>
     <replaceable>infile</replaceable>
     <replaceable>outfile</replaceable></term>
-    <listitem><para>Replaces every occurence of
+    <listitem><para>Replaces every occurrence of
     <literal>@<replaceable>varName</replaceable>@</literal>, where
     <replaceable>varName</replaceable> is any environment variable, in
     <replaceable>infile</replaceable>, writing the result to
@@ -1112,7 +1466,17 @@ PATH=/nix/store/68afga4khv0w...-coreutils-6.12/bin
 echo @foo@
 </programlisting>
 
-    That is, no substitution is performed for undefined variables.</para></listitem>
+    That is, no substitution is performed for undefined variables.</para>
+
+    <para>Environment variables that start with an uppercase letter or an
+    underscore are filtered out,
+    to prevent global variables (like <literal>HOME</literal>) or private
+    variables (like <literal>__ETC_PROFILE_DONE</literal>) from accidentally
+    getting substituted.
+    The variables also have to be valid bash “names”, as
+    defined in the bash manpage (alphanumeric or <literal>_</literal>,
+    must not start with a number).</para>
+  </listitem>
   </varlistentry>
 
 
@@ -1129,13 +1493,42 @@ echo @foo@
     <term><function>stripHash</function>
     <replaceable>path</replaceable></term>
     <listitem><para>Strips the directory and hash part of a store
-    path, and prints (on standard output) only the name part.  For
-    instance, <literal>stripHash
-    /nix/store/68afga4khv0w...-coreutils-6.12</literal> print
-    <literal>coreutils-6.12</literal>.</para></listitem>
+    path, outputting the name part to <literal>stdout</literal>.
+    For example:
+
+<programlisting>
+# prints coreutils-8.24
+stripHash "/nix/store/9s9r019176g7cvn2nvcw41gsp862y6b4-coreutils-8.24"
+</programlisting>
+
+    If you wish to store the result in another variable, then the
+    following idiom may be useful:
+
+<programlisting>
+name="/nix/store/9s9r019176g7cvn2nvcw41gsp862y6b4-coreutils-8.24"
+someVar=$(stripHash $name)
+</programlisting>
+
+    </para></listitem>
   </varlistentry>
 
-  
+
+  <varlistentry xml:id='fun-wrapProgram'>
+    <term><function>wrapProgram</function>
+    <replaceable>executable</replaceable>
+    <replaceable>makeWrapperArgs</replaceable></term>
+    <listitem><para>Convenience function for <literal>makeWrapper</literal>
+    that automatically creates a sane wrapper file
+
+    It takes all the same arguments as <literal>makeWrapper</literal>,
+    except for <literal>--argv0</literal>.</para>
+
+    <para>It cannot be applied multiple times, since it will overwrite the wrapper
+    file.</para>
+    </listitem>
+  </varlistentry>
+
+
 </variablelist>
 
 </section>
@@ -1143,24 +1536,127 @@ echo @foo@
 
 <section xml:id="ssec-setup-hooks"><title>Package setup hooks</title>
 
-<para>The following packages provide a setup hook:
-
+<para>
+  Nix itself considers a build-time dependency merely something that should previously be built and accessible at build time—packages themselves are on their own to perform any additional setup.
+  In most cases, that is fine, and the downstream derivation can deal with it's own dependencies.
+  But for a few common tasks, that would result in almost every package doing the same sort of setup work---depending not on the package itself, but entirely on which dependencies were used.
+</para>
+<para>
+  In order to alleviate this burden, the <firstterm>setup hook></firstterm>mechanism was written, where any package can include a shell script that [by convention rather than enforcement by Nix], any downstream reverse-dependency will source as part of its build process.
+  That allows the downstream dependency to merely specify its dependencies, and lets those dependencies effectively initialize themselves.
+  No boilerplate mirroring the list of dependencies is needed.
+</para>
+<para>
+  The Setup hook mechanism is a bit of a sledgehammer though: a powerful feature with a broad and indiscriminate area of effect.
+  The combination of its power and implicit use may be expedient, but isn't without costs.
+  Nix itself is unchanged, but the spirit of adding dependencies being effect-free is violated even if the letter isn't.
+  For example, if a derivation path is mentioned more than once, Nix itself doesn't care and simply makes sure the dependency derivation is already built just the same—depending is just needing something to exist, and needing is idempotent.
+  However, a dependency specified twice will have its setup hook run twice, and that could easily change the build environment (though a well-written setup hook will therefore strive to be idempotent so this is in fact not observable).
+  More broadly, setup hooks are anti-modular in that multiple dependencies, whether the same or different, should not interfere and yet their setup hooks may well do so.
+</para>
+<para>
+  The most typical use of the setup hook is actually to add other hooks which are then run (i.e. after all the setup hooks) on each dependency.
+  For example, the C compiler wrapper's setup hook feeds itself flags for each dependency that contains relevant libaries and headers.
+  This is done by defining a bash function, and appending its name to one of
+  <envar>envBuildBuildHooks</envar>`,
+  <envar>envBuildHostHooks</envar>`,
+  <envar>__envBuildTargetHooks</envar>`,
+  <envar>__envHostHostHooks</envar>`,
+  <envar>envHostTargetHooks</envar>`, or
+  <envar>__envTargetTargetHooks</envar>`.
+  These 6 bash variables correspond to the 6 sorts of dependencies by platform (there's 12 total but we ignore the propagated/non-propagated axis).
+</para>
+<para>
+  Packages adding a hook should not hard code a specific hook, but rather choose a variable <emphasis>relative</emphasis> to how they are included.
+  Returning to the C compiler wrapper example, if it itself is an <literal>n</literal> dependency, then it only wants to accumulate flags from <literal>n + 1</literal> dependencies, as only those ones match the compiler's target platform.
+  The <envar>hostOffset</envar> variable is defined with the current dependency's host offset <envar>targetOffset</envar> with its target offset, before it's setup hook is sourced.
+  Additionally, since most environment hooks don't care about the target platform,
+  That means the setup hook can append to the right bash array by doing something like
+  <programlisting language="bash">
+addEnvHooks "$hostOffset" myBashFunction
+  </programlisting>
+</para>
+<para>
+  The <emphasis>existence</emphasis> of setups hooks has long been documented and packages inside Nixpkgs are free to use these mechanism.
+  Other packages, however, should not rely on these mechanisms not changing between Nixpkgs versions.
+  Because of the existing issues with this system, there's little benefit from mandating it be stable for any period of time.
+</para>
+<para>
+  Here are some packages that provide a setup hook.
+  Since the mechanism is modular, this probably isn't an exhaustive list.
+  Then again, since the mechanism is only to be used as a last resort, it might be.
 <variablelist>
 
   <varlistentry>
-    <term>GCC wrapper</term>
-    <listitem><para>Adds the <filename>include</filename> subdirectory
-    of each build input to the <envar>NIX_CFLAGS_COMPILE</envar>
-    environment variable, and the <filename>lib</filename> and
-    <filename>lib64</filename> subdirectories to
-    <envar>NIX_LDFLAGS</envar>.</para></listitem>
+    <term>Bintools Wrapper</term>
+    <listitem>
+      <para>
+        Bintools Wrapper wraps the binary utilities for a bunch of miscellaneous purposes.
+        These are GNU Binutils when targetting Linux, and a mix of cctools and GNU binutils for Darwin.
+        [The "Bintools" name is supposed to be a compromise between "Binutils" and "cctools" not denoting any specific implementation.]
+        Specifically, the underlying bintools package, and a C standard library (glibc or Darwin's libSystem, just for the dynamic loader) are all fed in, and dependency finding, hardening (see below), and purity checks for each are handled by Bintools Wrapper.
+        Packages typically depend on CC Wrapper, which in turn (at run time) depends on Bintools Wrapper.
+      </para>
+      <para>
+        Bintools Wrapper was only just recently split off from CC Wrapper, so the division of labor is still being worked out.
+        For example, it shouldn't care about about the C standard library, but just take a derivation with the dynamic loader (which happens to be the glibc on linux).
+        Dependency finding however is a task both wrappers will continue to need to share, and probably the most important to understand.
+        It is currently accomplished by collecting directories of host-platform dependencies (i.e. <varname>buildInputs</varname> and <varname>nativeBuildInputs</varname>) in environment variables.
+        Bintools Wrapper's setup hook causes any <filename>lib</filename> and <filename>lib64</filename> subdirectories to be added to <envar>NIX_LDFLAGS</envar>.
+        Since CC Wrapper and Bintools Wrapper use the same strategy, most of the Bintools Wrapper code is sparsely commented and refers to CC Wrapper.
+        But CC Wrapper's code, by contrast, has quite lengthy comments.
+        Bintools Wrapper merely cites those, rather than repeating them, to avoid falling out of sync.
+      </para>
+      <para>
+        A final task of the setup hook is defining a number of standard environment variables to tell build systems which executables full-fill which purpose.
+        They are defined to just be the base name of the tools, under the assumption that Bintools Wrapper's binaries will be on the path.
+        Firstly, this helps poorly-written packages, e.g. ones that look for just <command>gcc</command> when <envar>CC</envar> isn't defined yet <command>clang</command> is to be used.
+        Secondly, this helps packages not get confused when cross-compiling, in which case multiple Bintools Wrappers may simultaneously be in use.
+        <footnote><para>
+          Each wrapper targets a single platform, so if binaries for multiple platforms are needed, the underlying binaries must be wrapped multiple times.
+          As this is a property of the wrapper itself, the multiple wrappings are needed whether or not the same underlying binaries can target multiple platforms.
+        </para></footnote>
+        <envar>BUILD_</envar>- and <envar>TARGET_</envar>-prefixed versions of the normal environment variable are defined for the additional Bintools Wrappers, properly disambiguating them.
+      </para>
+      <para>
+        A problem with this final task is that Bintools Wrapper is honest and defines <envar>LD</envar> as <command>ld</command>.
+        Most packages, however, firstly use the C compiler for linking, secondly use <envar>LD</envar> anyways, defining it as the C compiler, and thirdly, only so define <envar>LD</envar> when it is undefined as a fallback.
+        This triple-threat means Bintools Wrapper will break those packages, as LD is already defined as the actual linker which the package won't override yet doesn't want to use.
+        The workaround is to define, just for the problematic package, <envar>LD</envar> as the C compiler.
+        A good way to do this would be <command>preConfigure = "LD=$CC"</command>.
+      </para>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term>CC Wrapper</term>
+    <listitem>
+      <para>
+        CC Wrapper wraps a C toolchain for a bunch of miscellaneous purposes.
+        Specifically, a C compiler (GCC or Clang), wrapped binary tools, and a C standard library (glibc or Darwin's libSystem, just for the dynamic loader) are all fed in, and dependency finding, hardening (see below), and purity checks for each are handled by CC Wrapper.
+        Packages typically depend on CC Wrapper, which in turn (at run time) depends on Bintools Wrapper.
+      </para>
+      <para>
+        Dependency finding is undoubtedly the main task of CC Wrapper.
+        This works just like Bintools Wrapper, except that any <filename>include</filename> subdirectory of any relevant dependency is added to <envar>NIX_CFLAGS_COMPILE</envar>.
+        The setup hook itself contains some lengthy comments describing the exact convoluted mechanism by which this is accomplished.
+      </para>
+      <para>
+        CC Wrapper also like Bintools Wrapper defines standard environment variables with the names of the tools it wraps, for the same reasons described above.
+        Importantly, while it includes a <command>cc</command> symlink to the c compiler for portability, the <envar>CC</envar> will be defined using the compiler's "real name" (i.e. <command>gcc</command> or <command>clang</command>).
+        This helps lousy build systems that inspect on the name of the compiler rather than run it.
+      </para>
+    </listitem>
   </varlistentry>
 
   <varlistentry>
     <term>Perl</term>
-    <listitem><para>Adds the <filename>lib/site_perl</filename> subdirectory
-    of each build input to the <envar>PERL5LIB</envar>
-    environment variable.</para></listitem>
+    <listitem>
+      <para>
+        Adds the <filename>lib/site_perl</filename> subdirectory of each build input to the <envar>PERL5LIB</envar> environment variable.
+        For instance, if <varname>buildInputs</varname> contains Perl, then the <filename>lib/site_perl</filename> subdirectory of each input is added to the <envar>PERL5LIB</envar> environment variable.
+      </para>
+    </listitem>
   </varlistentry>
 
   <varlistentry>
@@ -1184,6 +1680,14 @@ echo @foo@
     <listitem><para>Adds the <filename>share/aclocal</filename>
     subdirectory of each build input to the <envar>ACLOCAL_PATH</envar>
     environment variable.</para></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term>Autoconf</term>
+    <listitem><para>The <varname>autoreconfHook</varname> derivation adds
+    <varname>autoreconfPhase</varname>, which runs autoreconf, libtoolize and
+    automake, essentially preparing the configure script in autotools-based
+    builds.</para></listitem>
   </varlistentry>
 
   <varlistentry>
@@ -1230,6 +1734,25 @@ echo @foo@
     <envar>GST_PLUGIN_SYSTEM_PATH</envar> environment variable.</para></listitem>
   </varlistentry>
 
+  <varlistentry>
+    <term>paxctl</term>
+    <listitem><para>Defines the <varname>paxmark</varname> helper for
+    setting per-executable PaX flags on Linux (where it is available by
+    default; on all other platforms, <varname>paxmark</varname> is a no-op).
+    For example, to disable secure memory protections on the executable
+    <replaceable>foo</replaceable>:
+    <programlisting>
+      postFixup = ''
+        paxmark m $out/bin/<replaceable>foo</replaceable>
+      '';
+    </programlisting>
+    The <literal>m</literal> flag is the most common flag and is typically
+    required for applications that employ JIT compilation or otherwise need to
+    execute code generated at run-time.  Disabling PaX protections should be
+    considered a last resort: if possible, problematic features should be
+    disabled or patched to work with PaX.</para></listitem>
+  </varlistentry>
+
 </variablelist>
 
 </para>
@@ -1252,6 +1775,216 @@ in the default system locations.</para>
 
 </section>
 
+<section xml:id="sec-hardening-in-nixpkgs"><title>Hardening in Nixpkgs</title>
+
+<para>There are flags available to harden packages at compile or link-time.
+These can be toggled using the <varname>stdenv.mkDerivation</varname> parameters
+<varname>hardeningDisable</varname> and <varname>hardeningEnable</varname>.
+</para>
+
+<para>
+Both parameters take a list of flags as strings. The special
+<varname>"all"</varname> flag can be passed to <varname>hardeningDisable</varname>
+to turn off all hardening. These flags can also be used as environment variables
+for testing or development purposes.
+</para>
+
+<para>The following flags are enabled by default and might require disabling with
+<varname>hardeningDisable</varname> if the program to package is incompatible.
+</para>
+
+<variablelist>
+
+  <varlistentry>
+    <term><varname>format</varname></term>
+    <listitem><para>Adds the <option>-Wformat -Wformat-security
+    -Werror=format-security</option> compiler options. At present,
+    this warns about calls to <varname>printf</varname> and
+    <varname>scanf</varname> functions where the format string is
+    not a string literal and there are no format arguments, as in
+    <literal>printf(foo);</literal>. This may be a security hole
+    if the format string came from untrusted input and contains
+    <literal>%n</literal>.</para>
+
+    <para>This needs to be turned off or fixed for errors similar to:</para>
+
+    <programlisting>
+/tmp/nix-build-zynaddsubfx-2.5.2.drv-0/zynaddsubfx-2.5.2/src/UI/guimain.cpp:571:28: error: format not a string literal and no format arguments [-Werror=format-security]
+         printf(help_message);
+                            ^
+cc1plus: some warnings being treated as errors
+    </programlisting></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>stackprotector</varname></term>
+    <listitem>
+    <para>Adds the <option>-fstack-protector-strong
+    --param ssp-buffer-size=4</option>
+    compiler options. This adds safety checks against stack overwrites
+    rendering many potential code injection attacks into aborting situations.
+    In the best case this turns code injection vulnerabilities into denial
+    of service or into non-issues (depending on the application).</para>
+
+    <para>This needs to be turned off or fixed for errors similar to:</para>
+
+    <programlisting>
+bin/blib.a(bios_console.o): In function `bios_handle_cup':
+/tmp/nix-build-ipxe-20141124-5cbdc41.drv-0/ipxe-5cbdc41/src/arch/i386/firmware/pcbios/bios_console.c:86: undefined reference to `__stack_chk_fail'
+    </programlisting></listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>fortify</varname></term>
+    <listitem>
+    <para>Adds the <option>-O2 -D_FORTIFY_SOURCE=2</option> compiler
+    options. During code generation the compiler knows a great deal of
+    information about buffer sizes (where possible), and attempts to replace
+    insecure unlimited length buffer function calls with length-limited ones.
+    This is especially useful for old, crufty code. Additionally, format
+    strings in writable memory that contain '%n' are blocked. If an application
+    depends on such a format string, it will need to be worked around.
+    </para>
+
+    <para>Additionally, some warnings are enabled which might trigger build
+    failures if compiler warnings are treated as errors in the package build.
+    In this case, set <option>NIX_CFLAGS_COMPILE</option> to
+    <option>-Wno-error=warning-type</option>.</para>
+
+    <para>This needs to be turned off or fixed for errors similar to:</para>
+
+    <programlisting>
+malloc.c:404:15: error: return type is an incomplete type
+malloc.c:410:19: error: storage size of 'ms' isn't known
+    </programlisting>
+    <programlisting>
+strdup.h:22:1: error: expected identifier or '(' before '__extension__'
+    </programlisting>
+    <programlisting>
+strsep.c:65:23: error: register name not specified for 'delim'
+    </programlisting>
+    <programlisting>
+installwatch.c:3751:5: error: conflicting types for '__open_2'
+    </programlisting>
+    <programlisting>
+fcntl2.h:50:4: error: call to '__open_missing_mode' declared with attribute error: open with O_CREAT or O_TMPFILE in second argument needs 3 arguments
+    </programlisting>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>pic</varname></term>
+    <listitem>
+    <para>Adds the <option>-fPIC</option> compiler options. This options adds
+    support for position independent code in shared libraries and thus making
+    ASLR possible.</para>
+    <para>Most notably, the Linux kernel, kernel modules and other code
+    not running in an operating system environment like boot loaders won't
+    build with PIC enabled. The compiler will is most cases complain that
+    PIC is not supported for a specific build.
+    </para>
+
+    <para>This needs to be turned off or fixed for assembler errors similar to:</para>
+
+    <programlisting>
+ccbLfRgg.s: Assembler messages:
+ccbLfRgg.s:33: Error: missing or invalid displacement expression `private_key_len@GOTOFF'
+    </programlisting>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>strictoverflow</varname></term>
+    <listitem>
+    <para>Signed integer overflow is undefined behaviour according to the C
+    standard. If it happens, it is an error in the program as it should check
+    for overflow before it can happen, not afterwards. GCC provides built-in
+    functions to perform arithmetic with overflow checking, which are correct
+    and faster than any custom implementation. As a workaround, the option
+    <option>-fno-strict-overflow</option> makes gcc behave as if signed
+    integer overflows were defined.
+    </para>
+
+    <para>This flag should not trigger any build or runtime errors.</para>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>relro</varname></term>
+    <listitem>
+    <para>Adds the <option>-z relro</option> linker option. During program
+    load, several ELF memory sections need to be written to by the linker,
+    but can be turned read-only before turning over control to the program.
+    This prevents some GOT (and .dtors) overwrite attacks, but at least the
+    part of the GOT used by the dynamic linker (.got.plt) is still vulnerable.
+    </para>
+
+    <para>This flag can break dynamic shared object loading. For instance, the
+    module systems of Xorg and OpenCV are incompatible with this flag. In almost
+    all cases the <varname>bindnow</varname> flag must also be disabled and
+    incompatible programs typically fail with similar errors at runtime.</para>
+    </listitem>
+  </varlistentry>
+
+  <varlistentry>
+    <term><varname>bindnow</varname></term>
+    <listitem>
+    <para>Adds the <option>-z bindnow</option> linker option. During program
+    load, all dynamic symbols are resolved, allowing for the complete GOT to
+    be marked read-only (due to <varname>relro</varname>). This prevents GOT
+    overwrite attacks. For very large applications, this can incur some
+    performance loss during initial load while symbols are resolved, but this
+    shouldn't be an issue for daemons.
+    </para>
+
+    <para>This flag can break dynamic shared object loading. For instance, the
+    module systems of Xorg and PHP are incompatible with this flag. Programs
+    incompatible with this flag often fail at runtime due to missing symbols,
+    like:</para>
+
+    <programlisting>
+intel_drv.so: undefined symbol: vgaHWFreeHWRec
+    </programlisting>
+    </listitem>
+  </varlistentry>
+
+</variablelist>
+
+<para>The following flags are disabled by default and should be enabled
+with <varname>hardeningEnable</varname> for packages that take untrusted
+input like network services.
+</para>
+
+<variablelist>
+
+  <varlistentry>
+    <term><varname>pie</varname></term>
+    <listitem>
+    <para>Adds the <option>-fPIE</option> compiler and <option>-pie</option>
+    linker options. Position Independent Executables are needed to take
+    advantage of Address Space Layout Randomization, supported by modern
+    kernel versions. While ASLR can already be enforced for data areas in
+    the stack and heap (brk and mmap), the code areas must be compiled as
+    position-independent. Shared libraries already do this with the
+    <varname>pic</varname> flag, so they gain ASLR automatically, but binary
+    .text regions need to be build with <varname>pie</varname> to gain ASLR.
+    When this happens, ROP attacks are much harder since there are no static
+    locations to bounce off of during a memory corruption attack.
+    </para>
+    </listitem>
+  </varlistentry>
+
+</variablelist>
+
+<para>For more in-depth information on these hardening flags and hardening in
+general, refer to the
+<link xlink:href="https://wiki.debian.org/Hardening">Debian Wiki</link>,
+<link xlink:href="https://wiki.ubuntu.com/Security/Features">Ubuntu Wiki</link>,
+<link xlink:href="https://wiki.gentoo.org/wiki/Project:Hardened">Gentoo Wiki</link>,
+and the <link xlink:href="https://wiki.archlinux.org/index.php/DeveloperWiki:Security">
+Arch Wiki</link>.
+</para>
+
+</section>
 
 </chapter>
-

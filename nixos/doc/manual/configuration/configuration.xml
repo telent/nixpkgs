@@ -21,14 +21,13 @@ effect after you run <command>nixos-rebuild</command>.</para>
 <xi:include href="user-mgmt.xml" />
 <xi:include href="file-systems.xml" />
 <xi:include href="x-windows.xml" />
+<xi:include href="xfce.xml" />
 <xi:include href="networking.xml" />
 <xi:include href="linux-kernel.xml" />
 
-<!-- FIXME: auto-include NixOS module docs -->
-<xi:include href="postgresql.xml" />
-<xi:include href="acme.xml" />
-<xi:include href="nixos.xml" />
+<xi:include href="modules.xml" xpointer="xpointer(//section[@id='modules']/*)" />
 
 <!-- Apache; libvirtd virtualisation -->
 
 </part>
+

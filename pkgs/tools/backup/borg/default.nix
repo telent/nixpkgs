@@ -1,29 +1,54 @@
-{ stdenv, fetchurl, python3Packages, openssl, acl, lz4 }:
+{ stdenv, fetchurl, python3Packages, acl, lz4, openssl, openssh }:
 
-python3Packages.buildPythonPackage rec {
+python3Packages.buildPythonApplication rec {
   name = "borgbackup-${version}";
-  version = "0.27.0";
+  version = "1.1.3";
   namePrefix = "";
 
   src = fetchurl {
-    url = "https://pypi.python.org/packages/source/b/borgbackup/borgbackup-${version}.tar.gz";
-    sha256 = "04iizidag4fwy6kx1747d633s1amr81slgk743qsfbwixaxfjq9b";
+    url = "https://github.com/borgbackup/borg/releases/download/"
+      + "${version}/${name}.tar.gz";
+    sha256 = "1rvn8b6clzd1r317r9jkvk34r31risi0dxfjc7jffhnwasck4anc";
   };
 
-  propagatedBuildInputs = with python3Packages;
-    [ cython msgpack openssl acl llfuse tox detox lz4 setuptools_scm ];
+  nativeBuildInputs = with python3Packages; [
+    # For building documentation:
+    sphinx guzzle_sphinx_theme
+  ];
+  buildInputs = [
+    lz4 openssl python3Packages.setuptools_scm
+  ] ++ stdenv.lib.optionals stdenv.isLinux [ acl ];
+  propagatedBuildInputs = with python3Packages; [
+    cython msgpack
+  ] ++ stdenv.lib.optionals (!stdenv.isDarwin) [ llfuse ];
 
   preConfigure = ''
-    export BORG_OPENSSL_PREFIX="${openssl}"
-    export BORG_LZ4_PREFIX="${lz4}"
-    # note: fix for this issue already upstream and probably in 0.27.1 (or whatever the next release is called)
-    substituteInPlace setup.py --replace "possible_openssl_prefixes.insert(0, os.environ.get('BORG_LZ4_PREFIX'))" "possible_lz4_prefixes.insert(0, os.environ.get('BORG_LZ4_PREFIX'))"
+    export BORG_OPENSSL_PREFIX="${openssl.dev}"
+    export BORG_LZ4_PREFIX="${lz4.dev}"
   '';
+
+  makeWrapperArgs = [
+    ''--prefix PATH ':' "${openssh}/bin"''
+  ];
+
+  postInstall = ''
+    make -C docs singlehtml
+    mkdir -p $out/share/doc/borg
+    cp -R docs/_build/singlehtml $out/share/doc/borg/html
+
+    make -C docs man
+    mkdir -p $out/share/man
+    cp -R docs/_build/man $out/share/man/man1
+  '';
+
+  # tests fail due to missing test command in nix_run_setup.py
+  doCheck = false;
 
   meta = with stdenv.lib; {
     description = "A deduplicating backup program (attic fork)";
     homepage = https://borgbackup.github.io/;
     license = licenses.bsd3;
     platforms = platforms.unix; # Darwin and FreeBSD mentioned on homepage
+    maintainers = with maintainers; [ nckx flokli ];
   };
 }

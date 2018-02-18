@@ -1,19 +1,21 @@
-{ stdenv, fetchurl, cmake, fcitx, extra-cmake-modules, qtbase }:
+{ stdenv, lib, fetchurl, cmake, fcitx, pkgconfig, qtbase, extra-cmake-modules }:
 
 stdenv.mkDerivation rec {
   name = "fcitx-qt5-${version}";
-  version = "1.0.4";
+  version = "1.1.0";
 
   src = fetchurl {
     url = "http://download.fcitx-im.org/fcitx-qt5/${name}.tar.xz";
-    sha256 = "070dlmwkim7sg0xwxfcbb46li1jk8yd3rmj0j5fkmgyr12044aml";
+    sha256 = "0r8c5k0qin3mz2p1mdciip6my0x58662sx5z50zs4c5pkdg21qwv";
   };
 
-  buildInputs = [ cmake fcitx extra-cmake-modules qtbase ];
+  nativeBuildInputs = [ cmake extra-cmake-modules pkgconfig ];
+
+  buildInputs = [ fcitx qtbase ];
 
   preInstall = ''
     substituteInPlace platforminputcontext/cmake_install.cmake \
-      --replace ${qtbase} $out
+      --replace ${qtbase.out} $out
   '';
 
   meta = with stdenv.lib; {

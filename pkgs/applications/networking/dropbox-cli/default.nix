@@ -11,13 +11,16 @@ stdenv.mkDerivation {
     sha256 = "1ai6vi5227z2ryxl403693xi63b42ylyfmzh8hbv4shp69zszm9c";
   };
 
-  buildInputs = [ pkgconfig python ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ python ];
 
   phases = "unpackPhase installPhase";
 
   installPhase = ''
     mkdir -p "$out/bin/" "$out/share/applications"
     cp data/dropbox.desktop "$out/share/applications"
+    cp -a data/icons "$out/share/icons"
+    find "$out/share/icons" -type f \! -name '*.png' -delete
     substitute "dropbox.in" "$out/bin/dropbox" \
       --replace '@PACKAGE_VERSION@' ${version} \
       --replace '@DESKTOP_FILE_DIR@' "$out/share/applications" \

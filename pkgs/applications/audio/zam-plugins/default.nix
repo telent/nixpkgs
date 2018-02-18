@@ -2,20 +2,20 @@
 
 stdenv.mkDerivation rec {
   name = "zam-plugins-${version}";
-  version = "3.6";
+  version = "3.9";
 
   src = fetchgit {
     url = "https://github.com/zamaudio/zam-plugins.git";
     deepClone = true;
-    rev = "91fe56931a3e57b80f18c740d2dde6b44f962aee";
-    sha256 = "0n29zxg4l2m3jsnfw6q2alyzaw7ibbv9nvk57k07sv3lh2yy3f30";
+    rev = "4976cf204074c1dfaf344821e83e8d896b35107d";
+    sha256 = "1xgwl51sf2hgc5ikcnycyxaw9vy82lrcswn07b6av6i67qclm8f8";
   };
 
-  buildInputs = [ boost libX11 mesa liblo libjack2 ladspaH lv2 pkgconfig rubberband libsndfile ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ boost libX11 mesa liblo libjack2 ladspaH lv2 rubberband libsndfile ];
 
   patchPhase = ''
     patchShebangs ./dpf/utils/generate-ttl.sh
-    substituteInPlace Makefile --replace "ZaMaximX2" "ZaMaximX2 ZamPiano ZamChild670"
   '';
 
   makeFlags = [

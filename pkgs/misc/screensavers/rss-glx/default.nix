@@ -9,9 +9,10 @@ stdenv.mkDerivation rec {
     sha256 = "1aikafjqrfmv23jnrrm5d56dg6injh4l67zjdxzdapv9chw7g3cg";
   };
 
-  buildInputs = [ pkgconfig mesa xlibsWrapper imagemagick libtiff bzip2 ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ mesa xlibsWrapper imagemagick libtiff bzip2 ];
 
-  NIX_CFLAGS_COMPILE = "-I${imagemagick}/include/ImageMagick";
+  NIX_CFLAGS_COMPILE = "-I${imagemagick.dev}/include/ImageMagick";
   NIX_LDFLAGS= "-rpath ${libXext}/lib";
 
   meta = {
@@ -21,5 +22,6 @@ stdenv.mkDerivation rec {
       original collection, plus a few others.
     '';
     license = stdenv.lib.licenses.gpl2;
+    platforms = stdenv.lib.platforms.linux;
   };
 }

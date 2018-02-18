@@ -19,7 +19,8 @@ stdenv.mkDerivation rec {
                           sha256 = "166svcav6axkrlb3i4rbf6dkwjnqdf69xw339az1f5yabj72pqqs";
                         }) ];
 
-  buildInputs = [ libvdpau mesa libva pkgconfig ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ libvdpau mesa libva ];
 
   preConfigure = ''
     patch -p0 < ${libvdpau08patch}  # use -p0 instead of -p1
@@ -31,5 +32,6 @@ stdenv.mkDerivation rec {
     homepage = http://cgit.freedesktop.org/vaapi/vdpau-driver/;
     license = stdenv.lib.licenses.gpl2Plus;
     description = "VDPAU driver for the VAAPI library";
+    platforms = stdenv.lib.platforms.linux;
   };
 }

@@ -1,30 +1,30 @@
-{ stdenv, fetchurl, libuuid, pkgconfig, libsodium }:
+{ stdenv, fetchFromGitHub, cmake, asciidoc }:
 
 stdenv.mkDerivation rec {
-  name = "zeromq-4.1.3";
+  name = "zeromq-${version}";
+  version = "4.2.2";
 
-  src = fetchurl {
-    url = "http://download.zeromq.org/${name}.tar.gz";
-    sha256 = "04gligbgr0phipjkwc0dyk1vr9306r6s4dbj85z7fxxk1n1ircv1";
+  src = fetchFromGitHub {
+    owner = "zeromq";
+    repo = "libzmq";
+    rev = "v${version}";
+    sha256 = "09317g4zkalp3k11x6vbidcm4qf02ciml1wxgp3742lrlgcblgxy";
   };
 
-  # Fix zeromq-4.1.3 with libsodium-1.0.6
+  nativeBuildInputs = [ cmake asciidoc ];
+
+  enableParallelBuilding = true;
+
   postPatch = ''
-    sed -i 's/libzmq_werror="yes"/libzmq_werror="no"/' configure
+    sed -i 's,''${PACKAGE_PREFIX_DIR}/,,g' ZeroMQConfig.cmake.in
   '';
-
-  nativeBuildInputs = [ pkgconfig ];
-  buildInputs = [ libuuid libsodium ];
-
-  # https://github.com/zeromq/libzmq/commit/479db2113643e459c11db392e0fefd6400657c9e
-  patches = [ ./sodium_warning.patch ];
 
   meta = with stdenv.lib; {
     branch = "4";
-    homepage = "http://www.zeromq.org";
+    homepage = http://www.zeromq.org;
     description = "The Intelligent Transport Layer";
     license = licenses.gpl3;
     platforms = platforms.all;
-    maintainers = with maintainers; [ wkennington ];
+    maintainers = with maintainers; [ wkennington fpletz ];
   };
 }

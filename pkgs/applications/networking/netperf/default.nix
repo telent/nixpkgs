@@ -1,16 +1,18 @@
-{stdenv, fetchurl}:
+{ stdenv, fetchFromGitHub }:
 
 stdenv.mkDerivation rec {
-  name = "netperf-2.6.0";
+  name = "netperf-2.7.0";
 
-  src = fetchurl {
-    url = "ftp://ftp.netperf.org/netperf/${name}.tar.bz2";
-    sha256 = "cd8dac710d4273d29f70e8dbd09353a6362ac58a11926e0822233c0cb230323a";
+  src = fetchFromGitHub {
+    owner = "HewlettPackard";
+    repo = "netperf";
+    rev = name;
+    sha256 = "034indn3hicwbvyzgw9f32bv2i7c5iv8b4a11imyn03pw97jzh10";
   };
 
   meta = {
-    description = "benchmark to measure the performance of many different types of networking";
-    homepage = "http://www.netperf.org/netperf/";
+    description = "Benchmark to measure the performance of many different types of networking";
+    homepage = http://www.netperf.org/netperf/;
     license = "Hewlett-Packard BSD-like license";
 
     platforms = stdenv.lib.platforms.linux;

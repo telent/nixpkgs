@@ -1,25 +1,27 @@
-{ stdenv, fetchurl, unzip, buildPythonPackage, makeDesktopItem
+{ stdenv, fetchPypi, unzip, buildPythonApplication, makeDesktopItem
 # mandatory
-, pyside
-# recommended
-, pyflakes ? null, rope ? null, sphinx ? null, numpy ? null, scipy ? null, matplotlib ? null
+, qtpy, numpydoc, qtconsole, qtawesome, jedi, pycodestyle, psutil
+, pyflakes, rope, sphinx, nbconvert, mccabe
 # optional
-, ipython ? null, pylint ? null, pep8 ? null
+, numpy ? null, scipy ? null, matplotlib ? null
+# optional
+, pylint ? null
 }:
 
-buildPythonPackage rec {
-  name = "spyder-${version}";
-  version = "2.3.8";
+buildPythonApplication rec {
+  pname = "spyder";
+  version = "3.2.4";
   namePrefix = "";
 
-  src = fetchurl {
-    url = "https://pypi.python.org/packages/source/s/spyder/${name}.zip";
-    sha256 = "99fdae2cea325c0f2842c77bd67dd22db19fef3d9c0dde1545b1a2650eae517e";
+  src = fetchPypi {
+    inherit pname version;
+    sha256 = "028hg71gfq2yrplwhhl7hl4rbwji1l0zxzghblwmb0i443ki10v3";
   };
 
-  # NOTE: sphinx makes the build fail with: ValueError: ZIP does not support timestamps before 1980
-  propagatedBuildInputs =
-    [ pyside pyflakes rope  numpy scipy matplotlib ipython pylint pep8 ];
+  propagatedBuildInputs = [
+    jedi pycodestyle psutil qtpy pyflakes rope numpy scipy matplotlib pylint
+    numpydoc qtconsole qtawesome nbconvert mccabe
+  ];
 
   # There is no test for spyder
   doCheck = false;
@@ -36,9 +38,9 @@ buildPythonPackage rec {
 
   # Create desktop item
   postInstall = ''
-    mkdir -p $out/share/{applications,icons}
-    cp  $desktopItem/share/applications/* $out/share/applications/
-    cp  spyderlib/images/spyder.svg $out/share/icons/
+    mkdir -p $out/share/icons
+    cp spyder/images/spyder.svg $out/share/icons
+    cp -r $desktopItem/share/applications/ $out/share
   '';
 
   meta = with stdenv.lib; {
@@ -51,6 +53,5 @@ buildPythonPackage rec {
     homepage = https://github.com/spyder-ide/spyder/;
     license = licenses.mit;
     platforms = platforms.linux;
-    maintainers = with maintainers; [ bjornfor fridh ];
   };
 }

@@ -1,9 +1,10 @@
-{ stdenv, autoconf, automake, makeWrapper, pkgconfig, libtool, which, git
-, boost, python, pythonPackages, libxml2, zlib
+{ stdenv, ensureNewerSourcesHook, autoconf, automake, makeWrapper, pkgconfig
+, libtool, which, git
+, boost, python2Packages, libxml2, zlib
 
 # Optional Dependencies
 , snappy ? null, leveldb ? null, yasm ? null, fcgi ? null, expat ? null
-, curl ? null, fuse ? null, accelio ? null, libibverbs ? null, librdmacm ? null
+, curl ? null, fuse ? null, libibverbs ? null, librdmacm ? null
 , libedit ? null, libatomic_ops ? null, kinetic-cpp-client ? null
 , rocksdb ? null, libs3 ? null
 
@@ -29,11 +30,11 @@ assert cryptopp != null || (nss != null && nspr != null);
 with stdenv;
 with stdenv.lib;
 let
-  mkFlag = trueStr: falseStr: cond: name: val:
-    if cond == null then null else
-      "--${if cond != false then trueStr else falseStr}${name}"
-      + "${if val != null && cond != false then "=${val}" else ""}";
-
+  inherit (python2Packages) python;
+  mkFlag = trueStr: falseStr: cond: name: val: "--"
+    + (if cond then trueStr else falseStr)
+    + name
+    + optionalString (val != null && cond != false) "=${val}";
   mkEnable = mkFlag "enable-" "disable-";
   mkWith = mkFlag "with-" "without-";
   mkOther = mkFlag "" "" true;
@@ -49,7 +50,6 @@ let
   optExpat = shouldUsePkg expat;
   optCurl = shouldUsePkg curl;
   optFuse = shouldUsePkg fuse;
-  optAccelio = shouldUsePkg accelio;
   optLibibverbs = shouldUsePkg libibverbs;
   optLibrdmacm = shouldUsePkg librdmacm;
   optLibedit = shouldUsePkg libedit;
@@ -75,10 +75,6 @@ let
   hasOsd = hasServer;
   hasRadosgw = optFcgi != null && optExpat != null && optCurl != null && optLibedit != null;
 
-  hasXio = (stdenv.isLinux || stdenv.isFreeBSD) &&
-    versionAtLeast version "9.0.3" &&
-    optAccelio != null && optLibibverbs != null && optLibrdmacm != null;
-
   hasRocksdb = versionAtLeast version "9.0.0" && optRocksdb != null;
 
   # TODO: Reenable when kinetic support is fixed
@@ -98,8 +94,7 @@ let
   };
 
   wrapArgs = "--set PYTHONPATH \"$(toPythonPath $lib)\""
-    + " --prefix PYTHONPATH : \"$(toPythonPath ${python.modules.readline})\""
-    + " --prefix PYTHONPATH : \"$(toPythonPath ${pythonPackages.flask})\""
+    + " --prefix PYTHONPATH : \"$(toPythonPath ${python2Packages.flask})\""
     + " --set PATH \"$out/bin\"";
 in
 stdenv.mkDerivation {
@@ -111,25 +106,26 @@ stdenv.mkDerivation {
     ./0001-Makefile-env-Don-t-force-sbin.patch
   ];
 
-  nativeBuildInputs = [ autoconf automake makeWrapper pkgconfig libtool which git ]
+  nativeBuildInputs = [
+    autoconf automake makeWrapper pkgconfig libtool which git
+    (ensureNewerSourcesHook { year = "1980"; })
+  ]
     ++ optionals (versionAtLeast version "9.0.2") [
-      pythonPackages.setuptools pythonPackages.argparse
+      python2Packages.setuptools python2Packages.argparse
     ];
   buildInputs = buildInputs ++ cryptoLibsMap.${cryptoStr} ++ [
-    boost python libxml2 optYasm optLibatomic_ops optLibs3 malloc pythonPackages.flask zlib
-  ] ++ optional (versionAtLeast version "9.0.0") [
-    pythonPackages.sphinx # Used for docs
-  ] ++ optional stdenv.isLinux [
+    boost python libxml2 optYasm optLibatomic_ops optLibs3 malloc python2Packages.flask zlib
+  ] ++ optionals (versionAtLeast version "9.0.0") [
+    python2Packages.sphinx # Used for docs
+  ] ++ optionals stdenv.isLinux [
     linuxHeaders libuuid udev keyutils optLibaio optLibxfs optZfs
-  ] ++ optional hasServer [
+  ] ++ optionals hasServer [
     optSnappy optLeveldb
-  ] ++ optional hasRadosgw [
+  ] ++ optionals hasRadosgw [
     optFcgi optExpat optCurl optFuse optLibedit
-  ] ++ optional hasXio [
-    optAccelio optLibibverbs optLibrdmacm
-  ] ++ optional hasRocksdb [
+  ] ++ optionals hasRocksdb [
     optRocksdb
-  ] ++ optional hasKinetic [
+  ] ++ optionals hasKinetic [
     optKinetic-cpp-client
   ];
 
@@ -189,7 +185,6 @@ stdenv.mkDerivation {
     (mkWith   (malloc == optGperftools)    "tcmalloc"             null)
     (mkEnable false                        "pgrefdebugging"       null)
     (mkEnable false                        "cephfs-java"          null)
-    (mkEnable hasXio                       "xio"                  null)
     (mkWith   (optLibatomic_ops != null)   "libatomic-ops"        null)
     (mkWith   true                         "ocf"                  null)
     (mkWith   hasKinetic                   "kinetic"              null)
@@ -232,9 +227,9 @@ stdenv.mkDerivation {
     wrapProgram $out/sbin/ceph-create-keys ${wrapArgs}
     wrapProgram $out/sbin/ceph-disk ${wrapArgs}
 
-    # Bring in lib as a native build input
+    # Bring in lib as a run-time dependency
     mkdir -p $out/nix-support
-    echo "$lib" > $out/nix-support/propagated-native-build-inputs
+    echo "$lib" > $out/nix-support/propagated-build-inputs
 
     # Fix the python library loading
     find $lib/lib -name \*.pyc -or -name \*.pyd -exec rm {} \;
@@ -263,7 +258,7 @@ stdenv.mkDerivation {
 
     # Fix .la file link dependencies
     find "$lib/lib" -name \*.la | xargs sed -i \
-      -e 's,-lboost_[a-z]*,-L${boost.lib}/lib \0,g' \
+      -e 's,-lboost_[a-z]*,-L${boost.out}/lib \0,g' \
   '' + optionalString (cryptoStr == "cryptopp") ''
       -e 's,-lcryptopp,-L${optCryptopp}/lib \0,g' \
   '' + optionalString (cryptoStr == "nss") ''
@@ -281,6 +276,9 @@ stdenv.mkDerivation {
     license = licenses.lgpl21;
     maintainers = with maintainers; [ ak wkennington ];
     platforms = platforms.unix;
+    # Broken because of https://lwn.net/Vulnerabilities/709844/
+    # and our version is quite out of date.
+    broken = true;
   };
 
   passthru.version = version;

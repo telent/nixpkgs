@@ -1,94 +1,119 @@
-{ stdenv, fetchurl, perl
-, withCryptodev ? false, cryptodevHeaders }:
+{ stdenv, fetchurl, buildPackages, perl
+, hostPlatform
+, withCryptodev ? false, cryptodevHeaders
+, enableSSL2 ? false
+}:
 
 with stdenv.lib;
+
 let
-  opensslCrossSystem = attrByPath [ "openssl" "system" ]
-    (throw "openssl needs its platform name cross building" null)
-    stdenv.cross;
-in
-stdenv.mkDerivation rec {
-  name = "openssl-1.0.1q";
 
-  src = fetchurl {
-    urls = [
-      "http://www.openssl.org/source/${name}.tar.gz"
-      "http://openssl.linux-mirror.org/source/${name}.tar.gz"
-    ];
-    sha256 = "1dvz0hx7fjxag06b51pawy154y6d2xajm5rwxmfnlq7ax628nrdk";
-  };
+  opensslCrossSystem = hostPlatform.openssl.system or
+    (throw "openssl needs its platform name cross building");
 
-  outputs = [ "out" "man" ];
+  common = args@{ version, sha256, patches ? [] }: stdenv.mkDerivation rec {
+    name = "openssl-${version}";
 
-  patches = optional stdenv.isCygwin ./1.0.1-cygwin64.patch
-    ++ optional (stdenv.isDarwin || (stdenv ? cross && stdenv.cross.libc == "libSystem")) ./darwin-arch.patch;
+    src = fetchurl {
+      url = "http://www.openssl.org/source/${name}.tar.gz";
+      inherit sha256;
+    };
 
-  nativeBuildInputs = [ perl ];
-  buildInputs = stdenv.lib.optional withCryptodev cryptodevHeaders;
+    patches =
+      (args.patches or [])
+      ++ [ ./nix-ssl-cert-file.patch ]
+      ++ optional (versionOlder version "1.1.0")
+          (if stdenv.isDarwin then ./use-etc-ssl-certs-darwin.patch else ./use-etc-ssl-certs.patch)
+      ++ optional (versionOlder version "1.0.2" && hostPlatform.isDarwin)
+           ./darwin-arch.patch;
 
-  # On x86_64-darwin, "./config" misdetects the system as
-  # "darwin-i386-cc".  So specify the system type explicitly.
-  configureScript =
-    if stdenv.system == "x86_64-darwin" then "./Configure darwin64-x86_64-cc"
-    else if stdenv.system == "x86_64-solaris" then "./Configure solaris64-x86_64-gcc"
-    else "./config";
+    outputs = [ "bin" "dev" "out" "man" ];
+    setOutputFlags = false;
+    separateDebugInfo = stdenv.isLinux;
 
-  configureFlags = [
-    "shared"
-    "--libdir=lib"
-    "--openssldir=etc/ssl"
-  ] ++ stdenv.lib.optionals withCryptodev [
-    "-DHAVE_CRYPTODEV"
-    "-DUSE_CRYPTODEV_DIGESTS"
-  ];
+    nativeBuildInputs = [ perl ];
+    buildInputs = stdenv.lib.optional withCryptodev cryptodevHeaders;
 
-  makeFlags = [
-    "MANDIR=$(out)/share/man"
-  ];
+    # On x86_64-darwin, "./config" misdetects the system as
+    # "darwin-i386-cc".  So specify the system type explicitly.
+    configureScript =
+      if stdenv.system == "x86_64-darwin" then "./Configure darwin64-x86_64-cc"
+      else if stdenv.system == "x86_64-solaris" then "./Configure solaris64-x86_64-gcc"
+      else "./config";
 
-  # Parallel building is broken in OpenSSL.
-  enableParallelBuilding = false;
+    configureFlags = [
+      "shared"
+      "--libdir=lib"
+      "--openssldir=etc/ssl"
+    ] ++ stdenv.lib.optionals withCryptodev [
+      "-DHAVE_CRYPTODEV"
+      "-DUSE_CRYPTODEV_DIGESTS"
+    ] ++ stdenv.lib.optional enableSSL2 "enable-ssl2"
+      ++ stdenv.lib.optional (versionAtLeast version "1.1.0" && stdenv.isAarch64) "no-afalgeng";
 
-  postInstall = ''
-    # If we're building dynamic libraries, then don't install static
-    # libraries.
-    if [ -n "$(echo $out/lib/*.so $out/lib/*.dylib $out/lib/*.dll)" ]; then
-        rm "$out/lib/"*.a
-    fi
+    makeFlags = [ "MANDIR=$(man)/share/man" ];
 
-    # remove dependency on Perl at runtime
-    rm -r $out/etc/ssl/misc $out/bin/c_rehash
-  '';
+    # Parallel building is broken in OpenSSL.
+    enableParallelBuilding = false;
 
-  postFixup = ''
-    # Check to make sure we don't depend on perl
-    if grep -r '${perl}' $out; then
-      echo "Found an erroneous dependency on perl ^^^" >&2
-      exit 1
-    fi
-  '';
+    postInstall = ''
+      # If we're building dynamic libraries, then don't install static
+      # libraries.
+      if [ -n "$(echo $out/lib/*.so $out/lib/*.dylib $out/lib/*.dll)" ]; then
+          rm "$out/lib/"*.a
+      fi
 
-  crossAttrs = {
-    # upstream patch: https://rt.openssl.org/Ticket/Display.html?id=2558
-    postPatch = ''
-       sed -i -e 's/[$][(]CROSS_COMPILE[)]windres/$(WINDRES)/' Makefile.shared
+      mkdir -p $bin
+      mv $out/bin $bin/
+
+      mkdir $dev
+      mv $out/include $dev/
+
+      # remove dependency on Perl at runtime
+      rm -r $out/etc/ssl/misc
+
+      rmdir $out/etc/ssl/{certs,private}
     '';
-    preConfigure=''
-      # It's configure does not like --build or --host
-      export configureFlags="${concatStringsSep " " (configureFlags ++ [ opensslCrossSystem ])}"
-      # WINDRES and RANLIB need to be prefixed when cross compiling;
-      # the openssl configure script doesn't do that for us
-      export WINDRES=${stdenv.cross.config}-windres
-      export RANLIB=${stdenv.cross.config}-ranlib
+
+    postFixup = ''
+      # Check to make sure the main output doesn't depend on perl
+      if grep -r '${buildPackages.perl}' $out; then
+        echo "Found an erroneous dependency on perl ^^^" >&2
+        exit 1
+      fi
     '';
-    configureScript = "./Configure";
+
+    crossAttrs = {
+      # upstream patch: https://rt.openssl.org/Ticket/Display.html?id=2558
+      postPatch = ''
+         sed -i -e 's/[$][(]CROSS_COMPILE[)]windres/$(WINDRES)/' Makefile.shared
+      '';
+      preConfigure=''
+        # It's configure does not like --build or --host
+        export configureFlags="${concatStringsSep " " (configureFlags ++ [ opensslCrossSystem ])}"
+      '';
+      configureScript = "./Configure";
+    };
+
+    meta = {
+      homepage = https://www.openssl.org/;
+      description = "A cryptographic library that implements the SSL and TLS protocols";
+      platforms = stdenv.lib.platforms.all;
+      maintainers = [ stdenv.lib.maintainers.peti ];
+      priority = 10; # resolves collision with ‘man-pages’
+    };
   };
 
-  meta = {
-    homepage = http://www.openssl.org/;
-    description = "A cryptographic library that implements the SSL and TLS protocols";
-    platforms = stdenv.lib.platforms.all;
-    maintainers = [ stdenv.lib.maintainers.simons ];
-    priority = 10; # resolves collision with ‘man-pages’
+in {
+
+  openssl_1_0_2 = common {
+    version = "1.0.2n";
+    sha256 = "1zm82pyq5a9jm10q6iv7d3dih3xwjds4x30fqph3k317byvsn2rp";
   };
+
+  openssl_1_1_0 = common {
+    version = "1.1.0g";
+    sha256 = "1bvka2wf33w2vxv7yw578nnjqyhz2b3chvfb0l4k2ffscw950kfy";
+  };
+
 }

@@ -16,11 +16,11 @@ stdenv.mkDerivation rec {
     mkdir -p $out/bin
     cp pipework $out/bin
     wrapProgram $out/bin/pipework --prefix PATH : \
-      ${lib.makeSearchPath "bin" [ bridge-utils iproute lxc openvswitch docker busybox dhcpcd dhcp ]};
+      ${lib.makeBinPath [ bridge-utils iproute lxc openvswitch docker busybox dhcpcd dhcp ]};
   '';
   meta = with lib; {
     description = "Software-Defined Networking tools for LXC";
-    homepage = "https://github.com/jpetazzo/pipework";
+    homepage = https://github.com/jpetazzo/pipework;
     license = licenses.asl20;
     platforms = platforms.linux;
     maintainers = with maintainers; [ cstrahan ];

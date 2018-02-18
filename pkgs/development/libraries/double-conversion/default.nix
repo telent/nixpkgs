@@ -1,8 +1,8 @@
 { stdenv, fetchFromGitHub, cmake }:
 
 stdenv.mkDerivation rec {
-  version = "2.0.1";
   name = "double-conversion-${version}";
+  version = "2.0.1";
 
   src = fetchFromGitHub {
     owner = "google";

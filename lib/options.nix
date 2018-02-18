@@ -1,11 +1,10 @@
 # Nixpkgs/NixOS option handling.
+{ lib }:
 
-let lib = import ./default.nix; in
-
-with import ./trivial.nix;
-with import ./lists.nix;
-with import ./attrsets.nix;
-with import ./strings.nix;
+with lib.trivial;
+with lib.lists;
+with lib.attrsets;
+with lib.strings;
 
 rec {
 
@@ -92,7 +91,7 @@ rec {
           internal = opt.internal or false;
           visible = opt.visible or true;
           readOnly = opt.readOnly or false;
-          type = opt.type.name or null;
+          type = opt.type.description or null;
         }
         // (if opt ? example then { example = scrubOptionValue opt.example; } else {})
         // (if opt ? default then { default = scrubOptionValue opt.default; } else {})

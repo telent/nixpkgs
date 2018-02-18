@@ -1,20 +1,27 @@
-{ stdenv, fetchurl, pkgconfig, zlib, libjpeg, xz }:
+{ stdenv, fetchurl, fetchpatch, pkgconfig, zlib, libjpeg, xz }:
 
 let
-  version = "4.0.6";
+  version = "4.0.8";
 in
 stdenv.mkDerivation rec {
   name = "libtiff-${version}";
 
   src = fetchurl {
-    urls =
-      [ "ftp://ftp.remotesensing.org/pub/libtiff/tiff-${version}.tar.gz"
-        "http://download.osgeo.org/libtiff/tiff-${version}.tar.gz"
-      ];
-    sha256 = "136nf1rj9dp5jgv1p7z4dk0xy3wki1w0vfjbk82f645m0w4samsd";
+    url = "http://download.osgeo.org/libtiff/tiff-${version}.tar.gz";
+    sha256 = "0419mh6kkhz5fkyl77gv0in8x4d2jpdpfs147y8mj86rrjlabmsr";
   };
 
-  outputs = [ "out" "doc" "man" ];
+  prePatch =let
+      debian = fetchurl {
+        url = http://snapshot.debian.org/archive/debian-debug/20170928T093547Z/pool/main/t/tiff/tiff_4.0.8-5.debian.tar.xz;
+        sha256 = "11qkiliw04dmdvdd5z2lv5hh2fiwa29qbhkxvlvmb4yslnmyywha";
+      };
+    in ''
+      tar xf '${debian}'
+      patches="$patches $(cat debian/patches/series | sed 's|^|debian/patches/|')"
+    '';
+
+  outputs = [ "bin" "dev" "out" "man" "doc" ];
 
   nativeBuildInputs = [ pkgconfig ];
 
@@ -22,11 +29,11 @@ stdenv.mkDerivation rec {
 
   enableParallelBuilding = true;
 
-  doCheck = true;
+  doCheck = stdenv.buildPlatform == stdenv.hostPlatform;
 
   meta = with stdenv.lib; {
     description = "Library and utilities for working with the TIFF image file format";
-    homepage = http://www.remotesensing.org/libtiff/;
+    homepage = http://download.osgeo.org/libtiff;
     license = licenses.libtiff;
     platforms = platforms.unix;
   };

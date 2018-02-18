@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, enableNLS ? true, libnatspec ? null, libiconv }:
+{ stdenv, fetchurl, enableNLS ? false, libnatspec ? null, libiconv }:
 
 assert enableNLS -> libnatspec != null;
 
@@ -13,6 +13,8 @@ stdenv.mkDerivation {
     sha256 = "0sb3h3067pzf3a7mlxn1hikpcjrsvycjcnj9hl9b1c3ykcgvps7h";
   };
 
+  hardeningDisable = [ "format" ];
+
   makefile = "unix/Makefile";
   buildFlags = if stdenv.isCygwin then "cygwin" else "generic";
   installFlags = "prefix=$(out) INSTALL=cp";
@@ -26,6 +28,6 @@ stdenv.mkDerivation {
     description = "Compressor/archiver for creating and modifying zipfiles";
     homepage = http://www.info-zip.org;
     platforms = stdenv.lib.platforms.all;
-    maintainers = [ stdenv.lib.maintainers.urkud ];
+    maintainers = [ ];
   };
 }

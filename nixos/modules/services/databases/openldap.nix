@@ -25,22 +25,6 @@ in
         description = "
           Whether to enable the ldap server.
         ";
-        example = literalExample ''
-          openldap.enable = true;
-          openldap.extraConfig = '''
-            include ''${pkgs.openldap}/etc/openldap/schema/core.schema
-            include ''${pkgs.openldap}/etc/openldap/schema/cosine.schema
-            include ''${pkgs.openldap}/etc/openldap/schema/inetorgperson.schema
-            include ''${pkgs.openldap}/etc/openldap/schema/nis.schema
-
-            database bdb 
-            suffix dc=example,dc=org 
-            rootdn cn=admin,dc=example,dc=org 
-            # NOTE: change after first start
-            rootpw secret
-            directory /var/db/openldap
-          ''';
-        '';
       };
 
       user = mkOption {
@@ -55,18 +39,47 @@ in
         description = "Group account under which slapd runs.";
       };
 
+      urlList = mkOption {
+        type = types.listOf types.string;
+        default = [ "ldap:///" ];
+        description = "URL list slapd should listen on.";
+        example = [ "ldaps:///" ];
+      };
+
       dataDir = mkOption {
         type = types.string;
         default = "/var/db/openldap";
         description = "The database directory.";
       };
 
+      configDir = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Use this optional config directory instead of using slapd.conf";
+        example = "/var/db/slapd.d";
+      };
+
       extraConfig = mkOption {
         type = types.lines;
         default = "";
         description = "
-          sldapd.conf configuration
+          slapd.conf configuration
         ";
+        example = literalExample ''
+            '''
+            include ${pkgs.openldap.out}/etc/schema/core.schema
+            include ${pkgs.openldap.out}/etc/schema/cosine.schema
+            include ${pkgs.openldap.out}/etc/schema/inetorgperson.schema
+            include ${pkgs.openldap.out}/etc/schema/nis.schema
+
+            database bdb 
+            suffix dc=example,dc=org 
+            rootdn cn=admin,dc=example,dc=org 
+            # NOTE: change after first start
+            rootpw secret
+            directory /var/db/openldap
+            '''
+          '';
       };
     };
 
@@ -89,7 +102,7 @@ in
         mkdir -p ${cfg.dataDir}
         chown -R ${cfg.user}:${cfg.group} ${cfg.dataDir}
       '';
-      serviceConfig.ExecStart = "${openldap}/libexec/slapd -u ${cfg.user} -g ${cfg.group} -d 0 -f ${configFile}";
+      serviceConfig.ExecStart = "${openldap.out}/libexec/slapd -u ${cfg.user} -g ${cfg.group} -d 0 -h \"${concatStringsSep " " cfg.urlList}\" ${if cfg.configDir == null then "-f "+configFile else "-F "+cfg.configDir}";
     };
 
     users.extraUsers.openldap =

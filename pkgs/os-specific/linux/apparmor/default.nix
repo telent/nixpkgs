@@ -1,5 +1,11 @@
-{ stdenv, fetchurl, makeWrapper, autoconf, autoreconfHook, automake, libtool, pkgconfig, perl, which
-, glibc, flex, bison, python27Packages, swig, pam
+{ stdenv, fetchurl, makeWrapper, autoreconfHook
+, pkgconfig, which
+, flex, bison
+, linuxHeaders ? stdenv.cc.libc.linuxHeaders
+, pythonPackages
+, perl
+, swig
+, pam
 }:
 
 let
@@ -8,7 +14,7 @@ let
 
   apparmor-meta = component: with stdenv.lib; {
     homepage = http://apparmor.net/;
-    description = "Linux application security system - ${component}";
+    description = "A mandatory access control system - ${component}";
     license = licenses.gpl2;
     maintainers = with maintainers; [ phreedom thoughtpolice joachifm ];
     platforms = platforms.linux;
@@ -22,39 +28,47 @@ let
   prePatchCommon = ''
     substituteInPlace ./common/Make.rules --replace "/usr/bin/pod2man" "${perl}/bin/pod2man"
     substituteInPlace ./common/Make.rules --replace "/usr/bin/pod2html" "${perl}/bin/pod2html"
-    substituteInPlace ./common/Make.rules --replace "/usr/include/linux/capability.h" "${glibc}/include/linux/capability.h"
+    substituteInPlace ./common/Make.rules --replace "/usr/include/linux/capability.h" "${linuxHeaders}/include/linux/capability.h"
     substituteInPlace ./common/Make.rules --replace "/usr/share/man" "share/man"
   '';
+
+  # FIXME: convert these to a single multiple-outputs package?
 
   libapparmor = stdenv.mkDerivation {
     name = "libapparmor-${apparmor-version}";
     src = apparmor-sources;
 
-    buildInputs = [
-      autoconf
-      automake
+    nativeBuildInputs = [
       autoreconfHook
       bison
       flex
-      glibc
-      libtool
-      perl
       pkgconfig
-      python27Packages.python
       swig
       which
+    ];
+
+    buildInputs = [
+      perl
+      pythonPackages.python
     ];
 
     # required to build apparmor-parser
     dontDisableStatic = true;
 
     prePatch = prePatchCommon + ''
-      substituteInPlace ./libraries/libapparmor/src/Makefile.am --replace "/usr/include/netinet/in.h" "${glibc}/include/netinet/in.h"
-      substituteInPlace ./libraries/libapparmor/src/Makefile.in --replace "/usr/include/netinet/in.h" "${glibc}/include/netinet/in.h"
-      '';
+      substituteInPlace ./libraries/libapparmor/src/Makefile.am --replace "/usr/include/netinet/in.h" "${stdenv.cc.libc.dev}/include/netinet/in.h"
+      substituteInPlace ./libraries/libapparmor/src/Makefile.in --replace "/usr/include/netinet/in.h" "${stdenv.cc.libc.dev}/include/netinet/in.h"
+    '';
 
     postPatch = "cd ./libraries/libapparmor";
     configureFlags = "--with-python --with-perl";
+
+    outputs = [ "out" "python" ];
+
+    postInstall = ''
+      mkdir -p $python/lib
+      mv $out/lib/python* $python/lib/
+    '';
 
     meta = apparmor-meta "library";
   };
@@ -63,13 +77,13 @@ let
     name = "apparmor-utils-${apparmor-version}";
     src = apparmor-sources;
 
+    nativeBuildInputs = [ makeWrapper which ];
+
     buildInputs = [
       perl
-      python27Packages.python
-      python27Packages.readline
+      pythonPackages.python
       libapparmor
-      makeWrapper
-      which
+      libapparmor.python
     ];
 
     prePatch = prePatchCommon;
@@ -79,7 +93,7 @@ let
 
     postInstall = ''
       for prog in aa-audit aa-autodep aa-cleanprof aa-complain aa-disable aa-enforce aa-genprof aa-logprof aa-mergeprof aa-status aa-unconfined ; do
-        wrapProgram $out/bin/$prog --prefix PYTHONPATH : "$out/lib/${python27Packages.python.libPrefix}/site-packages:$PYTHONPATH"
+        wrapProgram $out/bin/$prog --prefix PYTHONPATH : "$out/lib/${pythonPackages.python.libPrefix}/site-packages:$PYTHONPATH"
       done
 
       for prog in aa-exec aa-notify ; do
@@ -94,17 +108,14 @@ let
     name = "apparmor-parser-${apparmor-version}";
     src = apparmor-sources;
 
-    buildInputs = [
-      libapparmor
-      bison
-      flex
-      which
-    ];
+    nativeBuildInputs = [ bison flex which ];
+
+    buildInputs = [ libapparmor ];
 
     prePatch = prePatchCommon + ''
       substituteInPlace ./parser/Makefile --replace "/usr/bin/bison" "${bison}/bin/bison"
       substituteInPlace ./parser/Makefile --replace "/usr/bin/flex" "${flex}/bin/flex"
-      substituteInPlace ./parser/Makefile --replace "/usr/include/linux/capability.h" "${glibc}/include/linux/capability.h"
+      substituteInPlace ./parser/Makefile --replace "/usr/include/linux/capability.h" "${linuxHeaders}/include/linux/capability.h"
       ## techdoc.pdf still doesn't build ...
       substituteInPlace ./parser/Makefile --replace "manpages htmlmanpages pdf" "manpages htmlmanpages"
     '';
@@ -119,12 +130,9 @@ let
     name = "apparmor-pam-${apparmor-version}";
     src = apparmor-sources;
 
-    buildInputs = [
-      libapparmor
-      pam
-      pkgconfig
-      which
-    ];
+    nativeBuildInputs = [ pkgconfig which ];
+
+    buildInputs = [ libapparmor pam ];
 
     postPatch = "cd ./changehat/pam_apparmor";
     makeFlags = ''USE_SYSTEM=1'';
@@ -137,7 +145,7 @@ let
     name = "apparmor-profiles-${apparmor-version}";
     src = apparmor-sources;
 
-    buildInputs = [ which ];
+    nativeBuildInputs = [ which ];
 
     postPatch = "cd ./profiles";
     installFlags = ''DESTDIR=$(out) EXTRAS_DEST=$(out)/share/apparmor/extra-profiles'';
@@ -153,7 +161,7 @@ let
 
     installPhase = ''
       mkdir "$out"
-      cp -R ./kernel-patches "$out"
+      cp -R ./kernel-patches/* "$out"
     '';
 
     meta = apparmor-meta "kernel patches";

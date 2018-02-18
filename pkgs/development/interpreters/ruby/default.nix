@@ -1,26 +1,35 @@
-{ stdenv, lib, fetchurl, fetchFromSavannah, fetchFromGitHub
+{ stdenv, lib, fetchurl, fetchpatch, fetchFromSavannah, fetchFromGitHub
 , zlib, openssl, gdbm, ncurses, readline, groff, libyaml, libffi, autoreconfHook, bison
 , autoconf, darwin ? null
+, buildEnv, bundler, bundix
 } @ args:
 
 let
-  op = stdenv.lib.optional;
-  ops = stdenv.lib.optionals;
-  opString = stdenv.lib.optionalString;
+  op = lib.optional;
+  ops = lib.optionals;
+  opString = lib.optionalString;
   patchSet = import ./rvm-patchsets.nix { inherit fetchFromGitHub; };
   config = import ./config.nix { inherit fetchFromSavannah; };
+  rubygemsSrc = import ./rubygems-src.nix { inherit fetchurl; };
+  rubygemsPatch = fetchpatch {
+    url = "https://github.com/zimbatm/rubygems/compare/v2.6.6...v2.6.6-nix.patch";
+    sha256 = "0297rdb1m6v75q8665ry9id1s74p9305dv32l95ssf198liaihhd";
+  };
+  unpackdir = obj:
+    lib.removeSuffix ".tgz"
+      (lib.removeSuffix ".tar.gz" obj.name);
 
-  generic = { majorVersion, minorVersion, teenyVersion, patchLevel, sha256 }: let
-    versionNoPatch = "${majorVersion}.${minorVersion}.${teenyVersion}";
-    version = "${versionNoPatch}-p${patchLevel}";
-    fullVersionName = if patchLevel != "0" && stdenv.lib.versionOlder versionNoPatch "2.1"
-      then version
-      else versionNoPatch;
-    tag = "v" + stdenv.lib.replaceChars ["." "p" "-"] ["_" "_" ""] fullVersionName;
-    isRuby21 = majorVersion == "2" && minorVersion == "1";
+  # Contains the ruby version heuristics
+  rubyVersion = import ./ruby-version.nix { inherit lib; };
+
+  generic = { version, sha256 }: let
+    ver = version;
+    tag = ver.gitTag;
+    isRuby20 = ver.majMin == "2.0";
+    isRuby21 = ver.majMin == "2.1";
     baseruby = self.override { useRailsExpress = false; };
     self = lib.makeOverridable (
-      { stdenv, lib, fetchurl, fetchFromSavannah, fetchFromGitHub
+      { stdenv, lib, fetchurl, fetchpatch, fetchFromSavannah, fetchFromGitHub
       , useRailsExpress ? true
       , zlib, zlibSupport ? true
       , openssl, opensslSupport ? true
@@ -31,27 +40,35 @@ let
       , libffi, fiddleSupport ? true
       , autoreconfHook, bison, autoconf
       , darwin ? null
+      , buildEnv, bundler, bundix
       }:
-      stdenv.mkDerivation rec {
-        inherit version;
-
-        name = "ruby-${version}";
-
-        src = if useRailsExpress then fetchFromGitHub {
+      let rubySrc =
+        if useRailsExpress then fetchFromGitHub {
           owner  = "ruby";
           repo   = "ruby";
           rev    = tag;
           sha256 = sha256.git;
         } else fetchurl {
-          url = "http://cache.ruby-lang.org/pub/ruby/${majorVersion}.${minorVersion}/ruby-${fullVersionName}.tar.gz";
+          url = "http://cache.ruby-lang.org/pub/ruby/${ver.majMin}/ruby-${ver}.tar.gz";
           sha256 = sha256.src;
         };
+      in
+      stdenv.mkDerivation rec {
+        name = "ruby-${version}";
+
+        srcs = [ rubySrc rubygemsSrc ];
+        sourceRoot =
+          if useRailsExpress then
+            rubySrc.name
+          else
+            unpackdir rubySrc;
 
         # Have `configure' avoid `/usr/bin/nroff' in non-chroot builds.
         NROFF = "${groff}/bin/nroff";
 
-        buildInputs = ops useRailsExpress [ autoreconfHook bison ]
-          ++ (op fiddleSupport libffi)
+        nativeBuildInputs = ops useRailsExpress [ autoreconfHook bison ];
+        buildInputs =
+             (op fiddleSupport libffi)
           ++ (ops cursesSupport [ ncurses readline ])
           ++ (op docSupport groff)
           ++ (op zlibSupport zlib)
@@ -67,11 +84,20 @@ let
 
         enableParallelBuilding = true;
 
-        patches = (import ./patchsets.nix {
-          inherit patchSet useRailsExpress ops patchLevel;
-        })."${versionNoPatch}";
+        hardeningDisable = lib.optional isRuby20 "format";
 
-        postUnpack = opString isRuby21 ''
+        patches =
+          (import ./patchsets.nix {
+            inherit patchSet useRailsExpress ops;
+            patchLevel = ver.patchLevel;
+          })."${ver.majMinTiny}";
+
+        postUnpack = ''
+          cp -r ${unpackdir rubygemsSrc} ${sourceRoot}/rubygems
+          pushd ${sourceRoot}/rubygems
+          patch -p1 < ${rubygemsPatch}
+          popd
+        '' + opString isRuby21 ''
           rm "$sourceRoot/enc/unicode/name2ctype.h"
         '';
 
@@ -88,6 +114,7 @@ let
 
         configureFlags = ["--enable-shared" "--enable-pthread"]
           ++ op useRailsExpress "--with-baseruby=${baseruby}/bin/ruby"
+          ++ op (!docSupport) "--disable-install-doc"
           ++ ops stdenv.isDarwin [
             # on darwin, we have /usr/include/tk.h -- so the configure script detects
             # that tk is installed
@@ -99,6 +126,14 @@ let
         installFlags = stdenv.lib.optionalString docSupport "install-doc";
         # Bundler tries to create this directory
         postInstall = ''
+          # Update rubygems
+          pushd rubygems
+          $out/bin/ruby setup.rb
+          popd
+
+          # Remove unnecessary groff reference from runtime closure, since it's big
+          sed -i '/NROFF/d' $out/lib/ruby/*/*/rbconfig.rb
+
           # Bundler tries to create this directory
           mkdir -pv $out/${passthru.gemPath}
           mkdir -p $out/nix-support
@@ -107,7 +142,7 @@ let
             addToSearchPath GEM_PATH \$1/${passthru.gemPath}
           }
 
-          envHooks+=(addGemPath)
+          addEnvHooks "$hostOffset" addGemPath
           EOF
         '' + opString useRailsExpress ''
           rbConfig=$(find $out/lib/ruby -name rbconfig.rb)
@@ -117,142 +152,72 @@ let
           sed -i "s|'--with-baseruby=${baseruby}/bin/ruby'||" $rbConfig
         '';
 
-        meta = {
-          license = stdenv.lib.licenses.ruby;
-          homepage = "http://www.ruby-lang.org/en/";
+        meta = with stdenv.lib; {
           description = "The Ruby language";
-          platforms = stdenv.lib.platforms.all;
+          homepage    = http://www.ruby-lang.org/en/;
+          license     = licenses.ruby;
+          maintainers = with maintainers; [ vrthra manveru ];
+          platforms   = platforms.all;
         };
 
         passthru = rec {
-          inherit majorVersion minorVersion teenyVersion patchLevel;
+          version = ver;
           rubyEngine = "ruby";
           baseRuby = baseruby;
-          libPath = "lib/${rubyEngine}/${versionNoPatch}";
-          gemPath = "lib/${rubyEngine}/gems/${versionNoPatch}";
+          libPath = "lib/${rubyEngine}/${ver.libDir}";
+          gemPath = "lib/${rubyEngine}/gems/${ver.libDir}";
+          devEnv = import ./dev.nix {
+            inherit buildEnv bundler bundix;
+            ruby = self;
+          };
+
+          # deprecated 2016-09-21
+          majorVersion = ver.major;
+          minorVersion = ver.minor;
+          teenyVersion = ver.tiny;
+          patchLevel = ver.patchLevel;
         };
       }
     ) args; in self;
 
 in {
-  ruby_1_9_3 = generic {
-    majorVersion = "1";
-    minorVersion = "9";
-    teenyVersion = "3";
-    patchLevel = "551";
-    sha256 = {
-      src = "1s2ibg3s2iflzdv7rfxi1qqkvdbn2dq8gxdn0nxrb77ls5ffanxv";
-      git = "1r9xzzxmci2ajb34qb4y1w424mz878zdgzxkfp9w60agldxnb36s";
-    };
-  };
-
   ruby_2_0_0 = generic {
-    majorVersion = "2";
-    minorVersion = "0";
-    teenyVersion = "0";
-    patchLevel = "647";
+    version = rubyVersion "2" "0" "0" "p648";
     sha256 = {
-      src = "1v2vbvydarcx5801gx9lc6gr6dfi0i7qbzwhsavjqbn79rdsz2n8";
-      git = "186pf4q9xymzn4zn1sjppl1skrl5f0159ixz5cz8g72dmmynq3g3";
+      src = "1y3n4c6xw2wki7pyjpq5zpbgxnw5i3jc8mcpj6rk7hs995mvv446";
+      git = "0ncjfq4hfqj9kcr8pbll6kypwnmcgs8w7l4466qqfyv7jj3yjd76";
     };
   };
 
-  ruby_2_1_0 = generic {
-    majorVersion = "2";
-    minorVersion = "1";
-    teenyVersion = "0";
-    patchLevel = "0";
+  ruby_2_1_10 = generic {
+    version = rubyVersion "2" "1" "10" "";
     sha256 = {
-      src = "17fhfbw8sr13rxfn58wvrhk2f5i88lkna2afn3gdjvprd8gyqf1m";
-      git = "12sn532yvznqfz85378ys0b9ggmj7w8ddhzc1pnnlx7mbyy7r2hx";
+      src = "086x66w51lg41abjn79xb7f6xsryymkcc3nvakmkjnjyg96labpv";
+      git = "133phd5r5y0np5lc9nqif93l7yb13yd52aspyl6c46z5jhvhyvfi";
     };
   };
 
-  ruby_2_1_1 = generic {
-    majorVersion = "2";
-    minorVersion = "1";
-    teenyVersion = "1";
-    patchLevel = "0";
+  ruby_2_2_8 = generic {
+    version = rubyVersion "2" "2" "8" "";
     sha256 = {
-      src = "0hc9x3mazyvnk94gs19q8mbnanlzk8mv0hii77slkvc8mqqxyhy8";
-      git = "1v2ffvyd0xx1h1qd70431zczhvsdiyyw5kjxih4rszd5avzh5grl";
+      src = "12i6v5i0djl4xx3x7fq12snqb5d4drqjmnwqs05fby4bagcbjdwg";
+      git = "16nw0795nhrj13crp5x4jis8hmi3gsyjl96pwk698wlrb89lf9bw";
     };
   };
 
-  ruby_2_1_2 = generic {
-    majorVersion = "2";
-    minorVersion = "1";
-    teenyVersion = "2";
-    patchLevel = "353";
+  ruby_2_3_5 = generic {
+    version = rubyVersion "2" "3" "5" "";
     sha256 = {
-      src = "0db6krc2bd7yha8p96lcqrahjpsz7g7abhni134g708sh53n8apj";
-      git = "14f8w3zwngnxsgigffh6h9z3ng53xq8mk126xmwrsmz9n3ypm6l0";
+      src = "1k6x4g68lq30i0myip5bn56rcbwjxmqq95j1fkdgbvwbnaxzfqjl";
+      git = "0spwqz4b5xxqzs13azsd4xz4jkc3is7d9q4s6s2qilb8ib4863jl";
     };
   };
 
-  ruby_2_1_3 = generic {
-    majorVersion = "2";
-    minorVersion = "1";
-    teenyVersion = "3";
-    patchLevel = "0";
+  ruby_2_4_2 = generic {
+    version = rubyVersion "2" "4" "2" "";
     sha256 = {
-      src = "00bz6jcbxgnllplk4b9lnyc3w8yd3pz5rn11rmca1s8cn6vvw608";
-      git = "1pnam9jry2l2mbji3gvrbb7jyisxl99xjz6l1qrccwnfinxxbmhv";
-    };
-  };
-
-  ruby_2_1_6 = generic {
-    majorVersion = "2";
-    minorVersion = "1";
-    teenyVersion = "6";
-    patchLevel = "0";
-    sha256 = {
-      src = "1r4bs8lfwsypbcf8j2lpv3by40729vp5mh697njizj97fjp644qy";
-      git = "18kbjsbmgv6l3p1qxgmjnhh4jl7xdk3c20ycjpp62vrhq7pyzjsm";
-    };
-  };
-
-  ruby_2_1_7 = generic {
-    majorVersion = "2";
-    minorVersion = "1";
-    teenyVersion = "7";
-    patchLevel = "0";
-    sha256 = {
-      src = "10fxlqmpbq9407zgsx060q22yj4zq6c3czbf29h7xk1rmjb1b77m";
-      git = "1fmbqd943akqjwsfbj9bg394ac46qmpavm8s0kv2w87rflrjcjfb";
-    };
-  };
-
-  ruby_2_2_0 = generic {
-    majorVersion = "2";
-    minorVersion = "2";
-    teenyVersion = "0";
-    patchLevel = "0";
-    sha256 = {
-      src = "1z2092fbpc2qkv1j3yj7jdz7qwvqpxqpmcnkphpjcpgvmfaf6wbn";
-      git = "1w7rr2nq1bbw6aiagddzlrr3rl95kk33x4pv6570nm072g55ybpi";
-    };
-  };
-
-  ruby_2_2_2 = generic {
-    majorVersion = "2";
-    minorVersion = "2";
-    teenyVersion = "2";
-    patchLevel = "0";
-    sha256 = {
-      src = "0i4v7l8pnam0by2cza12zldlhrffqchwb2m9shlnp7j2gqqhzz2z";
-      git = "08mw1ql2ghy483cp8xzzm78q17simn4l6phgm2gah7kjh9y3vbrn";
-    };
-  };
-
-  ruby_2_2_3 = generic {
-    majorVersion = "2";
-    minorVersion = "2";
-    teenyVersion = "3";
-    patchLevel = "0";
-    sha256 = {
-      src = "1kpdf7f8pw90n5bckpl2idzggk0nn0240ah92sj4a1w6k4pmyyfz";
-      git = "1ssq3c23ay57ypfis47y2n817hfmb71w0xrdzp57j6bv12jqmgrx";
+      src = "174cdiz3am1f76vsnm3iqi9c5vqphypbf9kbxx6vqqmj01gfgfck";
+      git = "1w83kzak3m6vv3k09ynfw9vpgc7vpmij3x3zmgrhwm4ds1sp5irl";
     };
   };
 }

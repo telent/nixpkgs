@@ -1,9 +1,11 @@
 { stdenv, fetchFromGitHub, coq }:
 
 let param =
-  if coq.coq-version == "8.4"
-  then { version = "0.9.0"; sha256 = "1n3bk003vvbghbrxkhal6drnc0l65jv9y77wd56is3jw9xgiif0w"; }
-  else { version = "0.9.0-beta3"; sha256 = "1dya0sqp5jjb2cl7cv2ry4gvcr359bkzzqcz0plknf3f1c5zrv0s"; };
+  {
+    "8.5" = { version = "0.9.4"; sha256 = "1y66pamgsdxlq2w1338lj626ln70cwj7k53hxcp933g8fdsa4hp0"; };
+    "8.6" = { version = "0.9.5"; sha256 = "1b4cvz3llxin130g13calw5n1zmvi6wdd5yb8a41q7yyn2hd3msg"; };
+    "8.7" = { version = "0.9.5"; sha256 = "1b4cvz3llxin130g13calw5n1zmvi6wdd5yb8a41q7yyn2hd3msg"; };
+  }."${coq.coq-version}";
 in
 
 stdenv.mkDerivation rec {

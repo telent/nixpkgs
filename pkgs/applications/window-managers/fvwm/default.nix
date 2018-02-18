@@ -1,29 +1,34 @@
 { gestures ? false
 , stdenv, fetchurl, pkgconfig
 , cairo, fontconfig, freetype, libXft, libXcursor, libXinerama
-, libXpm, librsvg, libpng, fribidi, perl
+, libXpm, libXt, librsvg, libpng, fribidi, perl
 , libstroke ? null
 }:
 
 assert gestures -> libstroke != null;
 
 stdenv.mkDerivation rec {
-  name = "fvwm-2.6.5";
+  pname = "fvwm";
+  version = "2.6.7";
+  name = "${pname}-${version}";
 
   src = fetchurl {
-    url = "ftp://ftp.fvwm.org/pub/fvwm/version-2/${name}.tar.bz2";
-    sha256 = "1ks8igvmzm0m0sra05k8xzc8vkqy3gv1qskl6davw1irqnarjm11";
+    url = "https://github.com/fvwmorg/fvwm/releases/download/${version}/${name}.tar.gz";
+    sha256 = "01654d5abdcde6dac131cae9befe5cf6f01f9f7524d097c3b0f316e39f84ef73";
   };
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    pkgconfig cairo fontconfig freetype
-    libXft libXcursor libXinerama libXpm
+    cairo fontconfig freetype
+    libXft libXcursor libXinerama libXpm libXt
     librsvg libpng fribidi perl
   ] ++ stdenv.lib.optional gestures libstroke;
 
   meta = {
-    homepage = "http://fvwm.org";
+    homepage = http://fvwm.org;
     description = "A multiple large virtual desktop window manager";
     license = stdenv.lib.licenses.gpl2Plus;
+    platforms = stdenv.lib.platforms.linux;
+    maintainers = with stdenv.lib.maintainers; [ edanaher ];
   };
 }

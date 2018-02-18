@@ -13,6 +13,10 @@ stdenv.mkDerivation rec {
 
   doCheck = false;
 
+  preConfigure = ''
+    sed -i 's/^\(LIBS *=.*\)$/\1 -lX11/' example/Makefile
+  '';
+
   installPhase = ''
     mkdir -pv "$out/"{bin,share/doc/opencsg}
 
@@ -24,7 +28,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Constructive Solid Geometry library";
-    homepage = "http://www.opencsg.org/";
+    homepage = http://www.opencsg.org/;
     platforms = with stdenv.lib.platforms;
       linux;
     maintainers = with stdenv.lib.maintainers; 

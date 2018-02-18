@@ -1,36 +1,26 @@
-{ stdenv, fetchurl, groff }:
+{ stdenv, fetchurl }:
 
-let version = "52"; in
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "mksh-${version}";
+  version = "56b";
 
   src = fetchurl {
     urls = [
       "http://www.mirbsd.org/MirOS/dist/mir/mksh/mksh-R${version}.tgz"
       "http://pub.allbsd.org/MirOS/dist/mir/mksh/mksh-R${version}.tgz"
     ];
-    sha256 = "13vnncwfx4zq3yi7llw3p6miw0px1bm5rrps3y1nlfn6sb6zbhj5";
+    sha256 = "0zwsikj0gvbg693xydgmhq19hz7m5bics1w9w7j86r95xi779v20";
   };
 
-  buildInputs = [ groff ];
-
-  buildPhase = ''
-    mkdir build-dir/
-    cp mksh.1 dot.mkshrc build-dir/
-    cd build-dir/
-    sh ../Build.sh -c lto
-  '';
+  buildPhase = ''sh ./Build.sh -r -c lto'';
 
   installPhase = ''
-    mkdir -p $out/bin $out/share/man/man1 $out/share/mksh $out/bin
     install -D -m 755 mksh $out/bin/mksh
     install -D -m 644 mksh.1 $out/share/man/man1/mksh.1
-    install -D -m 644 mksh.cat1 $out/share/mksh/mksh.cat1
     install -D -m 644 dot.mkshrc $out/share/mksh/mkshrc
   '';
 
   meta = with stdenv.lib; {
-    inherit version;
     description = "MirBSD Korn Shell";
     longDescription = ''
       The MirBSD Korn Shell is a DFSG-free and OSD-compliant (and OSI
@@ -39,9 +29,13 @@ stdenv.mkDerivation {
       also to be readily available under other UNIX(R)-like operating
       systems.
     '';
-    homepage = "https://www.mirbsd.org/mksh.htm";
-    license = licenses.free;
-    maintainers = with maintainers; [ AndersonTorres nckx ];
+    homepage = https://www.mirbsd.org/mksh.htm;
+    license = licenses.bsd3;
+    maintainers = with maintainers; [ AndersonTorres nckx joachifm ];
     platforms = platforms.unix;
+  };
+
+  passthru = {
+    shellPath = "/bin/mksh";
   };
 }

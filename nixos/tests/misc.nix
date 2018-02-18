@@ -16,13 +16,17 @@ import ./make-test.nix ({ pkgs, ...} : {
       systemd.tmpfiles.rules = [ "d /tmp 1777 root root 10d" ];
       fileSystems = mkVMOverride { "/tmp2" =
         { fsType = "tmpfs";
-          options = "mode=1777,noauto";
+          options = [ "mode=1777" "noauto" ];
         };
       };
       systemd.automounts = singleton
         { wantedBy = [ "multi-user.target" ];
           where = "/tmp2";
         };
+      users.users.sybil = { isNormalUser = true; group = "wheel"; };
+      security.sudo = { enable = true; wheelNeedsPassword = false; };
+      boot.kernel.sysctl."vm.swappiness" = 1;
+      boot.kernelParams = [ "vsyscall=emulate" ];
     };
 
   testScript =
@@ -32,7 +36,7 @@ import ./make-test.nix ({ pkgs, ...} : {
       };
 
       subtest "nixos-rebuild", sub {
-          $machine->succeed("nixos-rebuild --help | grep SYNOPSIS");
+          $machine->succeed("nixos-rebuild --help | grep 'NixOS module' ");
       };
 
       # Sanity check for uid/gid assignment.
@@ -109,6 +113,24 @@ import ./make-test.nix ({ pkgs, ...} : {
 
       subtest "nix-db", sub {
           $machine->succeed("nix-store -qR /run/current-system | grep nixos-");
+      };
+
+      # Test sudo
+      subtest "sudo", sub {
+          $machine->succeed("su - sybil -c 'sudo true'");
+      };
+
+      # Test sysctl
+      subtest "sysctl", sub {
+          $machine->waitForUnit("systemd-sysctl.service");
+          $machine->succeed('[ `sysctl -ne vm.swappiness` = 1 ]');
+          $machine->execute('sysctl vm.swappiness=60');
+          $machine->succeed('[ `sysctl -ne vm.swappiness` = 60 ]');
+      };
+
+      # Test boot parameters
+      subtest "bootparam", sub {
+          $machine->succeed('grep -Fq vsyscall=emulate /proc/cmdline');
       };
     '';
 })

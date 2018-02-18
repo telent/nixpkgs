@@ -1,27 +1,37 @@
-{ stdenv, fetchurl, pythonPackages }:
+{ stdenv, fetchurl, python3Packages, glibcLocales }:
 
-pythonPackages.buildPythonPackage rec {
-  version = "0.7.3";
+# Packaging documentation at:
+# https://github.com/untitaker/vdirsyncer/blob/master/docs/packaging.rst
+let
+  pythonPackages = python3Packages;
+in
+pythonPackages.buildPythonApplication rec {
+  version = "0.16.3";
   name = "vdirsyncer-${version}";
-  namePrefix = "";
 
   src = fetchurl {
-    url = "https://pypi.python.org/packages/source/v/vdirsyncer/${name}.tar.gz";
-    sha256 = "0ahi5ngqwsrv30bgziz35dx4gif7rbn9vqv340pigbzmywjxz1ry";
+    url = "mirror://pypi/v/vdirsyncer/${name}.tar.gz";
+    sha256 = "0dpwbfi97ksijqng191659m8k0v215y8ld95w8gb126m4m96qpzw";
   };
 
   propagatedBuildInputs = with pythonPackages; [
     click click-log click-threading
-    lxml
-    setuptools
-    setuptools_scm
     requests_toolbelt
-    requests2
+    requests
+    requests_oauthlib # required for google oauth sync
     atomicwrites
   ];
 
+  buildInputs = with pythonPackages; [hypothesis pytest pytest-localserver pytest-subtesthack setuptools_scm ] ++ [ glibcLocales ];
+
+  LC_ALL = "en_US.utf8";
+
+  checkPhase = ''
+    make DETERMINISTIC_TESTS=true test
+  '';
+
   meta = with stdenv.lib; {
-    homepage = https://github.com/untitaker/vdirsyncer;
+    homepage = https://github.com/pimutils/vdirsyncer;
     description = "Synchronize calendars and contacts";
     maintainers = with maintainers; [ matthiasbeyer jgeerds ];
     platforms = platforms.all;

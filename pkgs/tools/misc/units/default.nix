@@ -2,11 +2,11 @@
 
 stdenv.mkDerivation rec {
   name = "units-${version}";
-  version = "2.12";
+  version = "2.14";
 
   src = fetchurl {
     url = "mirror://gnu/units/${name}.tar.gz";
-    sha256 = "1jxvjknz2jhq773jrwx9gc1df3gfy73yqmkjkygqxzpi318yls3q";
+    sha256 = "9d33893d82f3ddd831d5822992007c40bcd0826ae67d3cbc96539951fb0a82e8";
   };
 
   buildInputs = [ readline ];
@@ -17,6 +17,7 @@ stdenv.mkDerivation rec {
     description = "Unit conversion tool";
     homepage = https://www.gnu.org/software/units/;
     license = [ licenses.gpl3Plus ];
-    platforms = stdenv.lib.platforms.all;
+    platforms = platforms.all;
+    maintainers = [ maintainers.vrthra ];
   };
 }

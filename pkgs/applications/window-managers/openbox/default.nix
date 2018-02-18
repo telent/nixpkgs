@@ -1,14 +1,21 @@
-{ stdenv, fetchurl, pkgconfig
-, libxml2, libXinerama, libXcursor, libXau, libXrandr
+{ stdenv, fetchurl, pkgconfig, python2
+, libxml2, libXinerama, libXcursor, libXau, libXrandr, libICE, libSM
 , imlib2, pango, libstartup_notification, makeWrapper }:
 
 stdenv.mkDerivation rec {
-  name = "openbox-3.6.1";
+  name = "openbox-${version}";
+  version = "3.6.1";
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    pkgconfig libxml2
-    libXinerama libXcursor libXau libXrandr
+    libxml2
+    libXinerama libXcursor libXau libXrandr libICE libSM
     libstartup_notification makeWrapper
+    python2.pkgs.wrapPython
+  ];
+
+  pythonPath = with python2.pkgs; [
+    pyxdg
   ];
 
   propagatedBuildInputs = [
@@ -34,11 +41,13 @@ stdenv.mkDerivation rec {
     wrapProgram "$out/bin/openbox-session" --prefix XDG_DATA_DIRS : "$out/share"
     wrapProgram "$out/bin/openbox-gnome-session" --prefix XDG_DATA_DIRS : "$out/share"
     wrapProgram "$out/bin/openbox-kde-session" --prefix XDG_DATA_DIRS : "$out/share"
-    '';
+    wrapPythonPrograms
+  '';
 
   meta = {
     description = "X window manager for non-desktop embedded systems";
     homepage = http://openbox.org/;
     license = stdenv.lib.licenses.gpl2Plus;
+    platforms = stdenv.lib.platforms.linux;
   };
 }

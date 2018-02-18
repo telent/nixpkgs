@@ -1,34 +1,36 @@
-{ stdenv, fetchFromGitHub, qt4, ogre, mygui, bullet, ffmpeg, boost, cmake, SDL2, unshield, openal, pkgconfig }:
+{ stdenv, fetchFromGitHub, qt4, openscenegraph, mygui, bullet, ffmpeg, boost, cmake, SDL2, unshield, openal
+, giflib, libXt, pkgconfig }:
 
-stdenv.mkDerivation rec {
-  version = "0.36.1";
-  name = "openmw-${version}";
-
-  mygui_ = mygui.overrideDerivation (oldAttrs: {
-    name = "mygui-3.2.1";
-    version = "3.2.1";
-
+let
+  openscenegraph_ = openscenegraph.overrideDerivation (self: {
     src = fetchFromGitHub {
-      owner = "MyGUI";
-      repo = "mygui";
-      rev = "MyGUI3.2.1";
-      sha256 = "1ic4xwyh2akfpqirrbyvicc56yy2r268rzgcgx16yqb4nrldy2p0";
+      owner = "OpenMW";
+      repo = "osg";
+      rev = "35f1a459a4ab6da9d70427e6539bdf4faae4cc91";
+      sha256 = "1s3a9dpbcc6v8d05pqin4xfv36i2031xpdja1vl8x11cw05fln91";
     };
   });
+in stdenv.mkDerivation rec {
+  version = "0.42.0";
+  name = "openmw-${version}";
 
   src = fetchFromGitHub {
     owner = "OpenMW";
     repo = "openmw";
     rev = name;
-    sha256 = "0yfiilad6izmingc0nhvkvn6dpybps04xwj4k1h13ymip6awm80x";
+    sha256 = "0lj8v81hk807dy0wcdhfp0iyn4l5yag53hx1a6xm44gh2dpyil43";
   };
 
-  buildInputs = [ cmake boost ffmpeg qt4 bullet mygui_ ogre SDL2 unshield openal pkgconfig ];
+  enableParallelBuilding = true;
 
-  meta = {
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ cmake boost ffmpeg qt4 bullet mygui openscenegraph_ SDL2 unshield openal libXt ];
+
+  meta = with stdenv.lib; {
     description = "An unofficial open source engine reimplementation of the game Morrowind";
-    homepage = "http://openmw.org";
-    license = stdenv.lib.licenses.gpl3;
+    homepage = http://openmw.org;
+    license = licenses.gpl3;
+    platforms = platforms.linux;
+    maintainers = with maintainers; [ abbradar ];
   };
-  
 }

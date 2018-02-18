@@ -1,20 +1,29 @@
-{ stdenv, fetchurl, ncurses, asciidoc, xmlto, docbook_xsl, docbook_xml_dtd_45
-, readline, makeWrapper, git, libiconv
+{ stdenv, fetchFromGitHub, ncurses, asciidoc, xmlto, docbook_xsl, docbook_xml_dtd_45
+, readline, makeWrapper, git, libiconv, autoreconfHook, findXMLCatalogs, pkgconfig
 }:
 
 stdenv.mkDerivation rec {
-  name = "tig-2.1.1";
+  pname = "tig";
+  version = "2.3.0";
+  name = "${pname}-${version}";
 
-  src = fetchurl {
-    url = "http://jonas.nitro.dk/tig/releases/${name}.tar.gz";
-    sha256 = "0bw5wivswwh7vx897q8xc2cqgkqhdzk8gh6fnav2kf34sngigiah";
+  src = fetchFromGitHub {
+    owner = "jonas";
+    repo = pname;
+    rev = name;
+    sha256 = "04qw3fyamm1lka9vh7adrkr2mcnwcch9ya5sph51jx6d4jz1lih5";
   };
 
-  buildInputs = [ ncurses asciidoc xmlto docbook_xsl readline git makeWrapper ]
+  nativeBuildInputs = [ makeWrapper autoreconfHook asciidoc xmlto docbook_xsl docbook_xml_dtd_45 findXMLCatalogs pkgconfig ];
+
+  autoreconfFlags = "-I tools -v";
+
+  buildInputs = [ ncurses readline git ]
     ++ stdenv.lib.optionals stdenv.isDarwin [ libiconv ];
 
-  preConfigure = ''
-    export XML_CATALOG_FILES='${docbook_xsl}/xml/xsl/docbook/catalog.xml ${docbook_xml_dtd_45}/xml/dtd/docbook/catalog.xml'
+  # those files are inherently impure, we'll handle the corresponding dependencies.
+  postPatch = ''
+      rm -f contrib/config.make-*
   '';
 
   enableParallelBuilding = true;
@@ -30,9 +39,9 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    homepage = "http://jonas.nitro.dk/tig/";
+    homepage = https://jonas.github.io/tig/;
     description = "Text-mode interface for git";
-    maintainers = with maintainers; [ garbas bjornfor iElectric qknight ];
+    maintainers = with maintainers; [ garbas bjornfor domenkozar qknight ];
     license = licenses.gpl2;
     platforms = platforms.unix;
   };

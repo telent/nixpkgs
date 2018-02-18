@@ -5,20 +5,29 @@ stdenv.mkDerivation {
 
   inherit src patches;
 
-  postInstall = ''
-    ln -s $out/bin/wish* $out/bin/wish
-  '';
+  outputs = [ "out" "man" "dev" ];
+
+  setOutputFlags = false;
 
   preConfigure = ''
+    configureFlagsArray+=(--mandir=$man/share/man --enable-man-symlinks)
     cd unix
+  '';
+
+  postInstall = ''
+    ln -s $out/bin/wish* $out/bin/wish
+    cp ../{unix,generic}/*.h $out/include
   '';
 
   configureFlags = [
     "--with-tcl=${tcl}/lib"
   ];
 
-  buildInputs = [ pkgconfig tcl libXft ]
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ ]
     ++ stdenv.lib.optional stdenv.isDarwin fontconfig;
+
+  propagatedBuildInputs = [ tcl libXft ];
 
   NIX_CFLAGS_LINK = if stdenv.isDarwin then "-lfontconfig" else null;
 
@@ -35,6 +44,6 @@ stdenv.mkDerivation {
     homepage = http://www.tcl.tk/;
     license = licenses.tcltk;
     platforms = platforms.all;
-    maintainers = with maintainers; [ lovek323 wkennington ];
+    maintainers = with maintainers; [ lovek323 vrthra wkennington ];
   };
 }

@@ -1,6 +1,6 @@
-{ pkgs }:
+{ pkgs, haskellLib }:
 
-with import ./lib.nix { inherit pkgs; };
+with haskellLib;
 
 self: super: {
 
@@ -37,8 +37,11 @@ self: super: {
   unix = null;
   xhtml = null;
 
+  # Requires ghc 8.2
+  ghc-proofs = dontDistribute super.ghc-proofs;
+
   # https://github.com/peti/jailbreak-cabal/issues/9
-  jailbreak-cabal = super.jailbreak-cabal.override { Cabal = dontJailbreak self.Cabal_1_20_0_3; };
+  jailbreak-cabal = super.jailbreak-cabal.override { Cabal = self.Cabal_1_20_0_4; };
 
   # mtl 2.2.x needs the latest transformers.
   mtl_2_2_1 = super.mtl.override { transformers = self.transformers_0_4_3_0; };
@@ -65,7 +68,7 @@ self: super: {
     mkDerivation = drv: super.mkDerivation (drv // { doCheck = false; });
     mtl = super.mtl_2_2_1;
     transformers = super.transformers_0_4_3_0;
-    haskeline = self.haskeline_0_7_2_1;
+    haskeline = self.haskeline_0_7_3_1;
     transformers-compat = disableCabalFlag super.transformers-compat "three";
   })) (drv: {});
 
@@ -112,6 +115,7 @@ self: super: {
                                           self.webkitgtk3-javascriptcore ];
 
   # Needs hashable on pre 7.10.x compilers.
+  nats_1 = addBuildDepend super.nats_1 self.hashable;
   nats = addBuildDepend super.nats self.hashable;
 
   # needs mtl-compat to build with mtl 2.1.x
@@ -136,8 +140,32 @@ self: super: {
 
   # Needs void on pre 7.10.x compilers.
   conduit = addBuildDepend super.conduit self.void;
+  conduit_1_2_5 = addBuildDepend super.conduit_1_2_5 self.void;
 
-  # Needs nats on pre 7.10.x compilers.
-  semigroups = addBuildDepend super.semigroups self.nats;
+  # Breaks a dependency cycle between QuickCheck and semigroups
+  hashable = dontCheck super.hashable;
+  unordered-containers = dontCheck super.unordered-containers;
+
+  # Needs additional inputs on old compilers.
+  semigroups = addBuildDepends (dontCheck super.semigroups) (with self; [nats tagged unordered-containers]);
+  lens = addBuildDepends super.lens (with self; [doctest generic-deriving nats simple-reflect]);
+  distributive = addBuildDepend (dontCheck super.distributive) self.semigroups;
+  QuickCheck = addBuildDepends super.QuickCheck (with self; [nats semigroups]);
+  void = addBuildDepends super.void (with self; [hashable semigroups]);
+  optparse-applicative = addBuildDepend super.optparse-applicative self.semigroups;
+  vector = addBuildDepend super.vector self.semigroups;
+
+  # Haddock doesn't cope with the new markup.
+  bifunctors = dontHaddock super.bifunctors;
+
+  # extra-test: <stdout>: hFlush: invalid argument (Bad file descriptor)
+  extra = dontCheck super.extra;
+
+  # The test suite requires Cabal 1.24.x or later to compile.
+  comonad = dontCheck super.comonad;
+  semigroupoids = dontCheck super.semigroupoids;
+
+  # https://github.com/simonmar/happy/issues/103
+  happy = super.happy.override { mtl = self.mtl_2_2_1; };
 
 }

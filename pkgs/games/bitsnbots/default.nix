@@ -14,7 +14,7 @@ stdenv.mkDerivation rec {
 
   makefile = "Makefile.linux";
 
-  NIX_CFLAGS_COMPILE = "-I${SDL}/include/SDL";
+  NIX_CFLAGS_COMPILE = "-I${SDL.dev}/include/SDL";
 
   NIX_LDFLAGS = "-lGL";
 
@@ -29,7 +29,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Simple puzzle game with moving robots";
-    homepage = "http://moikmellah.org/blog/?page_id=19";
+    homepage = http://moikmellah.org/blog/?page_id=19;
     license = stdenv.lib.licenses.gpl3Plus;
     platforms = with stdenv.lib.platforms; linux;
   };

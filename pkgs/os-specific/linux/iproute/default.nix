@@ -1,16 +1,13 @@
-{ fetchurl, stdenv, lib, flex, bison, db, iptables, pkgconfig
-, enableFan ? false
-}:
+{ fetchurl, stdenv, lib, flex, bison, db, iptables, pkgconfig }:
 
 stdenv.mkDerivation rec {
-  name = "iproute2-4.3.0";
+  name = "iproute2-${version}";
+  version = "4.14.1";
 
   src = fetchurl {
     url = "mirror://kernel/linux/utils/net/iproute2/${name}.tar.xz";
-    sha256 = "159988vv3fd78bzhisfl1dl4dd7km3vjzs2d8899a0vcvn412fzh";
+    sha256 = "0rq0n7yxb0hmk0s6wx5awzjgf7ikjbibd0a5ix20ldfcmxlc0fnl";
   };
-
-  patches = lib.optionals enableFan [ ./ubuntu-fan.patch ];
 
   preConfigure = ''
     patchShebangs ./configure
@@ -22,7 +19,9 @@ stdenv.mkDerivation rec {
     "LIBDIR=$(out)/lib"
     "SBINDIR=$(out)/sbin"
     "MANDIR=$(out)/share/man"
+    "BASH_COMPDIR=$(out)/share/bash-completion/completions"
     "DOCDIR=$(TMPDIR)/share/doc/${name}" # Don't install docs
+    "HDRDIR=$(TMPDIR)/include/iproute2" # Don't install headers
   ];
 
   buildFlags = [
@@ -39,10 +38,10 @@ stdenv.mkDerivation rec {
   enableParallelBuilding = true;
 
   meta = with stdenv.lib; {
-    homepage = http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2;
+    homepage = https://wiki.linuxfoundation.org/networking/iproute2;
     description = "A collection of utilities for controlling TCP/IP networking and traffic control in Linux";
     platforms = platforms.linux;
     license = licenses.gpl2;
-    maintainers = with maintainers; [ eelco wkennington ];
+    maintainers = with maintainers; [ eelco wkennington fpletz ];
   };
 }

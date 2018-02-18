@@ -1,37 +1,40 @@
-{ stdenv, fetchFromGitHub, makeWrapper, tmux, vim }:
+{ stdenv, fetchFromGitHub }:
 
 stdenv.mkDerivation rec {
-  name = "dynamic-colors-git-${version}";
-  version = "2013-12-28";
+  name = "dynamic-colors-${version}";
+  version = "0.2.2.1";
 
   src = fetchFromGitHub {
-    owner = "sos4nt";
-    repo = "dynamic-colors";
-    rev = "35325f43620c5ee11a56db776b8f828bc5ae1ddd";
-    sha256 = "1xsjanqyvjlcj1fb8x4qafskxp7aa9b43ba9gyjgzr7yz8hkl4iz";
+    owner  = "peterhoeg";
+    repo   = "dynamic-colors";
+    rev    = "v${version}";
+    sha256 = "0qz76n5sspgpz6bz66jfkyr42da3skbpw9wbvxgm3ha343azfaiw";
   };
 
-  buildInputs = [ makeWrapper ];
-
-  patches = [ ./separate-config-and-dynamic-root-path.patch ];
+  dontBuild = true;
+  dontStrip = true;
 
   installPhase = ''
-    mkdir -p $out/bin $out/etc/bash_completion.d $out/share/dynamic-colors
-    cp bin/dynamic-colors $out/bin/
-    cp completions/dynamic-colors.bash $out/etc/bash_completion.d/
-    cp -r colorschemes $out/share/dynamic-colors/
+    mkdir -p \
+      $out/bin \
+      $out/share/dynamic-colors/colorschemes \
+      $out/share/bash-completion/completions \
+      $out/share/zsh/site-packages
 
-    sed -e 's|\<tmux\>|${tmux}/bin/tmux|g' \
-        -e 's|/usr/bin/vim|${vim}/bin/vim|g' \
-        -i "$out/bin/dynamic-colors"
+    install -m755 bin/dynamic-colors              $out/bin/
+    install -m644 completions/dynamic-colors.bash $out/share/bash-completion/completions/dynamic-colors
+    install -m644 completions/dynamic-colors.zsh  $out/share/zsh/site-packages/_dynamic-colors
+    install -m644 colorschemes/*               -t $out/share/dynamic-colors/colorschemes
 
-    wrapProgram $out/bin/dynamic-colors --set DYNAMIC_COLORS_ROOT "$out/share/dynamic-colors"
+    substituteInPlace $out/bin/dynamic-colors \
+      --replace /usr/share/dynamic-colors $out/share/dynamic-colors
   '';
 
-  meta = {
-    homepage = https://github.com/sos4nt/dynamic-colors;
-    license = stdenv.lib.licenses.mit;
+  meta = with stdenv.lib; {
     description = "Change terminal colors on the fly";
-    platforms = stdenv.lib.platforms.unix;
+    homepage    = https://github.com/peterhoeg/dynamic-colors;
+    license     = licenses.mit;
+    maintainers = with maintainers; [ peterhoeg ];
+    platforms   = platforms.unix;
   };
 }

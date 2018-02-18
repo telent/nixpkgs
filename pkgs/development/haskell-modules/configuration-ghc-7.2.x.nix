@@ -1,6 +1,6 @@
-{ pkgs }:
+{ pkgs, haskellLib }:
 
-with import ./lib.nix { inherit pkgs; };
+with haskellLib;
 
 self: super: {
 
@@ -36,24 +36,23 @@ self: super: {
 
   # These packages are core libraries in GHC 7.10.x, but not here.
   deepseq = self.deepseq_1_3_0_1;
-  haskeline = self.haskeline_0_7_2_1;
-  terminfo = self.terminfo_0_4_0_1;
+  haskeline = self.haskeline_0_7_3_1;
+  terminfo = self.terminfo_0_4_0_2;
   transformers = self.transformers_0_4_3_0;
   xhtml = self.xhtml_3000_2_1;
 
   # https://github.com/haskell/cabal/issues/2322
-  Cabal_1_22_4_0 = super.Cabal_1_22_4_0.override { binary = self.binary_0_8_0_0; process = self.process_1_2_3_0; };
+  Cabal_1_22_4_0 = super.Cabal_1_22_4_0.override { binary = self.binary_0_8_5_1; process = self.process_1_2_3_0; };
 
-  # Newer versions don't compile.
-  Cabal_1_18_1_6 = dontJailbreak super.Cabal_1_18_1_6;
-  cabal-install = self.cabal-install_1_18_1_0;
+  # Requires ghc 8.2
+  ghc-proofs = dontDistribute super.ghc-proofs;
 
   # https://github.com/tibbe/hashable/issues/85
   hashable = dontCheck super.hashable;
 
   # https://github.com/peti/jailbreak-cabal/issues/9
   jailbreak-cabal = super.jailbreak-cabal.override {
-    Cabal = dontJailbreak (self.Cabal_1_20_0_3.override { deepseq = dontJailbreak self.deepseq_1_3_0_1; });
+    Cabal = self.Cabal_1_20_0_4.override { deepseq = self.deepseq_1_3_0_1; };
   };
 
   # Haddock chokes on the prologue from the cabal file.
@@ -67,14 +66,24 @@ self: super: {
 
   # Setup: Can't find transitive deps for haddock
   doctest = dontHaddock super.doctest;
+  hsdns = dontHaddock super.hsdns;
 
   # Needs hashable on pre 7.10.x compilers.
+  nats_1 = addBuildDepend super.nats_1 self.hashable;
   nats = addBuildDepend super.nats self.hashable;
 
   # Newer versions require bytestring >=0.10.
   tar = super.tar_0_4_1_0;
 
-  # Needs void on pre 7.10.x compilers.
+  # These builds need additional dependencies on old compilers.
   conduit = addBuildDepend super.conduit self.void;
+  reflection = addBuildDepend super.reflection self.tagged;
+  semigroups = addBuildDepend super.semigroups self.nats;
+  optparse-applicative = addBuildDepend super.optparse-applicative self.semigroups;
+  text = addBuildDepend super.text self.bytestring-builder;
+
+  # Newer versions don't compile any longer.
+  network_2_6_3_1 = dontCheck super.network_2_6_3_1;
+  network = self.network_2_6_3_1;
 
 }

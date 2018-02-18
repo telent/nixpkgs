@@ -6,12 +6,12 @@ stdenv.mkDerivation rec {
   src = fetchgit {
     rev = "9097bf98446ee33c07bb155d800395775ce0d9b2";
     url = "https://gitlab.com/eql/eql.git";
-    sha256 = "1fp88xmmk1sa0iqxahfiv818bp2sbf66vqrd4xq9jb731ybdvsb8";
+    sha256 = "17h23qr7fyr9hvjgiq0yhacmjs43x06vh8978aq42ymcgipxdcww";
   };
 
   buildInputs = [ ecl qt4 xorgserver xkbcomp xkeyboard_config ];
 
-  NIX_CFLAGS_COMPILE = "-fPIC";
+  NIX_CFLAGS_COMPILE = [ "-fPIC" ];
 
   postPatch = ''
     sed -re 's@[(]in-home "gui/.command-history"[)]@(concatenate '"'"'string (ext:getenv "HOME") "/.eql-gui-command-history")@' -i gui/gui.lisp

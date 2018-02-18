@@ -27,6 +27,14 @@ in {
         '';
       };
 
+      enableVPN = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Whether to enable ConnMan VPN service.
+        '';
+      };
+
       extraConfig = mkOption {
         type = types.lines;
         default = ''
@@ -53,13 +61,13 @@ in {
   config = mkIf cfg.enable {
 
     assertions = [{
-      assertion = config.networking.useDHCP == false;
+      assertion = !config.networking.useDHCP;
       message = "You can not use services.networking.connman with services.networking.useDHCP";
     }{
-      assertion = config.networking.wireless.enable == true;
+      assertion = config.networking.wireless.enable;
       message = "You must use services.networking.connman with services.networking.wireless";
     }{
-      assertion = config.networking.networkmanager.enable == false;
+      assertion = !config.networking.networkmanager.enable;
       message = "You can not use services.networking.connman with services.networking.networkmanager";
     }];
 
@@ -78,7 +86,7 @@ in {
       };
     };
 
-    systemd.services."connman-vpn" = {
+    systemd.services."connman-vpn" = mkIf cfg.enableVPN {
       description = "ConnMan VPN service";
       wantedBy = [ "multi-user.target" ];
       after = [ "syslog.target" ];
@@ -91,7 +99,7 @@ in {
       };
     };
 
-    systemd.services."net-connman-vpn" = {
+    systemd.services."net-connman-vpn" = mkIf cfg.enableVPN {
       description = "D-BUS Service";
       serviceConfig = {
         Name = "net.connman.vpn";
@@ -107,10 +115,5 @@ in {
       wireless.enable = true;
       networkmanager.enable = false;
     };
-
-    powerManagement.resumeCommands = ''
-      systemctl restart connman
-    '';
-
   };
 }

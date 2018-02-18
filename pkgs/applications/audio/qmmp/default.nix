@@ -1,4 +1,5 @@
-{ stdenv, fetchurl, cmake, qt4, pkgconfig, xlibsWrapper
+{ stdenv, fetchurl, cmake, pkgconfig, xlibsWrapper
+, qtbase, qttools, qtmultimedia, qtx11extras
 # transports
 , curl, libmms
 # input plugins
@@ -28,16 +29,17 @@
 # handle that.
 
 stdenv.mkDerivation rec {
-  name = "qmmp-0.8.4";
+  name = "qmmp-1.1.10";
 
   src = fetchurl {
     url = "http://qmmp.ylsoftware.com/files/${name}.tar.bz2";
-    sha256 = "1ld69xypyak3lzwmfvzbxsyd4fl841aaq0gmkfa7jpavbdlggydf";
+    sha256 = "16hb3s48filq0q18m7x9vmhpirk4fh0aqj8kwbapv8mkcnzq2mqy";
   };
 
   buildInputs =
     [ # basic requirements
-      cmake qt4 pkgconfig xlibsWrapper
+      cmake pkgconfig xlibsWrapper
+      qtbase qttools qtmultimedia qtx11extras
       # transports
       curl libmms
       # input plugins
@@ -48,6 +50,8 @@ stdenv.mkDerivation rec {
       # effect plugins
       libsamplerate
     ];
+
+  enableParallelBuilding = true;
 
   meta = with stdenv.lib; {
     description = "Qt-based audio player that looks like Winamp";

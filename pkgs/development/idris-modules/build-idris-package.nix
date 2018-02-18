@@ -4,8 +4,13 @@
 #       name and src.
 { stdenv, idris, gmp }: args: stdenv.mkDerivation ({
   preHook = ''
-    mkdir idris-libs
+    # Library import path
     export IDRIS_LIBRARY_PATH=$PWD/idris-libs
+    mkdir -p $IDRIS_LIBRARY_PATH
+
+    # Library install path
+    export IBCSUBDIR=$out/lib/${idris.name}
+    mkdir -p $IBCSUBDIR
 
     addIdrisLibs () {
       if [ -d $1/lib/${idris.name} ]; then
@@ -13,11 +18,8 @@
       fi
     }
 
-    envHooks+=(addIdrisLibs)
-  '';
-
-  configurePhase = ''
-    export TARGET=$out/lib/${idris.name}
+    # All run-time deps
+    addEnvHooks 0 addIdrisLibs
   '';
 
   buildPhase = ''
@@ -33,7 +35,7 @@
   '';
 
   installPhase = ''
-    ${idris}/bin/idris --install *.ipkg
+    ${idris}/bin/idris --install *.ipkg --ibcsubdir $IBCSUBDIR
   '';
 
   buildInputs = [ gmp ];

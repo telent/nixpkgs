@@ -1,17 +1,21 @@
-{ stdenv, fetchurl, cmake, boost }:
+{ stdenv, fetchFromGitHub, cmake, boost, miniupnpc, openssl, pkgconfig, unbound }:
 
 let
-  version = "0.8.8.4";
+  version = "0.11.1.0";
 in
 stdenv.mkDerivation {
   name = "monero-${version}";
 
-  src = fetchurl {
-    url = "https://github.com/monero-project/bitmonero/archive/v${version}.tar.gz";
-    sha256 = "0bbhqjjzh922aymjqrnl2hd3r8x6p7x5aa5jidv3l4d77drhlgzy";
+  src = fetchFromGitHub {
+    owner = "monero-project";
+    repo = "monero";
+    rev = "v${version}";
+    sha256 = "0nrpxx6r63ia6ard85d504x2kgaikvrhb5sg93ml70l6djyy1148";
   };
 
-  buildInputs = [ cmake boost ];
+  nativeBuildInputs = [ cmake pkgconfig ];
+
+  buildInputs = [ boost miniupnpc openssl unbound ];
 
   # these tests take a long time and don't
   # always complete in the build environment
@@ -20,19 +24,19 @@ stdenv.mkDerivation {
   NIX_CFLAGS_COMPILE = "-Wno-error=cpp";
 
   doCheck = false;
-  checkTarget = "test-release"; # this would be the target
 
   installPhase = ''
-    installBin \
-        src/bitmonerod \
-        src/connectivity_tool \
-        src/simpleminer \
-        src/simplewallet
+    install -Dt "$out/bin/" \
+        bin/monerod \
+        bin/monero-blockchain-export \
+        bin/monero-blockchain-import \
+        bin/monero-wallet-cli \
+        bin/monero-wallet-rpc
   '';
 
   meta = with stdenv.lib; {
     description = "Private, secure, untraceable currency";
-    homepage = http://monero.cc/;
+    homepage = https://getmonero.org/;
     license = licenses.bsd3;
     maintainers = [ maintainers.ehmry ];
     platforms = [ "x86_64-linux" ];

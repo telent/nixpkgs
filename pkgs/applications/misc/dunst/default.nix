@@ -1,40 +1,37 @@
-{ stdenv, fetchurl, coreutils, unzip, which, pkgconfig, dbus
-, freetype, xdg_utils, libXext, glib, pango, cairo, libX11, libnotify
-, libxdg_basedir, libXScrnSaver, xproto, libXinerama, perl, gdk_pixbuf
-, dbus_daemon, makeWrapper
+{ stdenv, fetchFromGitHub, fetchpatch
+, pkgconfig, which, perl, gtk2, xrandr
+, cairo, dbus, gdk_pixbuf, glib, libX11, libXScrnSaver
+, libXinerama, libnotify, libxdg_basedir, pango, xproto, librsvg
 }:
 
 stdenv.mkDerivation rec {
-  name = "dunst-1.1.0";
-  version = "1.1.0";
+  name = "dunst-${version}";
+  version = "1.2.0";
 
-  src = fetchurl {
-    url = "https://github.com/knopwob/dunst/archive/v${version}.tar.gz";
-    sha256 = "0x95f57s0a96c4lifxdpf73v706iggwmdw8742mabbjnxq55l1qs";
+  src = fetchFromGitHub {
+    owner = "dunst-project";
+    repo = "dunst";
+    rev = "v${version}";
+    sha256 = "0jncnb4z4hg92ws08bkf52jswsd4vqlzyznwbynhh2jh6q0sl18b";
   };
 
-  buildInputs =
-  [ coreutils unzip which pkgconfig dbus freetype libnotify gdk_pixbuf
-    xdg_utils libXext glib pango cairo libX11 libxdg_basedir
-    libXScrnSaver xproto libXinerama perl dbus_daemon makeWrapper ];
+  nativeBuildInputs = [ perl pkgconfig which ];
 
-  buildPhase = ''
-    export VERSION=${version};
-    export PREFIX=$out;
-    make dunst;
-  '';
+  buildInputs = [
+    cairo dbus gdk_pixbuf glib libX11 libXScrnSaver
+    libXinerama libnotify libxdg_basedir pango xproto librsvg gtk2 xrandr
+  ];
 
-  postFixup = ''
-    wrapProgram "$out/bin/dunst" \
-      --prefix PATH : '${dbus_daemon}/bin'
-  '';
+  outputs = [ "out" "man" ];
 
-  meta = {
-    description = "lightweight and customizable notification daemon";
+  makeFlags = [ "PREFIX=$(out)" "VERSION=$(version)" ];
+
+  meta = with stdenv.lib; {
+    description = "Lightweight and customizable notification daemon";
     homepage = http://www.knopwob.org/dunst/;
-    license = stdenv.lib.licenses.bsd3;
+    license = licenses.bsd3;
     # NOTE: 'unix' or even 'all' COULD work too, I'm not sure
-    platforms = stdenv.lib.platforms.linux;
-    maintainers = [ stdenv.lib.maintainers.iElectric ];
+    platforms = platforms.linux;
+    maintainers = [ maintainers.domenkozar ];
   };
 }

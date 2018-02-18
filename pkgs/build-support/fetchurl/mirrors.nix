@@ -10,6 +10,7 @@ rec {
 
   # SourceForge.
   sourceforge = [
+    http://downloads.sourceforge.net/
     http://prdownloads.sourceforge.net/
     http://heanet.dl.sourceforge.net/sourceforge/
     http://surfnet.dl.sourceforge.net/sourceforge/
@@ -54,13 +55,14 @@ rec {
     https://gnupg.org/ftp/gcrypt/
     http://www.ring.gr.jp/pub/net/
     http://gd.tuwien.ac.at/privacy/
-    http://mirrors.dotsrc.org/
-    http://ftp.heanet.ie/mirrors/ftp.gnupg.org/
-    http://www.mirrorservice.org/sites/ftp.gnupg.org/
+    http://mirrors.dotsrc.org/gcrypt/
+    http://ftp.heanet.ie/mirrors/ftp.gnupg.org/gcrypt/
+    http://www.mirrorservice.org/sites/ftp.gnupg.org/gcrypt/
   ];
 
   # kernel.org's /pub (/pub/{linux,software}) tree.
   kernel = [
+    http://cdn.kernel.org/pub/
     http://www.all.kernel.org/pub/
     http://ramses.wh2.tu-dresden.de/pub/mirrors/kernel.org/
     http://linux-kernel.uio.no/pub/
@@ -85,24 +87,52 @@ rec {
   ];
 
   savannah = [
-    ftp://mirror.csclub.uwaterloo.ca/nongnu/
-    ftp://mirror.publicns.net/pub/nongnu/
-    ftp://savannah.c3sl.ufpr.br/
-    http://download.savannah.gnu.org/releases/
-    http://ftp.cc.uoc.gr/mirrors/nongnu.org/
-    http://ftp.twaren.net/Unix/NonGNU/
-    http://mirror.csclub.uwaterloo.ca/nongnu/
-    http://nongnu.askapache.com/
+    # Mirrors from https://download-mirror.savannah.gnu.org/releases/00_MIRRORS.html
+    http://mirror.easyname.at/nongnu/
+    http://mirror2.klaus-uwe.me/nongnu/
     http://savannah.c3sl.ufpr.br/
-    http://www.centervenus.com/mirrors/nongnu/
+    http://mirror.csclub.uwaterloo.ca/nongnu/
+    http://mirror.cedia.org.ec/nongnu/
+    http://ftp.igh.cnrs.fr/pub/nongnu/
+    http://mirror6.layerjet.com/nongnu
+    http://mirror.netcologne.de/savannah/
+    http://ftp.cc.uoc.gr/mirrors/nongnu.org/
+    http://nongnu.uib.no/
+    http://mirrors.fe.up.pt/pub/nongnu/
+    http://mirror.lihnidos.org/GNU/savannah/
+    http://savannah.mirror.si/
+    http://ftp.acc.umu.se/mirror/gnu.org/savannah/
+    http://ftp.twaren.net/Unix/NonGNU/
+    http://ftp.yzu.edu.tw/pub/nongnu/
+    http://mirror.rackdc.com/savannah/
+    http://savannah-nongnu-org.ip-connect.vn.ua/
+    http://www.mirrorservice.org/sites/download.savannah.gnu.org/releases/
+    http://savannah.spinellicreations.com/
+    http://gnu.mirrors.pair.com/savannah/savannah/
+    ftp://mirror.easyname.at/nongnu/
+    ftp://mirror2.klaus-uwe.me/nongnu/
+    ftp://savannah.c3sl.ufpr.br/savannah-nongnu/
+    ftp://mirror.csclub.uwaterloo.ca/nongnu/
+    ftp://mirror.cedia.org.ec/nongnu
+    ftp://ftp.igh.cnrs.fr/pub/nongnu/
+    ftp://mirror6.layerjet.com/nongnu/
+    ftp://mirror.netcologne.de/savannah/
+    ftp://nongnu.uib.no/pub/nongnu/
+    ftp://mirrors.fe.up.pt/pub/nongnu/
+    ftp://savannah.mirror.si/savannah/
+    ftp://ftp.twaren.net/Unix/NonGNU/
+    ftp://ftp.yzu.edu.tw/pub/nongnu/
+    ftp://savannah-nongnu-org.ip-connect.vn.ua/mirror/savannah.nongnu.org/
+    ftp://ftp.mirrorservice.org/sites/download.savannah.gnu.org/releases/
+    ftp://spinellicreations.com/gnu_dot_org_savannah_mirror/
   ];
 
   samba = [
-    http://samba.org/ftp/
+    https://www.samba.org/ftp/
     http://ftp.riken.jp/net/samba
   ];
 
-  # BitlBee mirrors, see http://www.bitlbee.org/main.php/mirrors.html .
+  # BitlBee mirrors, see https://www.bitlbee.org/main.php/mirrors.html .
   bitlbee = [
     http://get.bitlbee.org/
     http://get.bitlbee.be/
@@ -111,9 +141,11 @@ rec {
     http://bitlbee.intergenia.de/
   ];
 
-  # ImageMagick mirrors, see http://www.imagemagick.org/script/download.php.
+  # ImageMagick mirrors, see https://www.imagemagick.org/script/mirror.php
   imagemagick = [
-    http://www.imagemagick.org/download/
+    https://www.imagemagick.org/download/
+    https://mirror.checkdomain.de/imagemagick/
+    https://ftp.nluug.nl/ImageMagick/
     ftp://ftp.sunet.se/pub/multimedia/graphics/ImageMagick/ # also contains older versions removed from most mirrors
     http://ftp.sunet.se/pub/multimedia/graphics/ImageMagick/
     ftp://ftp.imagemagick.org/pub/ImageMagick/
@@ -127,8 +159,9 @@ rec {
   cpan = [
     http://ftp.gwdg.de/pub/languages/perl/CPAN/
     ftp://download.xs4all.nl/pub/mirror/CPAN/
-    ftp://ftp.nl.uu.net/pub/CPAN/
+    http://ftp.tuwien.ac.at/pub/CPAN/
     http://ftp.funet.fi/pub/CPAN/
+    https://cpan.metacpan.org/
     http://cpan.perl.org/
     http://backpan.perl.org/  # for old releases
   ];
@@ -234,15 +267,14 @@ rec {
   # Apache mirrors (see http://www.apache.org/mirrors/).
   apache = [
     http://www.eu.apache.org/dist/
-    ftp://ftp.inria.fr/pub/Apache/
-    http://apache.cict.fr/
+    http://wwwftp.ciril.fr/pub/apache/
     ftp://ftp.fu-berlin.de/unix/www/apache/
-    ftp://crysys.hit.bme.hu/pub/apache/dist/
+    http://ftp.tudelft.nl/apache/
     http://mirror.cc.columbia.edu/pub/software/apache/
     http://www.apache.org/dist/
     http://archive.apache.org/dist/ # fallback for old releases
     ftp://ftp.funet.fi/pub/mirrors/apache.org/
-    http://apache.cs.uu.nl/dist/
+    http://apache.cs.uu.nl/
     http://apache.cs.utah.edu/
   ];
 
@@ -288,34 +320,49 @@ rec {
 
   # Sage mirrors (http://www.sagemath.org/mirrors.html)
   sagemath = [
-    http://boxen.math.washington.edu/home/sagemath/sage-mirror/src/
-    http://echidna.maths.usyd.edu.au/sage/src/
-    http://ftp.iitm.ac.in/sage/src/
+    # Africa
+    http://sagemath.polytechnic.edu.na/src/
+    ftp://ftp.sun.ac.za/pub/mirrors/www.sagemath.org/src/
+    http://sagemath.mirror.ac.za/src/
+    https://ftp.leg.uct.ac.za/pub/packages/sage/src/
+    http://mirror.ufs.ac.za/sagemath/src/
+
+    # America, North
+    http://mirrors-usa.go-parts.com/sage/sagemath/src/
+    http://mirrors.mit.edu/sage/src/
+    http://www.cecm.sfu.ca/sage/src/
+    http://files.sagemath.org/src/
+    http://mirror.clibre.uqam.ca/sage/src/
+    https://mirrors.xmission.com/sage/src/
+
+    # America, South
+    http://sagemath.c3sl.ufpr.br/src/
+    http://linorg.usp.br/sage/
+
+    # Asia
+    http://sage.asis.io/src/
+    http://mirror.hust.edu.cn/sagemath/src/
+    https://ftp.iitm.ac.in/sage/src/
     http://ftp.kaist.ac.kr/sage/src/
     http://ftp.riken.jp/sagemath/src/
+    https://mirrors.tuna.tsinghua.edu.cn/sagemath/src/
+    https://mirrors.ustc.edu.cn/sagemath/src/
     http://ftp.tsukuba.wide.ad.jp/software/sage/src/
-    http://jambu.spms.ntu.edu.sg/sage/src/
-    http://linorg.usp.br/sage/src/
-    http://mirror.aarnet.edu.au/pub/sage/src/
-    http://mirror.clibre.uqam.ca/sage/src/
-    http://mirror.hust.edu.cn/sagemath/src/
-    http://mirror.switch.ch/mirror/sagemath/src/
-    http://mirror.yandex.ru/mirrors/sage.math.washington.edu/src/
-    http://mirrors.fe.up.pt/pub/sage/src/
-    http://mirrors.hustunique.com/sagemath/src/
-    http://mirrors.ustc.edu.cn/sagemath/src/
-    http://mirrors.xmission.com/sage/src/
-    http://sage.asis.io/src/
+    http://ftp.yz.yamagata-u.ac.jp/pub/math/sage/src/
+    https://mirror.yandex.ru/mirrors/sage.math.washington.edu/src/
+
+    # Australia
+    http://echidna.maths.usyd.edu.au/sage/src/
+
+    # Europe
     http://sage.mirror.garr.it/mirrors/sage/src/
-    http://sage.yasar.edu.tr/src/
-    http://sagemath.c3sl.ufpr.br/src/
-    http://sagemath.polytechnic.edu.na/src/
     http://sunsite.rediris.es/mirror/sagemath/src/
+    http://mirror.switch.ch/mirror/sagemath/src/
+    http://mirrors.fe.up.pt/pub/sage/src/
     http://www-ftp.lip6.fr/pub/math/sagemath/src/
-    http://www.mirrorservice.org/sites/www.sagemath.org/src/
+    http://ftp.ntua.gr/pub/sagemath/src/
 
     # Old versions
-    http://www.cecm.sfu.ca/sage/src/
     http://sagemath.org/src-old/
   ];
 
@@ -332,5 +379,31 @@ rec {
     ftp://ftp-stud.fht-esslingen.de/pub/OpenBSD/
     ftp://ftp.halifax.rwth-aachen.de/pub/OpenBSD/
     ftp://mirror.switch.ch/pub/OpenBSD/
+  ];
+
+  # Steam Runtime mirrors
+  steamrt = [
+    http://repo.steampowered.com/steamrt/
+    https://abbradar.net/steamrt/
+  ];
+
+  # Python PyPI mirrors
+  pypi = [
+    https://files.pythonhosted.org/packages/source/
+    # pypi.io is a more semantic link, but atm it’s referencing
+    # files.pythonhosted.org over two redirects
+    https://pypi.io/packages/source/
+  ];
+
+  # Mozilla projects.
+  mozilla = [
+    http://download.cdn.mozilla.net/pub/mozilla.org/
+    https://archive.mozilla.org/pub/
+  ];
+
+  # Maven Central
+  maven = [
+    http://repo1.maven.org/maven2/
+    http://central.maven.org/maven2/
   ];
 }

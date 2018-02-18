@@ -4,17 +4,33 @@
 
 stdenv.mkDerivation rec {
   name = "simplescreenrecorder-${version}";
-  version = "0.3.3";
+  version = "0.3.8";
 
   src = fetchurl {
     url = "https://github.com/MaartenBaert/ssr/archive/${version}.tar.gz";
-    sha256 = "09mcmvqbzq2blv404pklv6fc8ci3a9090p42rdsgmlr775bdyxfb";
+    sha256 = "0v8w35n8w772s08w7k0icynqdsdakbrcanbgx6j847bfqfsg21gg";
   };
 
-  buildInputs = [
-    alsaLib ffmpeg libjack2 libX11 libXext libXfixes mesa pkgconfig
+  patches = [ ./fix-paths.patch ];
+
+  postPatch = ''
+    # #455
+    sed '1i#include <random>' -i src/Benchmark.cpp
+
+    for i in scripts/ssr-glinject src/AV/Input/GLInjectInput.cpp; do
+      substituteInPlace $i \
+        --subst-var out \
+        --subst-var-by sh ${stdenv.shell}
+    done
+  '';
+
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [  
+    alsaLib ffmpeg libjack2 libX11 libXext libXfixes mesa
     libpulseaudio qt4
   ];
+
+  enableParallelBuilding = true;
 
   meta = with stdenv.lib; {
     description = "A screen recorder for Linux";

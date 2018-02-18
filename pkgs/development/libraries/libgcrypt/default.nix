@@ -1,25 +1,33 @@
-{ lib, stdenv, fetchurl, libgpgerror, enableCapabilities ? false, libcap }:
+{ stdenv, fetchurl, libgpgerror, enableCapabilities ? false, libcap }:
 
 assert enableCapabilities -> stdenv.isLinux;
 
 stdenv.mkDerivation rec {
-  name = "libgcrypt-1.6.4";
+  name = "libgcrypt-${version}";
+  version = "1.8.1";
 
   src = fetchurl {
     url = "mirror://gnupg/libgcrypt/${name}.tar.bz2";
-    sha256 = "09k06gs27gxfha07sa9rpf4xh6mvphj9sky7n09ymx75w9zjrg69";
+    sha256 = "1cvqd9jk5qshbh48yh3ixw4zyr4n5k50r3475rrh20xfn7w7aa3s";
   };
 
-  buildInputs =
-    [ libgpgerror ]
-    ++ lib.optional enableCapabilities libcap;
+  outputs = [ "out" "dev" "info" ];
+  outputBin = "dev";
+
+  # The CPU Jitter random number generator must not be compiled with
+  # optimizations and the optimize -O0 pragma only works for gcc.
+  # The build enables -O2 by default for everything else.
+  hardeningDisable = stdenv.lib.optional stdenv.cc.isClang "fortify";
+
+  buildInputs = [ libgpgerror ]
+    ++ stdenv.lib.optional enableCapabilities libcap;
 
   # Make sure libraries are correct for .pc and .la files
   # Also make sure includes are fixed for callers who don't use libgpgcrypt-config
-  postInstall = ''
-    sed -i 's,#include <gpg-error.h>,#include "${libgpgerror}/include/gpg-error.h",g' $out/include/gcrypt.h
+  postFixup = ''
+    sed -i 's,#include <gpg-error.h>,#include "${libgpgerror.dev}/include/gpg-error.h",g' "$dev/include/gcrypt.h"
   '' + stdenv.lib.optionalString enableCapabilities ''
-    sed -i 's,\(-lcap\),-L${libcap}/lib \1,' $out/lib/libgcrypt.la
+    sed -i 's,\(-lcap\),-L${libcap.lib}/lib \1,' $out/lib/libgcrypt.la
   '';
 
   # TODO: figure out why this is even necessary and why the missing dylib only crashes
@@ -31,12 +39,12 @@ stdenv.mkDerivation rec {
 
   doCheck = true;
 
-  meta = {
+  meta = with stdenv.lib; {
     homepage = https://www.gnu.org/software/libgcrypt/;
-    description = "General-pupose cryptographic library";
-    license = lib.licenses.lgpl2Plus;
-    platforms = lib.platforms.all;
-    maintainers = [ lib.maintainers.wkennington ];
+    description = "General-purpose cryptographic library";
+    license = licenses.lgpl2Plus;
+    platforms = platforms.all;
+    maintainers = [ maintainers.wkennington maintainers.vrthra ];
     repositories.git = git://git.gnupg.org/libgcrypt.git;
   };
 }

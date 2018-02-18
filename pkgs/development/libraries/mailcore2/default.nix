@@ -14,16 +14,18 @@ stdenv.mkDerivation rec {
     sha256 = "1k0l59cdk8np4pff1my07dp7ivf3nchlhcpvm9xizp0my9rqgbxb";
   };
 
+  nativeBuildInputs = [ pkgconfig ];
   buildInputs = [
-    libetpan cmake icu cyrus_sasl libctemplate libuchardet pkgconfig glib
+    libetpan cmake icu cyrus_sasl libctemplate libuchardet glib
     libtidy libxml2 libuuid openssl
   ];
 
   postPatch = ''
     substituteInPlace CMakeLists.txt \
+       --replace " icule iculx" "" \
        --replace "tidy/tidy.h" "tidy.h" \
        --replace "/usr/include/tidy" "${libtidy}/include" \
-       --replace "/usr/include/libxml2" "${libxml2}/include/libxml2"
+       --replace "/usr/include/libxml2" "${libxml2.dev}/include/libxml2"
     substituteInPlace src/core/basetypes/MCHTMLCleaner.cpp \
       --replace buffio.h tidybuffio.h
   '';

@@ -1,14 +1,14 @@
-{ stdenv, fetchFromGitHub }:
+{ stdenv, fetchFromGitHub, utillinux }:
 
-let version = "129"; in
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "mcelog-${version}";
+  version = "153";
 
   src = fetchFromGitHub {
-    sha256 = "143xh5zvgax88yhg6mg6img64nrda85yybf76fgsk7a8gc57ghyk";
-    rev = "v${version}";
-    repo = "mcelog";
-    owner = "andikleen";
+    owner  = "andikleen";
+    repo   = "mcelog";
+    rev    = "v${version}";
+    sha256 = "1wz55dzqdiam511d6p1958al6vzlhrhs73s7gly0mzm6kpji0gxa";
   };
 
   postPatch = ''
@@ -18,14 +18,23 @@ stdenv.mkDerivation {
     touch mcelog.conf.5 # avoid regeneration requiring Python
 
     substituteInPlace Makefile --replace '"unknown"' '"${version}"'
+
+    for i in triggers/*; do
+      substituteInPlace $i --replace 'logger' '${utillinux}/bin/logger'
+    done
   '';
 
   enableParallelBuilding = true;
 
   installFlags = [ "DESTDIR=$(out)" "prefix=" "DOCDIR=/share/doc" ];
 
+  postInstall = ''
+    mkdir -p $out/lib/systemd/system
+    substitute mcelog.service $out/lib/systemd/system/mcelog.service \
+      --replace /usr/sbin $out/bin
+  '';
+
   meta = with stdenv.lib; {
-    inherit version;
     description = "Log x86 machine checks: memory, IO, and CPU hardware errors";
     longDescription = ''
       The mcelog daemon accounts memory and some other errors in various ways

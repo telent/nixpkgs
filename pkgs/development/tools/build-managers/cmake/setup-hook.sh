@@ -13,7 +13,7 @@ fixCmakeFiles() {
 }
 
 cmakeConfigurePhase() {
-    eval "$preConfigure"
+    runHook preConfigure
 
     if [ -z "$dontFixCmake" ]; then
         fixCmakeFiles .
@@ -44,38 +44,59 @@ cmakeConfigurePhase() {
     # executable. This flag makes the shared library accessible from its
     # nix/store directory.
     cmakeFlags="-DCMAKE_INSTALL_NAME_DIR=$prefix/lib $cmakeFlags"
+    cmakeFlags="-DCMAKE_INSTALL_LIBDIR=${!outputLib}/lib $cmakeFlags"
+    cmakeFlags="-DCMAKE_INSTALL_INCLUDEDIR=${!outputDev}/include $cmakeFlags"
 
     # Avoid cmake resetting the rpath of binaries, on make install
     # And build always Release, to ensure optimisation flags
-    cmakeFlags="-DCMAKE_BUILD_TYPE=Release -DCMAKE_SKIP_BUILD_RPATH=ON $cmakeFlags"
+    cmakeFlags="-DCMAKE_BUILD_TYPE=${cmakeBuildType:-Release} -DCMAKE_SKIP_BUILD_RPATH=ON $cmakeFlags"
+
+    if [ "$buildPhase" = ninjaBuildPhase ]; then
+        cmakeFlags="-GNinja $cmakeFlags"
+    fi
 
     echo "cmake flags: $cmakeFlags ${cmakeFlagsArray[@]}"
 
     cmake ${cmakeDir:-.} $cmakeFlags "${cmakeFlagsArray[@]}"
 
-    eval "$postConfigure"
+    if ! [[ -v enableParallelBuilding ]]; then
+        enableParallelBuilding=1
+        echo "cmake: enabled parallel building"
+    fi
+
+    runHook postConfigure
 }
 
 if [ -z "$dontUseCmakeConfigure" -a -z "$configurePhase" ]; then
+    setOutputFlags=
     configurePhase=cmakeConfigurePhase
 fi
 
-if [ -n "$crossConfig" ]; then
-    crossEnvHooks+=(addCMakeParams)
-else
-    envHooks+=(addCMakeParams)
-fi
+addEnvHooks "$targetOffset" addCMakeParams
 
 makeCmakeFindLibs(){
+  isystem_seen=
   for flag in $NIX_CFLAGS_COMPILE $NIX_LDFLAGS; do
-    case $flag in
-      -I*)
-        export CMAKE_INCLUDE_PATH="$CMAKE_INCLUDE_PATH${CMAKE_INCLUDE_PATH:+:}${flag:2}"
-        ;;
-      -L*)
-        export CMAKE_LIBRARY_PATH="$CMAKE_LIBRARY_PATH${CMAKE_LIBRARY_PATH:+:}${flag:2}"
-        ;;
-    esac
+    if test -n "$isystem_seen" && test -d "$flag"; then
+      isystem_seen=
+      export CMAKE_INCLUDE_PATH="$CMAKE_INCLUDE_PATH${CMAKE_INCLUDE_PATH:+:}${flag}"
+    else
+      isystem_seen=
+      case $flag in
+        -I*)
+          export CMAKE_INCLUDE_PATH="$CMAKE_INCLUDE_PATH${CMAKE_INCLUDE_PATH:+:}${flag:2}"
+          ;;
+        -L*)
+          export CMAKE_LIBRARY_PATH="$CMAKE_LIBRARY_PATH${CMAKE_LIBRARY_PATH:+:}${flag:2}"
+          ;;
+        -F*)
+          export CMAKE_FRAMEWORK_PATH="$CMAKE_FRAMEWORK_PATH${CMAKE_FRAMEWORK_PATH:+:}${flag:2}"
+          ;;
+        -isystem)
+          isystem_seen=1
+          ;;
+      esac
+    fi
   done
 }
 

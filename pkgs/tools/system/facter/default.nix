@@ -1,16 +1,28 @@
-{ stdenv, fetchurl, boost, cmake, curl, libyamlcpp, openssl, utillinux }:
+{ stdenv, fetchFromGitHub, boost, cmake, cpp-hocon, curl, leatherman, libwhereami, libyamlcpp, openssl, ruby, utillinux }:
 
 stdenv.mkDerivation rec {
   name = "facter-${version}";
-  version = "3.1.3";
-  src = fetchurl {
-    url = "https://downloads.puppetlabs.com/facter/${name}.tar.gz";
-    sha256 = "1ngp3xjdh6x1w7lsi4lji2xzqp0x950jngcdlq11lcr0wfnzwyxj";
+  version = "3.9.0";
+
+  src = fetchFromGitHub {
+    sha256 = "1picxrmvka57ph4zqgwqdsqvz3mqppg41wkj8dx37hscwwlbdw0s";
+    rev = version;
+    repo = "facter";
+    owner = "puppetlabs";
   };
 
-  libyamlcpp_ = libyamlcpp.override { makePIC = true; };
+  CXXFLAGS = "-fpermissive";
+  NIX_CFLAGS_COMPILE = "-Wno-error";
+  NIX_LDFLAGS = "-lblkid";
 
-  buildInputs = [ boost cmake curl libyamlcpp_ openssl utillinux ];
+  cmakeFlags = [ "-DFACTER_RUBY=${ruby}/lib/libruby.so" ];
+
+  # since we cant expand $out in cmakeFlags
+  preConfigure = "cmakeFlags+=\" -DRUBY_LIB_INSTALL=$out/lib/ruby\"";
+
+  buildInputs = [ boost cmake cpp-hocon curl leatherman libwhereami libyamlcpp openssl ruby utillinux ];
+
+  enableParallelBuilding = true;
 
   meta = with stdenv.lib; {
     homepage = https://github.com/puppetlabs/facter;
@@ -19,5 +31,4 @@ stdenv.mkDerivation rec {
     maintainers = [ maintainers.womfoo ];
     platforms = platforms.linux;
   };
-
 }

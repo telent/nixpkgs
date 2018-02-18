@@ -1,4 +1,4 @@
-addCVars () {
+gccWrapperOld_addCVars () {
     if test -d $1/include; then
         export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -isystem $1/include"
     fi
@@ -12,7 +12,7 @@ addCVars () {
     fi
 }
 
-envHooks=(${envHooks[@]} addCVars)
+envBuildBuildHooks+=(gccWrapperOld_addCVars)
 
 # Note: these come *after* $out in the PATH (see setup.sh).
 
@@ -25,7 +25,7 @@ if test -n "@binutils@"; then
 fi
 
 if test -n "@libc@"; then
-    addToSearchPath PATH @libc@/bin
+    addToSearchPath PATH @libc_bin@/bin
 fi
 
 if test -n "@coreutils@"; then

@@ -1,20 +1,22 @@
-{ stdenv, fetchgit, cmake, irrlicht, libpng, bzip2, curl, libogg, jsoncpp
-, libjpeg, libXxf86vm, mesa, openal, libvorbis, xlibsWrapper, sqlite, luajit, freetype
-, gettext
+{ stdenv, fetchFromGitHub, cmake, irrlicht, libpng, bzip2, curl, libogg, jsoncpp
+, libjpeg, libXxf86vm, mesa, openal, libvorbis, xlibsWrapper, sqlite, luajit
+, freetype, gettext, doxygen, ncurses, leveldb
 }:
 
 let
-  version = "0.4.13";
+  version = "0.4.15";
   sources = {
-    src = fetchgit {
-      url = "https://github.com/minetest/minetest.git";
-      rev = "d44fceac7e1237b00c6431ee1bb5805b602d0dcd";
-      sha256 = "034w9nv23ncdwbs4arzxfph60cfgvalh27hxprjassmz8p7ixnra";
+    src = fetchFromGitHub {
+      owner = "minetest";
+      repo = "minetest";
+      rev = "${version}";
+      sha256 = "0bn4102d0hq774bn6hqhrs6qzl4sancrs4j15w4318bqdndk4676";
     };
-    data = fetchgit {
-      url = "https://github.com/minetest/minetest_game.git";
-      rev = "2392842948b114670334eabbb593b66e1427747c";
-      sha256 = "0wb8rdqc2ghi66k8bm8w2db0w7k5rsbdld0dyj1wdr3d6x0bpkcr";
+    data = fetchFromGitHub {
+      owner = "minetest";
+      repo = "minetest_game";
+      rev = "${version}";
+      sha256 = "1mjj40slfiw0khg9nrq8yfmnay237z5jm1cg9hrsiq2fkjrr8w2m";
     };
   };
 in stdenv.mkDerivation {
@@ -25,13 +27,18 @@ in stdenv.mkDerivation {
   cmakeFlags = [
     "-DENABLE_FREETYPE=1"
     "-DENABLE_GETTEXT=1"
-    "-DCURL_INCLUDE_DIR=${curl}/include/curl"
+    "-DENABLE_SYSTEM_JSONCPP=1"
+    "-DGETTEXT_INCLUDE_DIR=${gettext}/include/gettext"
+    "-DCURL_INCLUDE_DIR=${curl.dev}/include/curl"
     "-DIRRLICHT_INCLUDE_DIR=${irrlicht}/include/irrlicht"
   ];
 
+  NIX_CFLAGS_COMPILE = [ "-DluaL_reg=luaL_Reg" ]; # needed since luajit-2.1.0-beta3
+
   buildInputs = [
     cmake irrlicht libpng bzip2 libjpeg curl libogg jsoncpp libXxf86vm mesa
-    openal libvorbis xlibsWrapper sqlite luajit freetype gettext
+    openal libvorbis xlibsWrapper sqlite luajit freetype gettext doxygen ncurses
+    leveldb
   ];
 
   postInstall = ''

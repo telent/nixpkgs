@@ -1,18 +1,17 @@
-{ stdenv, fetchurl, makeWrapper, gcc }:
+{ stdenv, fetchurl, makeWrapper, gcc, asciidoc }:
 
 stdenv.mkDerivation rec {
   name = "colm-${version}";
-  version = "0.12.0";
+  version = "0.13.0.5";
 
   src = fetchurl {
     url = "http://www.colm.net/files/colm/${name}.tar.gz";
-    sha256 = "0kbfipxv3nvggd1a2nahk3jg22iifp2l7lkm55i5r7qkpms5sm3v";
+    sha256 = "1320bx96ycd1xwww137cixrb983838wnrgkfsym8x5bnf5kj9rik";
   };
 
-  buildInputs = [ makeWrapper ];
+  nativeBuildInputs = [ makeWrapper asciidoc ];
 
   doCheck = true;
-  checkPhase = ''sh ./test/runtests.sh'';
 
   postInstall = ''
     wrapProgram $out/bin/colm \
@@ -23,6 +22,7 @@ stdenv.mkDerivation rec {
     description = "A programming language for the analysis and transformation of computer languages";
     homepage = http://www.colm.net/open-source/colm;
     license = licenses.gpl2;
+    platforms = [ "x86_64-linux" "x86_64-darwin" ];
     maintainers = with maintainers; [ pSub ];
   };
 }

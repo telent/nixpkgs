@@ -2,7 +2,7 @@
 
 let version = "1.0"; in
 
-python3Packages.buildPythonPackage {
+python3Packages.buildPythonApplication {
   name = "zscroll-${version}";
   # don't prefix with python version
   namePrefix = "";
@@ -16,7 +16,7 @@ python3Packages.buildPythonPackage {
 
   doCheck = false;
 
-  propogatedBuildInputs = [ python3 ];
+  propagatedBuildInputs = [ python3 ];
 
   meta = with stdenv.lib; {
     description = "A text scroller for use with panels and shells";

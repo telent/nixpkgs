@@ -12,8 +12,15 @@ stdenv.mkDerivation rec {
     sha256 = "13d426a8h403ckpc8zyf7s2p5rql0lqbg2bv0454x0pvgbfbf4gh";
   };
 
+  postPatch = ''
+    sed '1i#include <sys/types.h>' -i src/daemon/open_console.c
+    substituteInPlace src/prog/gpm-root.y --replace __sigemptyset sigemptyset
+  '';
+
   nativeBuildInputs = [ automake autoconf libtool flex bison texinfo ];
   buildInputs = [ ncurses ];
+
+  hardeningDisable = [ "format" ];
 
   preConfigure = ''
     ./autogen.sh
@@ -34,7 +41,7 @@ stdenv.mkDerivation rec {
     homepage = http://www.nico.schottelius.org/software/gpm/;
     description = "A daemon that provides mouse support on the Linux console";
     license = licenses.gpl2;
-    platforms = platforms.linux;
+    platforms = platforms.linux ++ platforms.cygwin;
     maintainers = with maintainers; [ eelco wkennington ];
   };
 }

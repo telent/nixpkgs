@@ -10,6 +10,11 @@ stdenv.mkDerivation rec {
 
   patches = [ ./install-vixie-programs.patch ];
 
+  # don't attempt to chmod +s files in the nix store
+  postPatch = ''
+    substituteInPlace makefile.in --replace "rwxs" "rwx"
+  '';
+
   buildInputs = [ guile which ed ];
 
   doCheck = true;
@@ -28,5 +33,6 @@ stdenv.mkDerivation rec {
     homepage = http://www.gnu.org/software/mcron/;
 
     license = stdenv.lib.licenses.gpl3Plus;
+    platforms = stdenv.lib.platforms.unix;
   };
 }

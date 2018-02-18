@@ -2,57 +2,29 @@
 
 # Updating
 
-To update the list of packages from ELPA,
+To update the list of packages from MELPA,
 
-1. Clone https://github.com/ttuegel/emacs2nix
-2. Run `./elpa-packages.sh` from emacs2nix
-3. Copy the new elpa-packages.json file into Nixpkgs
-4. `git commit -m "elpa-packages $(date -Idate)"`
+1. Clone https://github.com/ttuegel/emacs2nix.
+2. Run `./elpa-packages.sh` from emacs2nix.
+3. Copy the new `elpa-generated.nix` file into Nixpkgs.
+4. Check for evaluation errors: `nix-instantiate ./. -A emacsPackagesNg.elpaPackages`.
+5. `git add pkgs/applications/editors/emacs-modes/elpa-generated.nix && git commit -m "elpa-packages $(date -Idate)"`
 
 */
 
 { fetchurl, lib, stdenv, texinfo }:
 
-let
-
-  inherit (lib) makeScope mapAttrs;
-
-  json = builtins.readFile ./elpa-packages.json;
-  manifest = builtins.fromJSON json;
-
-  mkPackage = self: name: recipe:
-    let drv =
-          { elpaBuild, stdenv, fetchurl }:
-          let
-            unknownFetcher =
-              abort "emacs-${name}: unknown fetcher '${recipe.fetch.tag}'";
-            fetch =
-              { inherit fetchurl; }."${recipe.fetch.tag}"
-              or unknownFetcher;
-            args = builtins.removeAttrs recipe.fetch [ "tag" ];
-            src = fetch args;
-          in elpaBuild {
-            pname = name;
-            inherit (recipe) version;
-            inherit src;
-            packageRequires =
-              let lookupDep = d: self."${d}" or null;
-              in map lookupDep recipe.deps;
-            meta = {
-              homepage = "http://elpa.gnu.org/packages/${name}.html";
-              license = stdenv.lib.licenses.free;
-            };
-          };
-    in self.callPackage drv {};
-
-in
-
 self:
 
   let
-    super = mapAttrs (mkPackage self) manifest;
 
-    elpaBuild = import ../../../build-support/emacs/melpa.nix {
+    imported = import ./elpa-generated.nix {
+      inherit (self) callPackage;
+    };
+
+    super = removeAttrs imported [ "dash" ];
+
+    elpaBuild = import ../../../build-support/emacs/elpa.nix {
       inherit fetchurl lib stdenv texinfo;
       inherit (self) emacs;
     };
@@ -63,24 +35,18 @@ self:
       });
     };
 
-    elpaPackages = super // {
-      ace-window = markBroken super.ace-window;
-      ada-mode = markBroken super.ada-mode;
-      beacon = markBroken super.beacon;
-      bug-hunter = markBroken super.bug-hunter;
-      company-math = markBroken super.company-math;
-      company-statistics = markBroken super.company-statistics;
-      context-coloring = markBroken super.context-coloring;
-      dict-tree = markBroken super.dict-tree;
-      el-search = markBroken super.el-search;
-      ergoemacs-mode = markBroken super.ergoemacs-mode;
-      exwm = markBroken super.exwm;
-      gnugo = markBroken super.gnugo;
-      iterators = markBroken super.iterators;
-      midi-kbd = markBroken super.midi-kbd;
-      stream = markBroken super.stream;
-      tNFA = markBroken super.tNFA;
-      trie = markBroken super.trie;
-      xelb = markBroken super.xelb;
+    overrides = {
+      # upstream issue: missing footer
+      ebdb-i18n-chn = markBroken super.ebdb-i18n-chn;
+      el-search = markBroken super.el-search; # requires emacs-25
+      iterators = markBroken super.iterators; # requires emacs-25
+      midi-kbd = markBroken super.midi-kbd; # requires emacs-25
+      rcirc-menu = markBroken super.rcirc-menu; # Missing file header
+      stream = markBroken super.stream; # requires emacs-25
+      cl-lib = null; # builtin
+      tle = null; # builtin
     };
+
+    elpaPackages = super // overrides;
+
   in elpaPackages // { inherit elpaBuild elpaPackages; }

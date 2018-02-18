@@ -1,10 +1,10 @@
-{ stdenv, fetchurl, libXmu, libXt, libX11, libXext, libXxf86vm, jack
+{ stdenv, fetchurl, libXmu, libXt, libX11, libXext, libXxf86vm, libjack2
 , makeWrapper
 }:
 
 let
   rpath = stdenv.lib.makeLibraryPath
-    [ libXmu libXt libX11 libXext libXxf86vm jack ];
+    [ libXmu libXt libX11 libXext libXxf86vm libjack2 ];
 in
 stdenv.mkDerivation rec {
   name = "baudline-${version}";
@@ -29,14 +29,14 @@ stdenv.mkDerivation rec {
   # Prebuilt binary distribution.
   # "patchelf --set-rpath" seems to break the application (cannot start), using
   # LD_LIBRARY_PATH wrapper script instead.
-  buildPhase = "true";
+  dontBuild = true;
   installPhase = ''
     mkdir -p "$out/bin"
     mkdir -p "$out/libexec/baudline"
 
     cp -r . "$out/libexec/baudline/"
 
-    interpreter="$(echo ${stdenv.glibc}/lib/ld-linux*)"
+    interpreter="$(echo ${stdenv.glibc.out}/lib/ld-linux*)"
     for prog in "$out"/libexec/baudline/baudline*; do
         patchelf --interpreter "$interpreter" "$prog"
         ln -sr "$prog" "$out/bin/"

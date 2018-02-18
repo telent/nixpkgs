@@ -1,14 +1,14 @@
 { fetchurl, stdenv, libuuid, popt, icu, ncurses }:
 
-let version = "1.0.1"; in
 stdenv.mkDerivation rec {
   name = "gptfdisk-${version}";
+  version = "1.0.3";
 
   src = fetchurl {
     # http://www.rodsbooks.com/gdisk/${name}.tar.gz also works, but the home
     # page clearly implies a preference for using SourceForge's bandwidth:
     url = "mirror://sourceforge/gptfdisk/${name}.tar.gz";
-    sha256 = "1izazbyv5n2d81qdym77i8mg9m870hiydmq4d0s51npx5vp8lk46";
+    sha256 = "0p0vr67lnqdsgdv2y144xmjqa1a2nijrrd3clc8dc2f46pn5mzc9";
   };
 
   patchPhase = stdenv.lib.optionalString stdenv.isDarwin ''
@@ -19,7 +19,7 @@ stdenv.mkDerivation rec {
     substituteInPlace Makefile.mac --replace \
       " -I/opt/local/include -I /usr/local/include -I/opt/local/include" ""
     substituteInPlace Makefile.mac --replace \
-      "/opt/local/lib/libncurses.a" "${ncurses}/lib/libncurses.dylib"
+      "/opt/local/lib/libncurses.a" "${ncurses.out}/lib/libncurses.dylib"
   '';
 
   buildPhase = stdenv.lib.optionalString stdenv.isDarwin "make -f Makefile.mac";
@@ -36,7 +36,6 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    inherit version;
     description = "Set of text-mode partitioning tools for Globally Unique Identifier (GUID) Partition Table (GPT) disks";
     license = licenses.gpl2;
     homepage = http://www.rodsbooks.com/gdisk/;

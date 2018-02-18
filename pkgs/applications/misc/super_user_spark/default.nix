@@ -1,31 +1,32 @@
-{ mkDerivation, aeson, aeson-pretty, base, binary, bytestring
-, directory, fetchgit, filepath, HTF, HUnit, mtl
-, optparse-applicative, parsec, process, shelly, stdenv, text
-, transformers, unix, zlib
+{ mkDerivation, fetchgit, aeson, aeson-pretty, base, bytestring, directory
+, filepath, hspec, hspec-core, HUnit, mtl, optparse-applicative
+, parsec, process, pureMD5, QuickCheck, shelly, stdenv, text
+, transformers, unix
 }:
 mkDerivation {
   pname = "super-user-spark";
-  version = "0.2.0.3";
+  version = "0.3.2.0-dev";
   src = fetchgit {
     url = "https://github.com/NorfairKing/super-user-spark";
-    sha256 = "718b6760e76377aa37b145d0dff690b293325b510ce05d239c4fa28538420931";
-    rev = "a7d132f7631649c3a093ede286e66f78e9793fba";
+    sha256 = "0akyc51bghzkk8j75n0i8v8rrsklidwvljhx3aibxfbkqp33372g";
+    rev = "ab8635682d67842b9e6d909cf3c618014e4157f2";
   };
-  isLibrary = false;
+  isLibrary = true;
   isExecutable = true;
-  executableHaskellDepends = [
-    aeson aeson-pretty base binary bytestring directory filepath HTF
-    mtl optparse-applicative parsec process shelly text transformers
-    unix zlib
+  libraryHaskellDepends = [
+    aeson aeson-pretty base bytestring directory filepath mtl
+    optparse-applicative parsec process pureMD5 shelly text
+    transformers unix
   ];
+  executableHaskellDepends = [ base ];
   testHaskellDepends = [
-    aeson aeson-pretty base binary bytestring directory filepath HTF
-    HUnit mtl optparse-applicative parsec process shelly text
-    transformers unix zlib
+    aeson aeson-pretty base bytestring directory filepath hspec
+    hspec-core HUnit mtl optparse-applicative parsec process pureMD5
+    QuickCheck shelly text transformers unix
   ];
   jailbreak = true;
   description = "Configure your dotfile deployment with a DSL";
   license = stdenv.lib.licenses.mit;
-  homepage = "https://github.com/NorfairKing/super-user-spark";
+  homepage = https://github.com/NorfairKing/super-user-spark;
   maintainers = [ stdenv.lib.maintainers.badi ];
 }

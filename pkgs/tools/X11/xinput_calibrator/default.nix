@@ -10,12 +10,14 @@ stdenv.mkDerivation rec {
 
   preConfigure = "./autogen.sh --with-gui=X11";
 
-  buildInputs = [ inputproto libXi autoconf automake libtool m4 xlibsWrapper pkgconfig ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ inputproto libXi autoconf automake libtool m4 xlibsWrapper ];
 
   meta = {
     homepage = https://github.com/tias/xinput_calibrator;
     description = "A generic touchscreen calibration program for X.Org";
     license = stdenv.lib.licenses.mit;
     maintainers = [ stdenv.lib.maintainers.flosse ];
+    platforms = stdenv.lib.platforms.linux;
   };
 }

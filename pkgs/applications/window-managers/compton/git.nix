@@ -1,23 +1,27 @@
 { stdenv, fetchFromGitHub, asciidoc, dbus, docbook_xml_dtd_45,
   docbook_xml_xslt, libconfig, libdrm, libxml2, libxslt, mesa, pcre,
   pkgconfig, libXcomposite, libXdamage, libXext, libXfixes, libXinerama,
-  libXrandr, libXrender }:
+  libXrandr, libXrender, xwininfo }:
 
 stdenv.mkDerivation {
-  name = "compton-git-2015-04-20";
+  name = "compton-git-2016-08-10";
 
   src = fetchFromGitHub {
     owner  = "chjj";
     repo   = "compton";
-    rev    = "b1889c1245e6f47eedfae6063100d5a16f584e2b";
-    sha256 = "0brnbidxi7wg08yiwgnijzcyqv5lnkd74xzfymvb0i7pgy465vaf";
+    rev    = "f1cd308cde0f1e1f21ec2ac8f16a3c873fa22d3a";
+    sha256 = "1ky438d1rsg4ylkcp60m82r0jck8rks3gfa869rc63k37p2nfn8p";
   };
 
-  buildInputs = [
+  nativeBuildInputs = [
     asciidoc
-    dbus
     docbook_xml_dtd_45
     docbook_xml_xslt
+    pkgconfig
+  ];
+
+  buildInputs = [
+    dbus
     libXcomposite
     libXdamage
     libXext
@@ -31,8 +35,9 @@ stdenv.mkDerivation {
     libxslt
     mesa
     pcre
-    pkgconfig
   ];
+
+  propagatedBuildInputs = [ xwininfo ];
 
   installFlags = "PREFIX=$(out)";
 
@@ -44,11 +49,11 @@ stdenv.mkDerivation {
     longDescription = ''
       A fork of XCompMgr, which is a sample compositing manager for X
       servers supporting the XFIXES, DAMAGE, RENDER, and COMPOSITE
-      extensions.  It enables basic eye-candy effects. This fork adds
+      extensions. It enables basic eye-candy effects. This fork adds
       additional features, such as additional effects, and a fork at a
       well-defined and proper place.
     '';
-    maintainer = maintainers.ertes;
+    maintainers = [ maintainers.ertes ];
     platforms = platforms.linux;
   };
 }

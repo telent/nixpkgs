@@ -1,31 +1,29 @@
-{ stdenv, fetchFromGitHub, perl, efivar, pciutils, zlib }:
+{ stdenv, fetchFromGitHub, pkgconfig, efivar, popt }:
 
 stdenv.mkDerivation rec {
   name = "efibootmgr-${version}";
-  version = "0.12";
+  version = "15";
 
-  buildInputs = [ perl efivar pciutils zlib ];
+  nativeBuildInputs = [ pkgconfig ];
+  
+  buildInputs = [ efivar popt ];
 
   src = fetchFromGitHub {
     owner = "rhinstaller";
     repo = "efibootmgr";
-    rev = name;
-    sha256 = "0fmrsp67dln76896fvxalj2pamyp9dszf32kl06wdfi0km42z8sh";
+    rev = version;
+    sha256 = "0z7h1dirp8za6lbbf4f3dzn7l1px891rdymhkbqc10yj6gi1jpqp";
   };
 
   NIX_CFLAGS_COMPILE = "-I${efivar}/include/efivar";
-  NIX_LDFLAGS = "-lefiboot -lefivar";
 
-  postPatch = ''
-    substituteInPlace "./tools/install.pl" \
-      --replace "/usr/bin/perl" "${perl}/bin/perl"
-  '';
+  makeFlags = [ "EFIDIR=nixos" ];
 
-  installFlags = [ "BINDIR=$(out)/sbin" ];
+  installFlags = [ "prefix=$(out)" ];
 
   meta = with stdenv.lib; {
     description = "A Linux user-space application to modify the Intel Extensible Firmware Interface (EFI) Boot Manager";
-    homepage = http://linux.dell.com/efibootmgr/;
+    homepage = https://github.com/rhinstaller/efibootmgr;
     license = licenses.gpl2;
     platforms = platforms.linux;
   };

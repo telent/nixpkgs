@@ -1,21 +1,26 @@
 { stdenv, fetchurl, zlib }:
 
 stdenv.mkDerivation rec {
-  name = "file-5.25";
-
-  buildInputs = [ zlib ];
+  name = "file-${version}";
+  version = "5.32";
 
   src = fetchurl {
     urls = [
       "ftp://ftp.astron.com/pub/file/${name}.tar.gz"
-      "http://distfiles.macports.org/file/${name}.tar.gz"
+      "https://distfiles.macports.org/file/${name}.tar.gz"
     ];
-    sha256 = "1jhfi5mivdnqvry5la5q919l503ahwdwbf3hjhiv97znccakhd9p";
+    sha256 = "0l1bfa0icng9vdwya00ff48fhvjazi5610ylbhl35qi13d6xqfc6";
   };
 
-  meta = {
-    homepage = "http://darwinsys.com/file";
+  buildInputs = [ zlib ];
+
+  doCheck = true;
+
+
+  meta = with stdenv.lib; {
+    homepage = http://darwinsys.com/file;
     description = "A program that shows the type of files";
-    platforms = stdenv.lib.platforms.all;
+    license = licenses.bsd2;
+    platforms = platforms.all;
   };
 }

@@ -1,15 +1,15 @@
-{ stdenv, fetchurl, autoreconfHook }:
+{ stdenv, fetchurl, autoreconfHook, acl }:
 
 stdenv.mkDerivation rec {
   name = "gnutar-${version}";
-  version = "1.28";
+  version = "1.29";
 
   src = fetchurl {
-    url = "mirror://gnu/tar/tar-${version}.tar.bz2";
-    sha256 = "0qkm2k9w8z91hwj8rffpjj9v1vhpiriwz4cdj36k9vrgc3hbzr30";
+    url = "mirror://gnu/tar/tar-${version}.tar.xz";
+    sha256 = "097hx7sbzp8qirl4m930lw84kn0wmxhmq7v1qpra3mrg0b8cyba0";
   };
 
-  patches = stdenv.lib.optional stdenv.isDarwin ./gnutar-1.28-darwin.patch;
+  patches = [ ./CVE-2016-6321.patch ];
 
   # avoid retaining reference to CF during stdenv bootstrap
   configureFlags = stdenv.lib.optionals stdenv.isDarwin [
@@ -24,7 +24,11 @@ stdenv.mkDerivation rec {
     substituteInPlace src/system.c --replace '_(' 'N_('
   '';
 
-  buildInputs = stdenv.lib.optional stdenv.isDarwin autoreconfHook;
+  outputs = [ "out" "info" ];
+
+  buildInputs = [ ]
+    ++ stdenv.lib.optional stdenv.isLinux acl
+    ++ stdenv.lib.optional stdenv.isDarwin autoreconfHook;
 
   # May have some issues with root compilation because the bootstrap tool
   # cannot be used as a login shell for now.

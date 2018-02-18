@@ -1,14 +1,15 @@
 { stdenv, fetchurl, openvpn, intltool, pkgconfig, networkmanager, libsecret
-, withGnome ? true, gnome3, procps, module_init_tools }:
+, withGnome ? true, gnome3, procps, kmod }:
 
 stdenv.mkDerivation rec {
-  name = "${pname}${if withGnome then "-gnome" else ""}-${version}";
-  pname = "NetworkManager-openvpn";
-  version = networkmanager.version;
+  name    = "${pname}${if withGnome then "-gnome" else ""}-${version}";
+  pname   = "NetworkManager-openvpn";
+  major   = "1.8";
+  version = "${major}.0";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/${pname}/1.0/${pname}-${version}.tar.xz";
-    sha256 = "132xwkgyfnpma7m6b06jhrd1g9xk5dlpx8alnsf03ls3z92bd0n9";
+    url    = "mirror://gnome/sources/${pname}/${major}/${pname}-${version}.tar.xz";
+    sha256 = "1973n89g66a3jfx8r45a811fga4kadh6r1w35cb25cz1mlii2vhn";
   };
 
   buildInputs = [ openvpn networkmanager libsecret ]
@@ -27,19 +28,10 @@ stdenv.mkDerivation rec {
      substituteInPlace "configure" \
        --replace "/sbin/sysctl" "${procps}/sbin/sysctl"
      substituteInPlace "src/nm-openvpn-service.c" \
-       --replace "/sbin/openvpn" "${openvpn}/sbin/openvpn" \
-       --replace "/sbin/modprobe" "${module_init_tools}/sbin/modprobe"
+       --replace "/sbin/openvpn" "${openvpn}/bin/openvpn" \
+       --replace "/sbin/modprobe" "${kmod}/bin/modprobe"
      substituteInPlace "properties/auth-helpers.c" \
-       --replace "/sbin/openvpn" "${openvpn}/sbin/openvpn"
-  '';
-
-  postConfigure = ''
-     substituteInPlace "./auth-dialog/Makefile" \
-       --replace "-Wstrict-prototypes" "" \
-       --replace "-Werror" ""
-     substituteInPlace "properties/Makefile" \
-       --replace "-Wstrict-prototypes" "" \
-       --replace "-Werror" ""
+       --replace "/sbin/openvpn" "${openvpn}/bin/openvpn"
   '';
 
   meta = {

@@ -1,9 +1,9 @@
 { stdenv, fetchurl, cmake
 , boost, eigen2, lua, luabind, mesa, SDL }:
 
-let version = "0.1.2"; in
 stdenv.mkDerivation rec {
   name = "soi-${version}";
+  version = "0.1.2";
 
   src = fetchurl {
     url = "mirror://sourceforge/project/soi/Spheres%20of%20Influence-${version}-Source.tar.bz2";
@@ -23,7 +23,6 @@ stdenv.mkDerivation rec {
     maintainers = with maintainers; [ raskin nckx ];
     platforms = platforms.linux;
     license = licenses.free;
-    broken = true;
     downloadPage = http://sourceforge.net/projects/soi/files/;
   };
 }

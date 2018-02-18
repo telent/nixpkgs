@@ -1,8 +1,9 @@
 { stdenv, fetchurl, makeFontsConf, makeWrapper
 , cairo, coreutils, fontconfig, freefont_ttf
-, glib, gmp, gtk, libffi, libjpeg, libpng
-, libtool, mpfr, openssl, pango, poppler
+, glib, gmp, gtk2, libedit, libffi, libjpeg
+, libpng, libtool, mpfr, openssl, pango, poppler
 , readline, sqlite
+, disableDocs ? false
 }:
 
 let
@@ -16,7 +17,8 @@ let
     fontconfig
     glib
     gmp
-    gtk
+    gtk2
+    libedit
     libjpeg
     libpng
     mpfr
@@ -31,26 +33,30 @@ in
 
 stdenv.mkDerivation rec {
   name = "racket-${version}";
-  version = "6.2.1";
+  version = "6.11";
 
   src = fetchurl {
-    url = "http://mirror.racket-lang.org/installers/${version}/${name}-src.tgz";
-    sha256 = "0555j63k7fs10iv0icmivlxpzgp6s7gwcbfddmbwxlf2rk80qhq0";
+    url = "https://mirror.racket-lang.org/installers/${version}/${name}-src.tgz";
+    sha256 = "1nk7705x24jjlbqqhj8yvbgqkfscxx3m81bry1g56kjxysjmf3sw";
   };
 
   FONTCONFIG_FILE = fontsConf;
   LD_LIBRARY_PATH = libPath;
-  NIX_LDFLAGS = "-lgcc_s";
+  NIX_LDFLAGS = stdenv.lib.optionalString stdenv.cc.isGNU "-lgcc_s";
 
   buildInputs = [ fontconfig libffi libtool makeWrapper sqlite ];
 
   preConfigure = ''
+    unset AR
     substituteInPlace src/configure --replace /usr/bin/uname ${coreutils}/bin/uname
     mkdir src/build
     cd src/build
   '';
 
-  configureFlags = [ "--enable-shared" "--enable-lt=${libtool}/bin/libtool" "--disable-docs"];
+  shared = if stdenv.isDarwin then "dylib" else "shared";
+  configureFlags = [ "--enable-${shared}"  "--enable-lt=${libtool}/bin/libtool" ]
+                   ++ stdenv.lib.optional disableDocs [ "--disable-docs" ]
+                   ++ stdenv.lib.optional stdenv.isDarwin [ "--enable-xonx" ];
 
   configureScript = "../configure";
 
@@ -75,7 +81,7 @@ stdenv.mkDerivation rec {
     '';
     homepage = http://racket-lang.org/;
     license = licenses.lgpl3;
-    maintainers = with maintainers; [ kkallio henrytill ];
-    platforms = platforms.linux;
+    maintainers = with maintainers; [ kkallio henrytill vrthra ];
+    platforms = [ "x86_64-linux" ];
   };
 }

@@ -10,12 +10,12 @@ stdenv.mkDerivation rec {
   };
 
   configureFlags = [ "--with-uuid=${libuuid}" ];
-  buildInputs = [ icu tzdata.lib ];
+  buildInputs = [ icu tzdata.dev ];
   enableParallelBuilding = true;
 
   meta = {
-    description = "Cross platform port of the OS X CoreFoundation";
-    homepage = "http://sourceforge.net/projects/opencflite/";
+    description = "Cross platform port of the macOS CoreFoundation";
+    homepage = https://sourceforge.net/projects/opencflite/;
     license = stdenv.lib.licenses.apsl20;
   };
 }

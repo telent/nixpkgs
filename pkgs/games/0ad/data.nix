@@ -1,19 +1,25 @@
-{ stdenv, fetchurl, version, releaseType }:
+{ stdenv, fetchurl }:
 
 stdenv.mkDerivation rec {
   name = "0ad-data-${version}";
+  version = "0.0.22";
 
   src = fetchurl {
-    url = "http://releases.wildfiregames.com/0ad-${version}-${releaseType}-unix-data.tar.xz";
-    sha256 = "0i5cf4n9qhzbi6hvw5lxapind24qpqfq6p5lrhx8gb25p670g95i";
+    url = "http://releases.wildfiregames.com/0ad-${version}-alpha-unix-data.tar.xz";
+    sha256 = "0vknk9ay9h2p34r7mym2g066f3s3c5d5vmap0ckcs5b86h5cscjc";
   };
 
-  patchPhase = ''
+  installPhase = ''
     rm binaries/data/tools/fontbuilder/fonts/*.txt
+    mkdir -p $out/share/0ad
+    cp -r binaries/data $out/share/0ad/
   '';
 
-  installPhase = ''
-    mkdir -p $out/share/0ad
-    cp -r binaries/data/* $out/share/0ad/
-  '';
+  meta = with stdenv.lib; {
+    description = "A free, open-source game of ancient warfare -- data files";
+    homepage = "https://play0ad.com/";
+    license = licenses.cc-by-sa-30;
+    platforms = platforms.linux;
+    hydraPlatforms = [];
+  };
 }

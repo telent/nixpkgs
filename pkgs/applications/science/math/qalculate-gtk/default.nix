@@ -1,19 +1,27 @@
-{ stdenv, fetchurl, intltool, pkgconfig, libqalculate, gtk, gnome2 }:
+{ stdenv, fetchurl, intltool, autoreconfHook, pkgconfig, libqalculate, gtk3, wrapGAppsHook }:
+
 stdenv.mkDerivation rec {
   name = "qalculate-gtk-${version}";
-  version = "0.9.7";
+  version = "2.1.0";
 
   src = fetchurl {
-    url = "mirror://sourceforge/qalculate/${name}.tar.gz";
-    sha256 = "0b986x5yny9vrzgxlbyg80b23mxylxv2zz8ppd9svhva6vi8xsm4";
+    url = "https://github.com/Qalculate/qalculate-gtk/archive/v${version}.tar.gz";
+    sha256 = "14q89l6laa7v7d9qx7v71a0r2m65saxqgr9r871fasm400a9x8pw";
   };
 
-  nativeBuildInputs = [ intltool pkgconfig ];
-  buildInputs = [ libqalculate gtk gnome2.libglade gnome2.libgnome gnome2.scrollkeeper ];
+  patchPhase = ''
+    substituteInPlace src/main.cc --replace 'getPackageDataDir().c_str()' \"$out/share\"
+  '';
+
+  hardeningDisable = [ "format" ];
+
+  nativeBuildInputs = [ intltool pkgconfig autoreconfHook wrapGAppsHook ];
+  buildInputs = [ libqalculate gtk3 ];
+  enableParallelBuilding = true;
 
   meta = with stdenv.lib; {
     description = "The ultimate desktop calculator";
-    homepage = http://qalculate.sourceforge.net;
+    homepage = http://qalculate.github.io;
     maintainers = with maintainers; [ gebner ];
     platforms = platforms.all;
   };

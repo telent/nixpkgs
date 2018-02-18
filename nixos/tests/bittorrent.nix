@@ -11,7 +11,7 @@ import ./make-test.nix ({ pkgs, ... }:
 let
 
   # Some random file to serve.
-  file = pkgs.nixUnstable.src;
+  file = pkgs.hello.src;
 
   miniupnpdConf = nodes: pkgs.writeText "miniupnpd.conf"
     ''
@@ -25,7 +25,7 @@ in
 {
   name = "bittorrent";
   meta = with pkgs.stdenv.lib.maintainers; {
-    maintainers = [ iElectric eelco chaoflow rob wkennington ];
+    maintainers = [ domenkozar eelco chaoflow rob wkennington ];
   };
 
   nodes =

@@ -1,19 +1,24 @@
 { stdenv, fetchFromGitHub, cmake }:
 
 stdenv.mkDerivation rec {
-  version = "1.0.0";
   name = "Vc-${version}";
+  version = "1.3.2";
 
   src = fetchFromGitHub {
     owner = "VcDevel";
     repo = "Vc";
     rev = version;
-    sha256 = "014li9kcbbxinh9r1nngdzspjzs2nxwslcknd950msjkqgnjhz4r";
+    sha256 = "119sm0kldr5j163ff04fra35420cvpj040hs7n0mnfbcgyx4nxq9";
   };
 
   nativeBuildInputs = [ cmake ];
 
   enableParallelBuilding = true;
+
+  postPatch = ''
+    sed -i '/OptimizeForArchitecture()/d' cmake/VcMacros.cmake
+    sed -i '/AutodetectHostArchitecture()/d' print_target_architecture.cmake
+  '';
 
   meta = with stdenv.lib; {
     description = "Library for multiprecision complex arithmetic with exact rounding";

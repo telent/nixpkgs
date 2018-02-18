@@ -1,27 +1,34 @@
-{ stdenv, fetchurl, openldap
-, enablePython ? false, python ? null
+{
+  stdenv, fetchurl,
+  enablePython ? false, python ? null,
 }:
 
 assert enablePython -> python != null;
 
 stdenv.mkDerivation rec {
-  name = "audit-2.4.4";
+  name = "audit-2.8.1";
 
   src = fetchurl {
     url = "http://people.redhat.com/sgrubb/audit/${name}.tar.gz";
-    sha256 = "08sfcx8ykcn5jsryil15q8yqm0a8czymyqbb2sqxfc1jbx37zx95";
+    sha256 = "0v1vng43fjsh158zb5k5d81ngn4p4jmj1247m27pk0bfzy9dxv0v";
   };
 
-  buildInputs = [ openldap ]
-            ++ stdenv.lib.optional enablePython python;
+  outputs = [ "bin" "dev" "out" "man" ];
 
-  configureFlags = ''
-    ${if enablePython then "--with-python" else "--without-python"}
-  '';
+  buildInputs = stdenv.lib.optional enablePython python;
+
+  configureFlags = [
+    # z/OS plugin is not useful on Linux,
+    # and pulls in an extra openldap dependency otherwise
+    "--disable-zos-remote"
+    (if enablePython then "--with-python" else "--without-python")
+  ];
+
+  enableParallelBuilding = true;
 
   meta = {
     description = "Audit Library";
-    homepage = "http://people.redhat.com/sgrubb/audit/";
+    homepage = http://people.redhat.com/sgrubb/audit/;
     license = stdenv.lib.licenses.gpl2;
     platforms = stdenv.lib.platforms.linux;
     maintainers = with stdenv.lib.maintainers; [ fuuzetsu ];

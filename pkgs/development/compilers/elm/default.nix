@@ -1,5 +1,11 @@
 { lib, stdenv, buildEnv, haskell, nodejs, fetchurl, fetchpatch, makeWrapper }:
 
+# To update:
+# 1) Update versions in ./update-elm.rb and run it.
+# 2) Checkout elm-reactor and run `elm-package install -y` inside.
+# 3) Run ./elm2nix.rb in elm-reactor's directory.
+# 4) Move the resulting 'package.nix' to 'packages/elm-reactor-elm.nix'.
+
 let
   makeElmStuff = deps:
     let json = builtins.toJSON (lib.mapAttrs (name: info: info.version) deps);
@@ -34,7 +40,7 @@ let
       EOF
     '' + lib.concatStrings cmds;
 
-  hsPkgs = haskell.packages.ghc7102.override {
+  hsPkgs = haskell.packages.ghc802.override {
     overrides = self: super:
       let hlib = haskell.lib;
           elmRelease = import ./packages/release.nix { inherit (self) callPackage; };
@@ -50,23 +56,50 @@ let
               doCheck = false;
               buildTools = drv.buildTools or [] ++ [ makeWrapper ];
               postInstall =
-                let bins = lib.makeSearchPath "bin" [ nodejs self.elm-make ];
+                let bins = lib.makeBinPath [ nodejs self.elm-make ];
                 in ''
                   wrapProgram $out/bin/elm-repl \
                     --prefix PATH ':' ${bins}
                 '';
             });
 
+            /*
+            This is not a core Elm package, and it's hosted on GitHub.
+            To update, run:
+
+                cabal2nix --jailbreak --revision refs/tags/foo http://github.com/avh4/elm-format > packages/elm-format.nix
+
+            where foo is a tag for a new version, for example "0.3.1-alpha".
+            */
+            elm-format = self.callPackage ./packages/elm-format.nix { };
+            elm-interface-to-json = self.callPackage ./packages/elm-interface-to-json.nix {
+              aeson-pretty = self.aeson-pretty_0_7_2;
+            };
           };
       in elmPkgs // {
         inherit elmPkgs;
         elmVersion = elmRelease.version;
+        # needed for elm-package
+        http-client = hlib.overrideCabal super.http-client (drv: {
+          version = "0.4.31.2";
+          sha256 = "12yq2l6bvmxg5w6cw5ravdh39g8smwn1j44mv36pfmkhm5402h8n";
+        });
+        http-client-tls = hlib.overrideCabal super.http-client-tls (drv: {
+          version = "0.2.4.1";
+          sha256 = "18wbca7jg15p0ds3339f435nqv2ng0fqc4bylicjzlsww625ij4d";
+        });
+        # https://github.com/elm-lang/elm-compiler/issues/1566
+        indents = hlib.overrideCabal super.indents (drv: {
+          version = "0.3.3";
+          sha256 = "16lz21bp9j14xilnq8yym22p3saxvc9fsgfcf5awn2a6i6n527xn";
+          libraryHaskellDepends = drv.libraryHaskellDepends ++ [super.concatenative];
+        });
       };
   };
 in hsPkgs.elmPkgs // {
-  elm = buildEnv {
+  elm = lib.hiPrio (buildEnv {
     name = "elm-${hsPkgs.elmVersion}";
     paths = lib.mapAttrsToList (name: pkg: pkg) hsPkgs.elmPkgs;
     pathsToLink = [ "/bin" ];
-  };
+  });
 }

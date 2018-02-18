@@ -3,12 +3,12 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "telegram-cli-2015-07-30";
+  name = "telegram-cli-2016-03-23";
 
   src = fetchgit {
     url = "https://github.com/vysheng/tg.git";
-    sha256 = "0phn9nl0sf2fylzfwi427xq60cfrnpsvhh8bp55y1wcjkmp0fxsn";
-    rev = "2052f4b381337d75e783facdbfad56b04dec1a9c";
+    sha256 = "07sss5cnw2ygd7mp8f5532lmj7qm6ywqf4cjaq5g13i8igzqzwzj";
+    rev = "6547c0b21b977b327b3c5e8142963f4bc246187a";
   };
 
   buildInputs = [

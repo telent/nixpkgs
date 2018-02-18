@@ -1,19 +1,18 @@
-{ fetchurl, lib, unzip, buildPythonPackage, twisted, foolscap, nevow
-, simplejson, zfec, pycryptopp, sqlite3, darcsver, setuptoolsTrial, python
-, setuptoolsDarcs, numpy, nettools, pycrypto, pyasn1, mock, zope_interface }:
+{ fetchurl, lib, unzip, nettools, pythonPackages }:
 
 # FAILURES: The "running build_ext" phase fails to compile Twisted
 # plugins, because it tries to write them into Twisted's (immutable)
 # store path. The problem appears to be non-fatal, but there's probably
 # some loss of functionality because of it.
 
-buildPythonPackage rec {
-  name = "tahoe-lafs-1.10.0";
+pythonPackages.buildPythonApplication rec {
+  version = "1.12.1";
+  name = "tahoe-lafs-${version}";
   namePrefix = "";
 
   src = fetchurl {
-    url = "http://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.10.0.tar.bz2";
-    sha256 = "1qng7j1vykk8zl5da9yklkljvgxfnjky58gcay6dypz91xq1cmcw";
+    url = "https://tahoe-lafs.org/downloads/tahoe-lafs-${version}.tar.bz2";
+    sha256 = "0x9f1kjym1188fp6l5sqy0zz8mdb4xw861bni2ccv26q482ynbks";
   };
 
   patchPhase = ''
@@ -31,14 +30,14 @@ buildPythonPackage rec {
     sed -i 's/"pycrypto.*"/"pycrypto"/' src/allmydata/_auto_deps.py
   '';
 
-  # Some tests want this + http://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-dep-sdists/mock-0.6.0.tar.bz2
-  buildInputs = [ unzip numpy ];
+  buildInputs = with pythonPackages; [ unzip numpy mock ];
 
   # The `backup' command requires `sqlite3'.
-  propagatedBuildInputs =
-    [ twisted foolscap nevow simplejson zfec pycryptopp sqlite3
-      darcsver setuptoolsTrial setuptoolsDarcs pycrypto pyasn1 zope_interface mock
-    ];
+  propagatedBuildInputs = with pythonPackages; [
+    twisted foolscap nevow simplejson zfec pycryptopp darcsver
+    setuptoolsTrial setuptoolsDarcs pycrypto pyasn1 zope_interface
+    service-identity pyyaml
+  ];
 
   postInstall = ''
     # Install the documentation.
@@ -48,8 +47,8 @@ buildPythonPackage rec {
   '';
 
   checkPhase = ''
-    # TODO: broken with wheels
-    #${python.interpreter} setup.py trial
+    # Still broken. ~ C.
+    #   trial allmydata
   '';
 
   meta = {
@@ -60,9 +59,9 @@ buildPythonPackage rec {
       such a way that it remains available even when some of the peers
       are unavailable, malfunctioning, or malicious.
     '';
-    homepage = http://allmydata.org/;
+    homepage = http://tahoe-lafs.org/;
     license = [ lib.licenses.gpl2Plus /* or */ "TGPPLv1+" ];
-    maintainers = [ lib.maintainers.simons ];
+    maintainers = with lib.maintainers; [ MostAwesomeDude ];
     platforms = lib.platforms.gnu;  # arbitrary choice
   };
 }

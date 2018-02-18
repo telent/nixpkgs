@@ -1,14 +1,14 @@
 { stdenv, fetchFromGitHub, libpcap, ppp }:
 
-let version = "1.3.6";
-in stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "xl2tpd-${version}";
+  version = "1.3.10";
 
   src = fetchFromGitHub {
     owner = "xelerance";
     repo = "xl2tpd";
     rev = "v${version}";
-    sha256 = "17lnsk9fsyfp2g5hha7psim6047wj9qs8x4y4w06gl6bbf36jm9z";
+    sha256 = "1z8a33hz82nla1342lfxdihssbhw9lzkgavdhl275im5byj8qgkg";
   };
 
   buildInputs = [ libpcap ];

@@ -1,6 +1,6 @@
-{ stdenv, fetchurl, pythonPackages, mopidy }:
+{ stdenv, fetchurl, pythonPackages, mopidy, glibcLocales }:
 
-pythonPackages.buildPythonPackage rec {
+pythonPackages.buildPythonApplication rec {
   name = "mopidy-moped-${version}";
   version = "0.6.0";
 
@@ -9,6 +9,8 @@ pythonPackages.buildPythonPackage rec {
     sha256 = "0xff8y1kc7rwwsd7ppgbvywf6i8lchjwbxjisfl1kmilwsb166yr";
   };
 
+  LC_ALL = "en_US.UTF-8";
+  buildInputs = [ glibcLocales ];
   propagatedBuildInputs = [ mopidy ];
 
   doCheck = false;

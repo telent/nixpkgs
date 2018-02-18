@@ -1,9 +1,5 @@
 source $stdenv/setup
 
-set -o pipefail
-
-PATH=$kmod/sbin:$PATH
-
 version=$(cd $kernel/lib/modules && ls -d *)
 
 echo "kernel version is $version"

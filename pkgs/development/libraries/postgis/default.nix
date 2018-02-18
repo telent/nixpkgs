@@ -5,7 +5,7 @@ args@{fetchurl, composableDerivation, stdenv, perl, libxml2, postgresql, geos, p
   ### NixOS - usage:
   ==================
 
-    services.postgresql.extraPlugins = [ (pkgs.postgis.override { postgresql = pkgs.postgresql94; }).v_2_1_4 ];
+    services.postgresql.extraPlugins = [ (pkgs.postgis.override { postgresql = pkgs.postgresql95; }).v_2_3_1 ];
 
 
   ### important Postgis implementation details:
@@ -68,7 +68,7 @@ let
 
     meta = {
       description = "Geographic Objects for PostgreSQL";
-      homepage = "http://postgis.refractions.net";
+      homepage = http://postgis.refractions.net;
       license = stdenv.lib.licenses.gpl2;
       maintainers = [stdenv.lib.maintainers.marcweber];
       platforms = stdenv.lib.platforms.linux;
@@ -84,15 +84,19 @@ let
 
 in rec {
 
-  v_2_1_4 = pgDerivationBaseNewer.merge ( fix : {
-    version = "2.1.4";
-    sha256 = "1z00n5654r7l38ydkn2grbwl5gg0mravjwxfdipp7j18hjiw4wyd";
+  v_2_3_1 = pgDerivationBaseNewer.merge ( fix : {
+    version = "2.3.1";
+    sha256 = "0xd21h2k6x3i1b3z6pgm3pmkfpxm6irxd5wbx68acjndjgd6p3ac";
     sql_srcs = ["postgis.sql" "spatial_ref_sys.sql"];
     builtInputs = [gdal json_c pkgconfig];
+
+    # postgis config directory assumes /include /lib from the same root for json-c library
+    NIX_LDFLAGS = "-L${stdenv.lib.getLib json_c}/lib";
+
     dontDisableStatic = true;
     preConfigure = ''
       sed -i 's@/usr/bin/file@${file}/bin/file@' configure
-      configureFlags="$configureFlags --with-gdalconfig=${gdal}/bin/gdal-config --with-jsondir=${json_c}"
+      configureFlags="$configureFlags --with-gdalconfig=${gdal}/bin/gdal-config --with-jsondir=${json_c.dev}"
     '';
     postConfigure = ''
       sed -i "s|@mkdir -p \$(DESTDIR)\$(PGSQL_BINDIR)||g ;
@@ -104,5 +108,31 @@ in rec {
           "raster/scripts/python/Makefile";
     '';
   });
+
+  v_2_4_0 = pgDerivationBaseNewer.merge ( fix : {
+    version = "2.4.0";
+    sha256 = "02baa90f04da41e04b6c18eedfda53110c45ae943d4e65050f6d202f7de07d29";
+    sql_srcs = ["postgis.sql" "spatial_ref_sys.sql"];
+    builtInputs = [gdal json_c pkgconfig];
+
+    # postgis config directory assumes /include /lib from the same root for json-c library
+    NIX_LDFLAGS = "-L${stdenv.lib.getLib json_c}/lib";
+
+    dontDisableStatic = true;
+    preConfigure = ''
+      sed -i 's@/usr/bin/file@${file}/bin/file@' configure
+      configureFlags="$configureFlags --with-gdalconfig=${gdal}/bin/gdal-config --with-jsondir=${json_c.dev}"
+    '';
+    postConfigure = ''
+      sed -i "s|@mkdir -p \$(DESTDIR)\$(PGSQL_BINDIR)||g ;
+              s|\$(DESTDIR)\$(PGSQL_BINDIR)|$prefix/bin|g
+              " \
+          "raster/loader/Makefile";
+      sed -i "s|\$(DESTDIR)\$(PGSQL_BINDIR)|$prefix/bin|g
+              " \
+          "raster/scripts/python/Makefile";
+    '';
+  });
+
 
 }

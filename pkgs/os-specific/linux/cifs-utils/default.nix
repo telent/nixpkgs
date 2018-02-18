@@ -1,14 +1,15 @@
-{ stdenv, fetchurl, kerberos, keyutils, pam }:
+{ stdenv, fetchurl, kerberos, keyutils, pam, talloc }:
 
 stdenv.mkDerivation rec {
-  name = "cifs-utils-6.4";
+  name = "cifs-utils-${version}";
+  version = "6.6";
 
   src = fetchurl {
     url = "mirror://samba/pub/linux-cifs/cifs-utils/${name}.tar.bz2";
-    sha256 = "1qz6d2xg4z1if0hy7qwyzgcr59l0alkhci6gxgjdldglda967z1q";
+    sha256 = "09biws1jm23l3mjb9kh99v57z8bgzybrmimwddb40s6y0yl54wfh";
   };
 
-  buildInputs = [ kerberos keyutils pam ];
+  buildInputs = [ kerberos keyutils pam talloc ];
 
   makeFlags = "root_sbindir=$(out)/sbin";
 
@@ -17,5 +18,6 @@ stdenv.mkDerivation rec {
     description = "Tools for managing Linux CIFS client filesystems";
     platforms = platforms.linux;
     license = licenses.lgpl3;
+    maintainers = with maintainers; [ nckx ];
   };
 }

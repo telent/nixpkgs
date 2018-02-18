@@ -1,4 +1,4 @@
-{stdenv, lib, fetchurl, python, cvs, makeWrapper}:
+{stdenv, lib, fetchurl, python2, cvs, makeWrapper}:
 
 stdenv.mkDerivation rec {
   name = "cvs2svn-2.4.0";
@@ -8,14 +8,14 @@ stdenv.mkDerivation rec {
     sha256 = "05piyrcp81a1jgjm66xhq7h1sscx42ccjqaw30h40dxlwz1pyrx6";
   };
 
-  buildInputs = [python makeWrapper];
+  buildInputs = [python2 makeWrapper];
 
-  buildPhase = "true";
+  dontBuild = true;
   installPhase = ''
     python ./setup.py install --prefix=$out
     for i in bzr svn git; do
       wrapProgram $out/bin/cvs2$i \
-          --prefix PATH : "${lib.makeSearchPath "bin" [ cvs ]}" \
+          --prefix PATH : "${lib.makeBinPath [ cvs ]}" \
           --set PYTHONPATH "$(toPythonPath $out):$PYTHONPATH"
     done
   '';
@@ -27,5 +27,6 @@ stdenv.mkDerivation rec {
     description = "A tool to convert CVS repositories to Subversion repositories";
     homepage = http://cvs2svn.tigris.org/;
     maintainers = [ lib.maintainers.makefu ];
+    platforms = stdenv.lib.platforms.unix;
   };
 }

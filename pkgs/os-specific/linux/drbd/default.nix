@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, flex, udev, perl }:
+{ stdenv, fetchurl, flex, systemd, perl }:
 
 assert stdenv.isLinux;
 
@@ -18,13 +18,13 @@ stdenv.mkDerivation rec {
 
   preConfigure =
     ''
-      export PATH=${udev}/sbin:$PATH
-      substituteInPlace user/Makefile.in --replace /sbin/ $out/sbin/
+      export PATH=${systemd}/sbin:$PATH
+      substituteInPlace user/Makefile.in \
+        --replace /sbin '$(sbindir)'
       substituteInPlace user/legacy/Makefile.in \
-        --replace /sbin/ $out/sbin/ \
-        --replace '$(DESTDIR)/lib/drbd' $out/lib/drbd
+        --replace '$(DESTDIR)/lib/drbd' '$(DESTDIR)$(LIBDIR)'
       substituteInPlace user/drbdadm_usage_cnt.c --replace /lib/drbd $out/lib/drbd
-      substituteInPlace scripts/drbd.rules --replace /sbin/drbdadm $out/sbin/drbdadm
+      substituteInPlace scripts/drbd.rules --replace /usr/sbin/drbdadm $out/sbin/drbdadm
     '';
 
   makeFlags = "SHELL=${stdenv.shell}";

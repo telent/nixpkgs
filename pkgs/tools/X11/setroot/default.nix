@@ -5,20 +5,20 @@
 assert enableXinerama -> libXinerama != null;
 
 stdenv.mkDerivation rec {
-  version = "1.4.4";
+  version = "2.0.1";
   name = "setroot-${version}";
 
   src = fetchFromGitHub {
     owner = "ttzhou";
     repo = "setroot";
     rev = "v${version}";
-    sha256 = "0vphma0as8pnqrakdw6gaiiz7xawb4y72sc9dna755kkclgbyl8m";
+    sha256 = "01krjfc3xpp0wbqz9nvf1n34gkpd41gysn289sj1wcjxia4n4gsi";
   };
 
   buildInputs = [ libX11 imlib2 ]
     ++ stdenv.lib.optional enableXinerama libXinerama;
 
-  buildFlags = if enableXinerama then "xinerama=1" else "xinerama=0";
+  buildFlags = "CC=cc " + (if enableXinerama then "xinerama=1" else "xinerama=0");
 
   installFlags = "DESTDIR=$(out) PREFIX=";
 
@@ -26,6 +26,7 @@ stdenv.mkDerivation rec {
     description = "Simple X background setter inspired by imlibsetroot and feh";
     homepage = https://github.com/ttzhou/setroot;
     license = licenses.gpl3Plus;
+    maintainers = [ maintainers.vyp ];
     platforms = platforms.unix;
   };
 }

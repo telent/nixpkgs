@@ -7,94 +7,101 @@
 # This has the benefits of providing improvements to other packages,
 # making licenses more clear and reducing compile time/install size.
 #
-# For compliance, the unfree codec faac is optionally spliced out.
-#
 # Only tested on Linux
-#
-# TODO: package and use libappindicator
 
-{ stdenv, config, fetchurl,
-  python, pkgconfig, yasm,
-  autoconf, automake, libtool, m4,
-  libass, libsamplerate, fribidi, libxml2, bzip2,
-  libogg, libtheora, libvorbis, libdvdcss, a52dec, fdk_aac,
-  lame, faac, ffmpeg, libdvdread, libdvdnav, libbluray,
-  mp4v2, mpeg2dec, x264, libmkv,
-  fontconfig, freetype,
-  glib, gtk, webkitgtk, intltool, libnotify,
-  gst_all_1, dbus_glib, udev, libgudev,
-  useGtk ? true,
-  useWebKitGtk ? false # This prevents ghb from starting in my tests
+{ stdenv, lib, fetchFromGitHub,
+  python2, pkgconfig, yasm, harfbuzz, zlib,
+  autoconf, automake, cmake, libtool, m4, jansson,
+  libass, libiconv, libsamplerate, fribidi, libxml2, bzip2,
+  libogg, libopus, libtheora, libvorbis, libdvdcss, a52dec, fdk_aac,
+  lame, ffmpeg, libdvdread, libdvdnav, libbluray,
+  mp4v2, mpeg2dec, x264, x265, libmkv,
+  fontconfig, freetype, hicolor_icon_theme,
+  glib, gtk3, intltool, libnotify,
+  gst_all_1, dbus_glib, udev, libgudev, libvpx,
+  useGtk ? true, wrapGAppsHook ? null, libappindicator-gtk3 ? null
 }:
 
 stdenv.mkDerivation rec {
-  version = "0.9.9";
+  version = "1.0.7";
   name = "handbrake-${version}";
 
-  # ToDo: doesn't work (yet)
-  allowUnfree = false; # config.allowUnfree or false;
-
-  buildInputsX = stdenv.lib.optionals useGtk [
-    glib gtk intltool libnotify
-    gst_all_1.gstreamer gst_all_1.gst-plugins-base dbus_glib udev
-    libgudev
-  ] ++ stdenv.lib.optionals useWebKitGtk [ webkitgtk ];
-
-  # Did not test compiling with it
-  unfreeInputs = stdenv.lib.optional allowUnfree faac;
-
-  nativeBuildInputs = [ python pkgconfig yasm autoconf automake libtool m4 ];
-  buildInputs = [
-    fribidi fontconfig freetype
-    libass libsamplerate libxml2 bzip2
-    libogg libtheora libvorbis libdvdcss a52dec libmkv fdk_aac
-    lame ffmpeg libdvdread libdvdnav libbluray mp4v2 mpeg2dec x264
-  ] ++ buildInputsX ++ unfreeInputs;
-
-
-  src = fetchurl {
-    url = "http://download.handbrake.fr/releases/${version}/HandBrake-${version}.tar.bz2";
-    sha256 = "1crmm1c32vx60jfl2bqzg59q4qqx6m83b08snp7h1njc21sdf7d7";
+  src = fetchFromGitHub {
+    owner  = "HandBrake";
+    repo   = "HandBrake";
+    rev    = "${version}";
+    sha256 = "1pdrvicq40s8n23n6k8k097kkjs3ah5wbz1mvxnfy3h2mh5rwk57";
   };
 
-  patches = stdenv.lib.optional (! allowUnfree) ./disable-unfree.patch;
+  nativeBuildInputs = [
+    cmake python2 pkgconfig yasm autoconf automake libtool m4
+  ] ++ (lib.optionals useGtk [
+    intltool wrapGAppsHook
+  ]);
+
+  buildInputs = [
+    fribidi fontconfig freetype jansson zlib
+    libass libiconv libsamplerate libxml2 bzip2
+    libogg libopus libtheora libvorbis libdvdcss a52dec libmkv fdk_aac
+    lame ffmpeg libdvdread libdvdnav libbluray mp4v2 mpeg2dec x264 x265 libvpx
+  ] ++ (lib.optionals useGtk [
+    glib gtk3 libappindicator-gtk3 libnotify
+    gst_all_1.gstreamer gst_all_1.gst-plugins-base dbus_glib udev
+    libgudev
+  ]);
+
+  dontUseCmakeConfigure = true;
+
+  enableParallelBuilding = true;
 
   preConfigure = ''
-    # Fake wget to prevent downloads
-    mkdir wget
-    echo "#!/bin/sh" > wget/wget
-    echo "echo ===== Not fetching \$*" >> wget/wget
-    echo "exit 1" >> wget/wget
-    chmod +x wget/wget
-    export PATH=$PATH:$PWD/wget
+    patchShebangs scripts
+
+    echo 'TAG=${version}' > version.txt
+
+    # `configure` errors out when trying to read the current year which is too low
+    substituteInPlace make/configure.py \
+      --replace developer release \
+      --replace 'repo.date.strftime("%Y-%m-%d %H:%M:%S")' '""'
+
+    substituteInPlace libhb/module.defs \
+      --replace /usr/include/libxml2 ${libxml2.dev}/include/libxml2
 
     # Force using nixpkgs dependencies
     sed -i '/MODULES += contrib/d' make/include/main.defs
     sed -i '/PKG_CONFIG_PATH=/d' gtk/module.rules
-
-    # disable faac if non-free
-    if [ -z "$allowUnfree" ]; then
-      rm libhb/encfaac.c
-    fi
   '';
 
-  configureFlags = "--enable-fdk-aac ${if useGtk then "--disable-gtk-update-checks" else "--disable-gtk"}";
+  configureFlags = [
+    "--disable-df-fetch"
+    "--disable-df-verify"
+    "--enable-fdk-aac"
+    (if useGtk then "--disable-gtk-update-checks" else "--disable-gtk")
+  ];
+
+  NIX_LDFLAGS = [
+    "-lx265"
+  ];
 
   preBuild = ''
     cd build
   '';
 
-  meta = {
+  # icon-theme.cache belongs in the icon theme, not in individual packages
+  postInstall = ''
+    rm $out/share/icons/hicolor/icon-theme.cache
+  '';
+
+  meta = with stdenv.lib; {
     homepage = http://handbrake.fr/;
     description = "A tool for ripping DVDs into video files";
     longDescription = ''
       Handbrake is a versatile transcoding DVD ripper. This package
       provides the cli HandbrakeCLI and the GTK+ version ghb.
-      The faac library is disabled if you're compiling free-only.
     '';
-    license = stdenv.lib.licenses.gpl2;
-    maintainers = [ stdenv.lib.maintainers.wmertens ];
+    license = licenses.gpl2;
+    maintainers = with maintainers; [ wmertens ];
     # Not tested on anything else
-    platforms = stdenv.lib.platforms.linux;
+    platforms = platforms.linux;
   };
 }

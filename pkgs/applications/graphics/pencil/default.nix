@@ -1,12 +1,12 @@
 { stdenv, fetchurl, makeWrapper, xulrunner }:
 
 stdenv.mkDerivation rec {
-  version = "2.0.15";
+  version = "2.0.21";
   name = "pencil-${version}";
 
   src = fetchurl {
     url = "https://github.com/prikhi/pencil/releases/download/v${version}/Pencil-${version}-linux-pkg.tar.gz";
-    sha256 = "be338558b613f51506337a2c7c80f209e8644656c2925f41c294e2872feabc3b";
+    sha256 = "0xq3gczqy7gzf1997qxdql5z7qqk1vabr0rzgakmsi4dq2q4d3kq";
   };
 
   buildPhase = "";
@@ -28,7 +28,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "GUI prototyping/mockup tool";
-    homepage = http://github.com/prikhi/pencil;
+    homepage = https://github.com/prikhi/pencil;
     license = licenses.gpl2; # Commercial license is also available
     maintainers = with maintainers; [ bjornfor prikhi ];
     platforms = platforms.linux;

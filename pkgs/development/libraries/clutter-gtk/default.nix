@@ -1,11 +1,13 @@
 { fetchurl, stdenv, pkgconfig, gobjectIntrospection, clutter, gtk3 }:
 
 stdenv.mkDerivation rec {
-  name = "clutter-gtk-1.4.4";
+  major = "1.8";
+  minor = "4";
+  name = "clutter-gtk-${major}.${minor}";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/clutter-gtk/1.4/${name}.tar.xz";
-    sha256 = "bc3108594a01a08bb6d9b538afe995e4fd78634a8356064ee8137d87aad51b2e";
+    url = "mirror://gnome/sources/clutter-gtk/${major}/${name}.tar.xz";
+    sha256 = "01ibniy4ich0fgpam53q252idm7f4fn5xg5qvizcfww90gn9652j";
   };
 
   propagatedBuildInputs = [ clutter gtk3 ];
@@ -15,12 +17,9 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Clutter-GTK";
-
     homepage = http://www.clutter-project.org/;
-
     license = stdenv.lib.licenses.lgpl2Plus;
-
-    maintainers = with stdenv.lib.maintainers; [ urkud ];
+    maintainers = with stdenv.lib.maintainers; [ lethalman ];
     platforms = stdenv.lib.platforms.gnu;  # arbitrary choice
   };
 }

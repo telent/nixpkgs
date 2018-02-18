@@ -1,14 +1,15 @@
 {stdenv, fetchurl, libnl, pkgconfig}:
 
 stdenv.mkDerivation rec {
-  name = "iw-4.1";
+  name = "iw-4.9";
 
   src = fetchurl {
     url = "https://www.kernel.org/pub/software/network/iw/${name}.tar.xz";
-    sha256 = "0jx3s5wdvm2qxd3h883fnyjsb1c29qcsz1r19bc029g8v2nalr2i";
+    sha256 = "1klpvv98bnx1zm6aqalnri2vd7w80scmdaxr2qnblb6mz82whk1j";
   };
 
-  buildInputs = [ libnl pkgconfig ];
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ libnl ];
 
   makeFlags = [ "PREFIX=\${out}" ];
 

@@ -1,19 +1,23 @@
 { stdenv, fetchFromGitHub, perl, icmake, utillinux }:
 
-let version = "3.05.01"; in
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "yodl-${version}";
+  version = "4.01.00";
 
-  buildInputs = [ perl icmake ];
+  nativeBuildInputs = [ icmake ];
+
+  buildInputs = [ perl ];
 
   src = fetchFromGitHub {
-    sha256 = "02vbayvnz5p0055456i8kc8qxywkhn7agfrx1kwxaalbsnrd4g9h";
+    sha256 = "1aahwmj4gmf59lrij2373lkgfj77i3ghdas9c7iqrjwaizb0430p";
     rev = version;
     repo = "yodl";
     owner = "fbb-git";
   };
 
-  sourceRoot = "yodl-${version}-src/yodl";
+  setSourceRoot = ''
+    sourceRoot=$(echo */yodl)
+  '';
 
   preConfigure = ''
     patchShebangs ./build

@@ -2,14 +2,16 @@
   pam, libX11, libev, cairo, libxkbcommon, libxkbfile }:
 
 stdenv.mkDerivation rec {
-  name = "i3lock-2.7";
+  name = "i3lock-${version}";
+  version = "2.9.1";
 
   src = fetchurl {
-    url = "http://i3wm.org/i3lock/${name}.tar.bz2";
-    sha256 = "1qlgafbyqjpqdfs50f2y0xphn2jdigafkqqsmpikk97cs0z1i0k8";
+    url = "https://i3wm.org/i3lock/${name}.tar.bz2";
+    sha256 = "1467ha4ssbfjk1jh0ya2i5ljzm554ln18nyrppvsipg8shb1cshh";
   };
 
-  buildInputs = [ which pkgconfig libxcb xcbutilkeysyms xcbutilimage pam libX11
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ which libxcb xcbutilkeysyms xcbutilimage pam libX11
     libev cairo libxkbcommon libxkbfile ];
 
   makeFlags = "all";
@@ -21,8 +23,8 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "A simple screen locker like slock";
-    homepage = http://i3wm.org/i3lock/;
-    maintainers = with maintainers; [ garbas malyn iElectric ];
+    homepage = https://i3wm.org/i3lock/;
+    maintainers = with maintainers; [ garbas malyn domenkozar ];
     license = licenses.bsd3;
     platforms = platforms.all;
   };

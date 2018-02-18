@@ -1,28 +1,21 @@
-{ stdenv, fetchzip, python, pythonPackages, unzip, gamin }:
+{ stdenv, fetchFromGitHub, python, pythonPackages, gamin }:
 
-let version = "0.9.3"; in
+let version = "0.9.7"; in
 
-pythonPackages.buildPythonPackage {
+pythonPackages.buildPythonApplication {
   name = "fail2ban-${version}";
-  namePrefix = "";
 
-  src = fetchzip {
-    name   = "fail2ban-${version}-src";
-    url    = "https://github.com/fail2ban/fail2ban/archive/${version}.tar.gz";
-    sha256 = "1pwgr56i6l6wh2ap8b5vknxgsscfzjqy2nmd1c3vzdii5kf72j0f";
+  src = fetchFromGitHub {
+    owner  = "fail2ban";
+    repo   = "fail2ban";
+    rev    = version;
+    sha256 = "07l5pz93mz1r3g59xiyyznlpjfpv2zgvh3h9w0cbn79v7njim8kb";
   };
 
-  buildInputs = [ unzip ];
-
-  propagatedBuildInputs = [ python.modules.sqlite3 gamin ]
+  propagatedBuildInputs = [ gamin ]
     ++ (stdenv.lib.optional stdenv.isLinux pythonPackages.systemd);
 
   preConfigure = ''
-    for i in fail2ban-client fail2ban-regex fail2ban-server; do
-      substituteInPlace $i \
-        --replace /usr/share/fail2ban $out/share/fail2ban
-    done
-
     for i in config/action.d/sendmail*.conf; do
       substituteInPlace $i \
         --replace /usr/sbin/sendmail sendmail \
@@ -48,7 +41,7 @@ pythonPackages.buildPythonPackage {
     homepage    = http://www.fail2ban.org/;
     description = "A program that scans log files for repeated failing login attempts and bans IP addresses";
     license     = licenses.gpl2Plus;
-    maintainers = with maintainers; [ eelco lovek323 ];
+    maintainers = with maintainers; [ eelco lovek323 fpletz ];
     platforms   = platforms.linux ++ platforms.darwin;
   };
 }

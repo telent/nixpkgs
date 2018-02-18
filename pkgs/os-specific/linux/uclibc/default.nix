@@ -76,8 +76,10 @@ stdenv.mkDerivation {
     ${if cross != null then stdenv.lib.attrByPath [ "uclibc" "extraConfig" ] "" cross else ""}
     $extraCrossConfig
     EOF
-    make oldconfig
+    ( set +o pipefail; yes "" | make oldconfig )
   '';
+
+  hardeningDisable = [ "stackprotector" ];
 
   # Cross stripping hurts.
   dontStrip = cross != null;
@@ -86,7 +88,9 @@ stdenv.mkDerivation {
 
   buildInputs = stdenv.lib.optional (gccCross != null) gccCross;
 
-  enableParallelBuilding = true;
+  # `make libpthread/nptl/sysdeps/unix/sysv/linux/lowlevelrwlock.h`:
+  # error: bits/sysnum.h: No such file or directory
+  enableParallelBuilding = false;
 
   installPhase = ''
     mkdir -p $out
@@ -101,9 +105,11 @@ stdenv.mkDerivation {
     libiconv = libiconvReal;
   };
 
-  meta = {
+  meta = with stdenv.lib; {
     homepage = http://www.uclibc.org/;
     description = "A small implementation of the C library";
-    license = stdenv.lib.licenses.lgpl2;
+    maintainers = with maintainers; [ rasendubi ];
+    license = licenses.lgpl2;
+    platforms = subtractLists ["aarch64-linux"] platforms.linux;
   };
 }

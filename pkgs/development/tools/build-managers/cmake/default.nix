@@ -1,73 +1,83 @@
-{ stdenv, fetchurl
-, bzip2, curl, expat, libarchive, xz, zlib
-, useNcurses ? false, ncurses, useQt4 ? false, qt4
-, wantPS ? false, ps ? null
+{ stdenv, fetchurl, pkgconfig
+, bzip2, curl, expat, libarchive, xz, zlib, libuv, rhash
+# darwin attributes
+, ps
+, isBootstrap ? false
+, useSharedLibraries ? (!isBootstrap && !stdenv.isCygwin)
+, useNcurses ? false, ncurses
+, useQt4 ? false, qt4
+, withQt5 ? false, qtbase
 }:
+
+assert withQt5 -> useQt4 == false;
+assert useQt4 -> withQt5 == false;
 
 with stdenv.lib;
 
-assert wantPS -> (ps != null);
-
 let
   os = stdenv.lib.optionalString;
-  majorVersion = "3.4";
-  minorVersion = "0";
+  majorVersion = "3.9";
+  minorVersion = "6";
   version = "${majorVersion}.${minorVersion}";
 in
 
 stdenv.mkDerivation rec {
-  name = "cmake-${os useNcurses "cursesUI-"}${os useQt4 "qt4UI-"}${version}";
+  name = "cmake-${os isBootstrap "boot-"}${os useNcurses "cursesUI-"}${os withQt5 "qt5UI-"}${os useQt4 "qt4UI-"}${version}";
 
   inherit majorVersion;
 
   src = fetchurl {
     url = "${meta.homepage}files/v${majorVersion}/cmake-${version}.tar.gz";
-    sha256 = "1shwim3gfdybjx9f11ykxz5l09rh58vmvz8ip76q3i76mkv2pf55";
+    # from https://cmake.org/files/v3.9/cmake-3.9.6-SHA-256.txt
+    sha256 = "7410851a783a41b521214ad987bb534a7e4a65e059651a2514e6ebfc8f46b218";
   };
 
-  enableParallelBuilding = true;
+  prePatch = optionalString (!useSharedLibraries) ''
+    substituteInPlace Utilities/cmlibarchive/CMakeLists.txt \
+      --replace '"-framework CoreServices"' '""'
+  '';
 
-  patches =
-    # Don't search in non-Nix locations such as /usr, but do search in
-    # Nixpkgs' Glibc.
-    optional (stdenv ? glibc) ./search-path-3.2.patch
+  # Don't search in non-Nix locations such as /usr, but do search in our libc.
+  patches = [ ./search-path-3.9.patch ]
     ++ optional stdenv.isCygwin ./3.2.2-cygwin.patch;
 
-  buildInputs =
-    [ bzip2 curl expat libarchive xz zlib ]
-    ++ optional useNcurses ncurses
-    ++ optional useQt4 qt4;
-
-  propagatedBuildInputs = optional wantPS ps;
-
-  CMAKE_PREFIX_PATH = stdenv.lib.concatStringsSep ":" buildInputs;
-
-  configureFlags =
-    [ "--docdir=/share/doc/${name}"
-      "--mandir=/share/man"
-      "--no-system-jsoncpp"
-    ]
-    ++ optional (!stdenv.isCygwin) "--system-libs"
-    ++ optional useQt4 "--qt-gui"
-    ++ ["--"]
-    ++ optional (!useNcurses) "-DBUILD_CursesDialog=OFF";
+  outputs = [ "out" ];
+  setOutputFlags = false;
 
   setupHook = ./setup-hook.sh;
 
+  buildInputs =
+    [ setupHook pkgconfig ]
+    ++ optionals useSharedLibraries [ bzip2 curl expat libarchive xz zlib libuv rhash ]
+    ++ optional useNcurses ncurses
+    ++ optional useQt4 qt4
+    ++ optional withQt5 qtbase;
+
+  propagatedBuildInputs = optional stdenv.isDarwin ps;
+
+  preConfigure = ''
+    fixCmakeFiles .
+    substituteInPlace Modules/Platform/UnixPaths.cmake \
+      --subst-var-by libc_bin ${getBin stdenv.cc.libc} \
+      --subst-var-by libc_dev ${getDev stdenv.cc.libc} \
+      --subst-var-by libc_lib ${getLib stdenv.cc.libc}
+    substituteInPlace Modules/FindCxxTest.cmake \
+      --replace "$""{PYTHON_EXECUTABLE}" ${stdenv.shell}
+    configureFlags="--parallel=''${NIX_BUILD_CORES:-1} $configureFlags"
+  '';
+
+  configureFlags = [ "--docdir=share/doc/${name}" ]
+    ++ (if useSharedLibraries then [ "--no-system-jsoncpp" "--system-libs" ] else [ "--no-system-libs" ]) # FIXME: cleanup
+    ++ optional (useQt4 || withQt5) "--qt-gui"
+    ++ optionals (!useNcurses) [ "--" "-DBUILD_CursesDialog=OFF" ];
+
   dontUseCmakeConfigure = true;
+  enableParallelBuilding = true;
 
-  preConfigure = optionalString (stdenv ? glibc)
-    ''
-      source $setupHook
-      fixCmakeFiles .
-      substituteInPlace Modules/Platform/UnixPaths.cmake \
-        --subst-var-by glibc ${stdenv.glibc}
-    '';
-
-  meta = {
+  meta = with stdenv.lib; {
     homepage = http://www.cmake.org/;
     description = "Cross-Platform Makefile Generator";
-    platforms = if useQt4 then qt4.meta.platforms else stdenv.lib.platforms.all;
-    maintainers = with stdenv.lib.maintainers; [ urkud mornfall ttuegel ];
+    platforms = if useQt4 then qt4.meta.platforms else platforms.all;
+    maintainers = with maintainers; [ mornfall ttuegel lnl7 ];
   };
 }

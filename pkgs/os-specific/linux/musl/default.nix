@@ -1,19 +1,28 @@
-{ stdenv, fetchurl }:
+{ stdenv, fetchurl, fetchpatch }:
 
 stdenv.mkDerivation rec {
   name    = "musl-${version}";
-  version = "1.1.11";
+  version = "1.1.18";
 
   src = fetchurl {
     url    = "http://www.musl-libc.org/releases/${name}.tar.gz";
-    sha256 = "0grmmah3d9wajii26010plpinv3cbiq3kfqsblgn84kv3fjnv7mv";
+    sha256 = "0651lnj5spckqjf83nz116s8qhhydgqdy3rkl4icbh5f05fyw5yh";
   };
 
   enableParallelBuilding = true;
 
+  # Disable auto-adding stack protector flags,
+  # so musl can selectively disable as needed
+  hardeningDisable = [ "stackprotector" ];
+
+  preConfigure = ''
+    configureFlagsArray+=("--syslibdir=$out/lib")
+  '';
+
   configureFlags = [
     "--enable-shared"
     "--enable-static"
+    "CFLAGS=-fstack-protector-strong"
   ];
 
   dontDisableStatic = true;

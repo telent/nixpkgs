@@ -1,31 +1,35 @@
-{ stdenv, fetchFromGitHub, fetchFromBitbucket, pkgconfig, tcl, readline, libffi, python3, bison, flex }:
+{ stdenv, fetchFromGitHub, fetchFromBitbucket
+, pkgconfig, tcl, readline, libffi, python3, bison, flex
+}:
 
 stdenv.mkDerivation rec {
   name = "yosys-${version}";
-  version = "2015.12.29";
+  version = "2017.12.06";
 
   srcs = [
     (fetchFromGitHub {
-      owner = "cliffordwolf";
-      repo = "yosys";
-      rev = "1d62f8710f04fec405ef79b9e9a4a031afcf7d42";
-      sha256 = "0q1dk9in3gmrihb58pjckncx56lj7y4b6y34jgb68f0fh91fdvfx";
-      name = "yosys";
+      owner  = "cliffordwolf";
+      repo   = "yosys";
+      rev    = "8f2638ae2f12a48dcad14f24b0211c16ac724762";
+      sha256 = "0synbskclgn97hp28myvl0hp8pqp66awp37z4cv7zl154ipysfl1";
+      name   = "yosys";
     })
     (fetchFromBitbucket {
-      owner = "alanmi";
-      repo = "abc";
-      rev = "c3698e053a7a";
-      sha256 = "05p0fvbr7xvb6w3d7j2r6gynr3ljb6r5q6jvn2zs3ysn2b003qwd";
-      name = "abc";
+      owner  = "alanmi";
+      repo   = "abc";
+      rev    = "31fc97b0aeed";
+      sha256 = "0ljmclr4hfh3iiyfw7ji0fm8j983la8021xfpnfd20dyc807hh65";
+      name   = "yosys-abc";
     })
   ];
   sourceRoot = "yosys";
 
-  buildInputs = [ pkgconfig tcl readline libffi python3 bison flex ];
+  enableParallelBuilding = true;
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ tcl readline libffi python3 bison flex ];
   preBuild = ''
-    chmod -R u+w ../abc
-    ln -s ../abc abc
+    chmod -R u+w ../yosys-abc
+    ln -s ../yosys-abc abc
     make config-gcc
     echo 'ABCREV := default' >> Makefile.conf
     makeFlags="PREFIX=$out $makeFlags"
@@ -37,14 +41,14 @@ stdenv.mkDerivation rec {
       Yosys is a framework for RTL synthesis tools. It currently has
       extensive Verilog-2005 support and provides a basic set of
       synthesis algorithms for various application domains.
-
       Yosys can be adapted to perform any synthesis job by combining
       the existing passes (algorithms) using synthesis scripts and
       adding additional passes as needed by extending the yosys C++
       code base.
     '';
-    homepage = http://www.clifford.at/yosys/;
-    license = stdenv.lib.licenses.isc;
-    maintainers = [ stdenv.lib.maintainers.shell ];
+    homepage    = http://www.clifford.at/yosys/;
+    license     = stdenv.lib.licenses.isc;
+    maintainers = with stdenv.lib.maintainers; [ shell thoughtpolice ];
+    platforms   = stdenv.lib.platforms.linux;
   };
 }

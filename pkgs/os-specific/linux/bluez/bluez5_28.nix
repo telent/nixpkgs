@@ -1,10 +1,12 @@
-{ stdenv, fetchurl, pkgconfig, dbus, glib, alsaLib, python,
-  pythonPackages, pythonDBus, readline, libsndfile, udev, libical,
+{ stdenv, fetchurl, pkgconfig, dbus, glib, alsaLib,
+  pythonPackages, readline, libsndfile, udev, libical,
   systemd, enableWiimote ? false }:
 
 assert stdenv.isLinux;
 
-stdenv.mkDerivation rec {
+let
+  inherit (pythonPackages) python;
+in stdenv.mkDerivation rec {
   name = "bluez-5.28";
    
   src = fetchurl {
@@ -13,14 +15,14 @@ stdenv.mkDerivation rec {
   };
 
   pythonPath = with pythonPackages;
-    [ pythonDBus pygobject pygobject3 recursivePthLoader ];
+    [ dbus pygobject2 pygobject3 recursivePthLoader ];
 
   buildInputs =
-    [ pkgconfig dbus.libs glib alsaLib python pythonPackages.wrapPython
+    [ pkgconfig dbus glib alsaLib python pythonPackages.wrapPython
       readline libsndfile udev libical
       # Disables GStreamer; not clear what it gains us other than a
       # zillion extra dependencies.
-      # gstreamer gst_plugins_base 
+      # gstreamer gst-plugins-base 
     ];
 
   preConfigure = ''
@@ -68,6 +70,7 @@ stdenv.mkDerivation rec {
     # for bluez4 compatibility for NixOS
     mkdir $out/sbin
     ln -s ../libexec/bluetooth/bluetoothd $out/sbin/bluetoothd
+    ln -s ../libexec/bluetooth/obexd $out/sbin/obexd
   '';
 
   meta = with stdenv.lib; {
