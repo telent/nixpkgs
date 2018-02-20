@@ -1,4 +1,4 @@
-{stdenv, fetchurl, openssl, bison, flex, pam, zlib, usePAM ? stdenv.isLinux }:
+{stdenv, fetchurl, openssl, bison, flex, pam, zlib, useSSL ? true, usePAM ? stdenv.isLinux }:
 
 stdenv.mkDerivation rec {
   name = "monit-5.23.0";
@@ -9,9 +9,11 @@ stdenv.mkDerivation rec {
   };
 
   nativeBuildInputs = [ bison flex ];
-  buildInputs = [ openssl zlib.dev ] ++ stdenv.lib.optionals usePAM [ pam ];
+  buildInputs = [ zlib.dev ] ++
+    stdenv.lib.optionals (openssl != null) [ openssl ] ++
+    stdenv.lib.optionals usePAM [ pam ];    
 
-  configureFlags = [
+  configureFlags = stdenv.lib.optionals (openssl != null) [
     "--with-ssl-incl-dir=${openssl.dev}/include"
     "--with-ssl-lib-dir=${openssl.out}/lib"
   ] ++ stdenv.lib.optionals (! usePAM) [ "--without-pam" ];
