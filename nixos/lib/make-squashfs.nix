@@ -1,4 +1,4 @@
-{ stdenv, squashfsTools, perl, pathsFromGraph
+{ stdenv, squashfsTools, perl, pathsFromGraph, options ? ""
 
 , # The root directory of the squashfs filesystem is filled with the
   # closures of the Nix store paths listed here.
@@ -54,6 +54,6 @@ stdenv.mkDerivation {
 
       # Generate the squashfs image.
       mksquashfs nix-path-registration $storePaths $out \
-        -keep-as-directory -all-root -b 1048576 -comp ${compression} ${compressionFlags}
+         -keep-as-directory -all-root -b 1048576 -comp ${compression} ${compressionFlags} ${options}
     '';
 }
