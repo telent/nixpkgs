@@ -2,11 +2,11 @@
 
 stdenv.mkDerivation rec {
   name = "uftp-${version}";
-  version = "4.9.7";
+  version = "4.9.11";
 
   src = fetchurl {
     url = "mirror://sourceforge/uftp-multicast/source-tar/uftp-${version}.tar.gz";
-    sha256 = "1gh1zpc6dh690xjhfp5x2ajhwjkchyh5wazr8agm6axxwqhd9gn8";
+    sha256 = "06kb4h10n5nvmv79fs5nwk40pc4vl4xqidksy9fxasgn6md87p1d";
   };
 
   buildInputs = [ openssl ];

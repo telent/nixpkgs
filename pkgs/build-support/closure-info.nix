@@ -17,6 +17,11 @@ stdenv.mkDerivation {
 
   exportReferencesGraph.closure = rootPaths;
 
+<<<<<<< HEAD
+=======
+  preferLocalBuild = true;
+
+>>>>>>> 40cc9cfdb686cee937fdd92bb83dac1d095e86f4
   PATH = "${buildPackages.coreutils}/bin:${buildPackages.jq}/bin";
 
   builder = builtins.toFile "builder"
