@@ -2,13 +2,13 @@
 
 stdenv.mkDerivation rec {
   pname = "kore";
-  version = "3.3.0";
+  version = "3.3.1";
 
   src = fetchFromGitHub {
     owner = "jorisvink";
     repo = pname;
     rev = "${version}-release";
-    sha256 = "19jd1jkyrylvqbrxdz7i3xvymwi1dzx97iq6fcp76fw7nm7gxgk4";
+    sha256 = "0jlvry9p1f7284cscfsg04ngbaq038yx3nz815jcr5s3d2jzps3h";
   };
 
   buildInputs = [ openssl ];
@@ -23,7 +23,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "An easy to use web application framework for C";
-    homepage = https://kore.io;
+    homepage = "https://kore.io";
     license = licenses.isc;
     platforms = platforms.all;
     maintainers = with maintainers; [ johnmh ];

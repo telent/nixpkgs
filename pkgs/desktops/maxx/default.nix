@@ -3,7 +3,7 @@
 
 , libX11, libXext, libXi, libXau, libXrender, libXft, libXmu, libSM, libXcomposite, libXfixes, libXpm
 , libXinerama, libXdamage, libICE, libXtst, libXaw, fontconfig, pango, cairo, glib, libxml2, atk, gtk2
-, gdk_pixbuf, libGL, ncurses5
+, gdk-pixbuf, libGL, ncurses5
 
 , dmidecode, pciutils, usbutils
 }:
@@ -24,7 +24,7 @@ stdenv.mkDerivation rec {
   buildInputs = [
     stdenv.cc.cc libX11 libXext libXi libXau libXrender libXft libXmu libSM libXcomposite libXfixes libXpm
     libXinerama libXdamage libICE libXtst libXaw fontconfig pango cairo glib libxml2 atk gtk2
-    gdk_pixbuf libGL ncurses5
+    gdk-pixbuf libGL ncurses5
   ];
 
   buildPhase = ''
@@ -61,16 +61,16 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "A replica of IRIX Interactive Desktop";
-    homepage = https://www.facebook.com/maxxdesktop/;
+    homepage = "https://www.facebook.com/maxxdesktop/";
     license = {
       fullName = "The MaXX Interactive Desktop for Linux License Agreement";
-      url = http://maxxdesktop.arcadedaydream.com/Indigo-Releases/docs/license.html;
+      url = "http://maxxdesktop.arcadedaydream.com/Indigo-Releases/docs/license.html";
       free = false; # redistribution is only allowed to *some* hardware, etc.
     };
     maintainers = [ maintainers.gnidorah ];
     platforms = ["x86_64-linux"];
     longDescription = ''
-      A clone of IRIX Interactive Desktop made in agreement with SGI. 
+      A clone of IRIX Interactive Desktop made in agreement with SGI.
       Provides simple and fast retro desktop environment.
     '';
   };

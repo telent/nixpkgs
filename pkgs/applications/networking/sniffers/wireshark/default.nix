@@ -1,6 +1,6 @@
 { stdenv, fetchurl, pkgconfig, pcre, perl, flex, bison, gettext, libpcap, libnl, c-ares
 , gnutls, libgcrypt, libgpgerror, geoip, openssl, lua5, python3, libcap, glib
-, libssh, nghttp2, zlib, cmake, extra-cmake-modules, fetchpatch, makeWrapper
+, libssh, nghttp2, zlib, cmake, fetchpatch, makeWrapper
 , withQt ? true, qt5 ? null
 , ApplicationServices, SystemConfiguration, gmp
 }:
@@ -10,7 +10,7 @@ assert withQt  -> qt5  != null;
 with stdenv.lib;
 
 let
-  version = "3.0.2";
+  version = "3.2.3";
   variant = if withQt then "qt" else "cli";
 
 in stdenv.mkDerivation {
@@ -20,17 +20,19 @@ in stdenv.mkDerivation {
 
   src = fetchurl {
     url = "https://www.wireshark.org/download/src/all-versions/wireshark-${version}.tar.xz";
-    sha256 = "0fz5lbyiw4a27fqc4ndi1w20bpcb6wi9k7vjv29l9fhd99kca7ky";
+    sha256 = "1fpsfjrap7j84sy728yhcr2gad9nq3n5gq03mwrmxnc6ijwf81zh";
   };
 
   cmakeFlags = [
     "-DBUILD_wireshark=${if withQt then "ON" else "OFF"}"
     "-DENABLE_APPLICATION_BUNDLE=${if withQt && stdenv.isDarwin then "ON" else "OFF"}"
+    # Fix `extcap` and `plugins` paths. See https://bugs.wireshark.org/bugzilla/show_bug.cgi?id=16444
+    "-DCMAKE_INSTALL_LIBDIR=lib"
   ];
 
   nativeBuildInputs = [
-    bison cmake extra-cmake-modules flex pkgconfig
-  ];
+    bison cmake flex pkgconfig
+  ] ++ optional withQt qt5.wrapQtAppsHook;
 
   buildInputs = [
     gettext pcre perl libpcap lua5 libssh nghttp2 openssl libgcrypt
@@ -70,12 +72,9 @@ in stdenv.mkDerivation {
         done
     done
 
-    wrapProgram $out/Applications/Wireshark.app/Contents/MacOS/Wireshark \
-        --set QT_PLUGIN_PATH ${qt5.qtbase.bin}/${qt5.qtbase.qtPluginPrefix}
+    wrapQtApp $out/Applications/Wireshark.app/Contents/MacOS/Wireshark
   '' else optionalString withQt ''
     install -Dm644 -t $out/share/applications ../wireshark.desktop
-    wrapProgram $out/bin/wireshark \
-        --set QT_PLUGIN_PATH ${qt5.qtbase.bin}/${qt5.qtbase.qtPluginPrefix}
 
     substituteInPlace $out/share/applications/*.desktop \
         --replace "Exec=wireshark" "Exec=$out/bin/wireshark"
@@ -103,7 +102,7 @@ in stdenv.mkDerivation {
   '';
 
   meta = with stdenv.lib; {
-    homepage = https://www.wireshark.org/;
+    homepage = "https://www.wireshark.org/";
     description = "Powerful network protocol analyzer";
     license = licenses.gpl2;
 

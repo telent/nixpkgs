@@ -1,4 +1,4 @@
-{ lib, fetchPypi, fetchpatch, buildPythonPackage
+{ lib, fetchPypi, buildPythonPackage
 , agate, openpyxl, xlrd, nose
 }:
 
@@ -21,7 +21,7 @@ buildPythonPackage rec {
 
   meta = with lib; {
     description = "Adds read support for excel files to agate";
-    homepage    = https://github.com/wireservice/agate-excel;
+    homepage    = "https://github.com/wireservice/agate-excel";
     license     = licenses.mit;
     maintainers = with maintainers; [ vrthra ];
   };

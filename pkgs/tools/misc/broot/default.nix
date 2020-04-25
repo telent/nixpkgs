@@ -1,17 +1,34 @@
-{ stdenv, rustPlatform, fetchFromGitHub }:
+{ stdenv, rustPlatform, fetchFromGitHub, coreutils, libiconv, Security, installShellFiles }:
 
 rustPlatform.buildRustPackage rec {
   pname = "broot";
-  version = "0.7.5";
+  version = "0.13.5b";
 
   src = fetchFromGitHub {
     owner = "Canop";
     repo = pname;
     rev = "v${version}";
-    sha256 = "1pwbz4ac2zb40g6q6ykzhzfbn0jr5xarkvgw9wxv455mbi67rd6y";
+    sha256 = "0gcv9w79r9q3rzrdqiq9xgh68ya653sq84vzgf0fb154zmzjkxfv";
   };
 
-  cargoSha256 = "0cq78im3hg7wns260gwvajikj80l7kjbg3zycy3nvdx34llgv0n5";
+  cargoSha256 = "0534jykfnqs1gfnmijkpcf91ddpbggw7p25h4arci14lgd2wrmgd";
+
+  nativeBuildInputs = [ installShellFiles ];
+
+  buildInputs = stdenv.lib.optionals stdenv.isDarwin [ libiconv Security ];
+
+  postPatch = ''
+    substituteInPlace src/verb_store.rs --replace '"/bin/' '"${coreutils}/bin/'
+  '';
+
+  postInstall = ''
+    # install shell completion files
+    OUT_DIR=target/release/build/broot-*/out
+
+    installShellCompletion --bash $OUT_DIR/{br,broot}.bash
+    installShellCompletion --fish $OUT_DIR/{br,broot}.fish
+    installShellCompletion --zsh $OUT_DIR/{_br,_broot}
+  '';
 
   meta = with stdenv.lib; {
     description = "An interactive tree view, a fuzzy search, a balanced BFS descent and customizable commands";

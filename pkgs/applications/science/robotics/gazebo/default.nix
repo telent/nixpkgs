@@ -24,10 +24,10 @@
 
 stdenv.mkDerivation rec {
   inherit version;
-  name = "gazebo-${version}";
+  pname = "gazebo";
 
   src = fetchurl {
-    url = "https://osrf-distributions.s3.amazonaws.com/gazebo/releases/${name}.tar.bz2";
+    url = "https://osrf-distributions.s3.amazonaws.com/gazebo/releases/${pname}-${version}.tar.bz2";
     sha256 = src-sha256;
   };
 
@@ -75,7 +75,7 @@ stdenv.mkDerivation rec {
     ++ optional withHdf5Support hdf5;
 
   meta = with stdenv.lib; {
-    homepage = http://gazebosim.org/;
+    homepage = "http://gazebosim.org/";
     description = "Multi-robot simulator for outdoor environments";
     license = licenses.asl20;
     maintainers = with maintainers; [ pxc ];

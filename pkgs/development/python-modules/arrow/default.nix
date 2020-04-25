@@ -1,15 +1,15 @@
 { stdenv, buildPythonPackage, fetchPypi
 , nose, chai, simplejson, backports_functools_lru_cache
-, dateutil, pytz
+, dateutil, pytz, mock, dateparser
 }:
 
 buildPythonPackage rec {
   pname = "arrow";
-  version = "0.13.1";
+  version = "0.15.5";
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "6f54d9f016c0b7811fac9fb8c2c7fa7421d80c54dbdd75ffb12913c55db60b8a";
+    sha256 = "0yq2bld2bjxddmg9zg4ll80pb32rkki7xyhgnrqnkxy5w9jf942k";
   };
 
   checkPhase = ''
@@ -17,7 +17,7 @@ buildPythonPackage rec {
   '';
 
   checkInputs = [ nose chai simplejson pytz ];
-  propagatedBuildInputs = [ dateutil backports_functools_lru_cache ];
+  propagatedBuildInputs = [ dateutil backports_functools_lru_cache mock dateparser];
 
   postPatch = ''
     substituteInPlace setup.py --replace "==1.2.1" ""
@@ -25,7 +25,7 @@ buildPythonPackage rec {
 
   meta = with stdenv.lib; {
     description = "Python library for date manipulation";
-    license     = "apache";
+    license = licenses.asl20;
     maintainers = with maintainers; [ thoughtpolice ];
   };
 }

@@ -1,9 +1,9 @@
-{ stdenv, lib, buildPythonPackage, fetchPypi, makeWrapper, isPy3k,
+{ stdenv, lib, buildPythonPackage, fetchPypi, fetchpatch, makeWrapper, isPy3k,
   python, twisted, jinja2, zope_interface, future, sqlalchemy,
   sqlalchemy_migrate, dateutil, txaio, autobahn, pyjwt, pyyaml, treq,
-  txrequests, txgithub, pyjade, boto3, moto, mock, python-lz4, setuptoolsTrial,
-  isort, pylint, flake8, buildbot-worker, buildbot-pkg, parameterized,
-  glibcLocales }:
+  txrequests, pyjade, boto3, moto, mock, python-lz4, setuptoolsTrial,
+  isort, pylint, flake8, buildbot-worker, buildbot-pkg, buildbot-plugins,
+  parameterized, git, openssh, glibcLocales, nixosTests }:
 
 let
   withPlugins = plugins: buildPythonPackage {
@@ -25,11 +25,11 @@ let
 
   package = buildPythonPackage rec {
     pname = "buildbot";
-    version = "2.3.0";
+    version = "2.7.0";
 
     src = fetchPypi {
       inherit pname version;
-      sha256 = "1fdahbpihs93pj640y2079yilca6w7vlwirfcz221885ih148257";
+      sha256 = "0jj8fh611n7xc3vsfbgpqsllp38cfj3spkr2kz3ara2x7jvh3406";
     };
 
     propagatedBuildInputs = [
@@ -37,7 +37,6 @@ let
       twisted
       jinja2
       zope_interface
-      future
       sqlalchemy
       sqlalchemy_migrate
       dateutil
@@ -45,10 +44,9 @@ let
       autobahn
       pyjwt
       pyyaml
-
+    ]
       # tls
-      twisted.extras.tls
-    ];
+      ++ twisted.extras.tls;
 
     checkInputs = [
       treq
@@ -64,7 +62,10 @@ let
       flake8
       buildbot-worker
       buildbot-pkg
+      buildbot-plugins.www
       parameterized
+      git
+      openssh
       glibcLocales
     ];
 
@@ -90,12 +91,13 @@ let
 
     passthru = {
       inherit withPlugins;
+      tests.buildbot = nixosTests.buildbot;
     };
 
     meta = with lib; {
-      homepage = http://buildbot.net/;
+      homepage = "https://buildbot.net/";
       description = "Buildbot is an open-source continuous integration framework for automating software build, test, and release processes";
-      maintainers = with maintainers; [ nand0p ryansydnor ];
+      maintainers = with maintainers; [ nand0p ryansydnor lopsided98 ];
       license = licenses.gpl2;
     };
   };

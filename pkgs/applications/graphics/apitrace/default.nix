@@ -1,7 +1,7 @@
 { stdenv, fetchFromGitHub, cmake, libX11, procps, python2, libdwarf, qtbase, qtwebkit }:
 
 stdenv.mkDerivation rec {
-  name = "apitrace-${version}";
+  pname = "apitrace";
   version = "7.1-572-g${builtins.substring 0 8 src.rev}";
 
   src = fetchFromGitHub {
@@ -18,7 +18,7 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ cmake ];
 
   meta = with stdenv.lib; {
-    homepage = https://apitrace.github.io;
+    homepage = "https://apitrace.github.io";
     description = "Tools to trace OpenGL, OpenGL ES, Direct3D, and DirectDraw APIs";
     license = licenses.mit;
     platforms = platforms.linux;

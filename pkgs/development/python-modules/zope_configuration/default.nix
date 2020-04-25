@@ -5,7 +5,6 @@
 , zope_schema
 , zope_testrunner
 , manuel
-, isPy3k
 }:
 
 buildPythonPackage rec {
@@ -26,7 +25,7 @@ buildPythonPackage rec {
 
   meta = with stdenv.lib; {
     description = "Zope Configuration Markup Language (ZCML)";
-    homepage = https://github.com/zopefoundation/zope.configuration;
+    homepage = "https://github.com/zopefoundation/zope.configuration";
     license = licenses.zpl20;
     maintainers = with maintainers; [ goibhniu ];
   };

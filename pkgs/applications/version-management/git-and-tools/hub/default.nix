@@ -1,8 +1,8 @@
-{ stdenv, buildGoPackage, fetchFromGitHub, groff, Security, utillinux }:
+{ stdenv, buildGoPackage, fetchFromGitHub, groff, utillinux }:
 
 buildGoPackage rec {
   pname = "hub";
-  version = "2.11.2";
+  version = "2.14.2";
 
   goPackagePath = "github.com/github/hub";
 
@@ -13,11 +13,10 @@ buildGoPackage rec {
     owner = "github";
     repo = pname;
     rev = "v${version}";
-    sha256 = "11ipc2vpy52r1ql9r4iyam1sjchb7f01ffc39fvz6d5hhjaz3i9b";
+    sha256 = "1qjab3dpia1jdlszz3xxix76lqrm4zbmqzd9ymld7h06awzsg2vh";
   };
 
   nativeBuildInputs = [ groff utillinux ];
-  buildInputs = stdenv.lib.optional stdenv.isDarwin Security;
 
   postPatch = ''
     patchShebangs .
@@ -37,8 +36,8 @@ buildGoPackage rec {
   meta = with stdenv.lib; {
     description = "Command-line wrapper for git that makes you better at GitHub";
     license = licenses.mit;
-    homepage = https://hub.github.com/;
-    maintainers = with maintainers; [ the-kenny ];
+    homepage = "https://hub.github.com/";
+    maintainers = with maintainers; [ the-kenny globin ];
     platforms = with platforms; unix;
   };
 }

@@ -1,5 +1,5 @@
 { stdenv, fetchurl, intltool, pkgconfig, iconnamingutils, imagemagick, librsvg
-, gtk/*any version*/
+, gtk/*any version*/, hicolor-icon-theme
 }:
 
 stdenv.mkDerivation rec {
@@ -15,13 +15,19 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ pkgconfig ];
   buildInputs = [ intltool iconnamingutils imagemagick librsvg ];
 
+  propagatedBuildInputs = [
+    hicolor-icon-theme
+  ];
+
+  dontDropIconThemeCache = true;
+
   configureFlags = [ "--enable-png-creation" ];
 
   postInstall = '''${gtk.out}/bin/gtk-update-icon-cache' "$out/share/icons/Tango" '';
 
   meta = {
     description = "A basic set of icons";
-    homepage = http://tango.freedesktop.org/Tango_Icon_Library;
+    homepage = "http://tango.freedesktop.org/Tango_Icon_Library";
     platforms = stdenv.lib.platforms.linux;
   };
 }

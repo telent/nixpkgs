@@ -3,7 +3,7 @@
 
 stdenv.mkDerivation rec {
   version = "18";
-  name = "fastd-${version}";
+  pname = "fastd";
 
   src = fetchgit {
     url = "git://git.universe-factory.net/fastd";
@@ -23,7 +23,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Fast and Secure Tunneling Daemon";
-    homepage = https://projects.universe-factory.net/projects/fastd/wiki;
+    homepage = "https://projects.universe-factory.net/projects/fastd/wiki";
     license = with licenses; [ bsd2 bsd3 ];
     platforms = platforms.linux;
     maintainers = with maintainers; [ fpletz ];

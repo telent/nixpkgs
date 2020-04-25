@@ -24,12 +24,12 @@ let
   ctlpath = lib.makeBinPath [ bash gnused gnugrep coreutils utillinux procps ];
 
 in stdenv.mkDerivation rec {
-  version = "19.02";
-  name = "ejabberd-${version}";
+  version = "20.03";
+  pname = "ejabberd";
 
   src = fetchurl {
-    url = "https://www.process-one.net/downloads/ejabberd/${version}/${name}.tgz";
-    sha256 = "18ga87w4mhi2wli9q7m64wsml0g61k1jacamn7k522gv50d8fwpv";
+    url = "https://www.process-one.net/downloads/downloads-action.php?file=/${version}/${pname}-${version}.tgz";
+    sha256 = "0i013l9cygmgainfid298n6llhs3mblfklry3jw2a6irvhffym0s";
   };
 
   nativeBuildInputs = [ fakegit ];
@@ -45,7 +45,8 @@ in stdenv.mkDerivation rec {
   LANG = "en_US.UTF-8";
 
   deps = stdenv.mkDerivation {
-    name = "ejabberd-deps-${version}";
+    pname = "ejabberd-deps";
+    inherit version;
 
     inherit src;
 
@@ -75,7 +76,7 @@ in stdenv.mkDerivation rec {
 
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
-    outputHash = "0nv8bwfjjhnd1xn0k6zpr882r982s43mcdwqpdgkwkvlv4b8zp2z";
+    outputHash = "0xwgi9hy6y0m8mwznl6px98kdmkcxg98k62zgqbaqd4paks5zwqa";
   };
 
   configureFlags =
@@ -112,9 +113,9 @@ in stdenv.mkDerivation rec {
   meta = with stdenv.lib; {
     description = "Open-source XMPP application server written in Erlang";
     license = licenses.gpl2;
-    homepage = https://www.ejabberd.im;
+    homepage = "https://www.ejabberd.im";
     platforms = platforms.linux;
-    maintainers = with maintainers; [ sander abbradar ];
+    maintainers = with maintainers; [ sander abbradar ajs124 ];
     broken = withElixir;
   };
 }

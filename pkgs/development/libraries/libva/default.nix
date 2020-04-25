@@ -1,24 +1,25 @@
 { stdenv, lib, fetchFromGitHub, autoreconfHook, pkgconfig
 , libXext, libdrm, libXfixes, wayland, libffi, libX11
-, libGL, libGL_driver
+, libGL, mesa
 , minimal ? false, libva-minimal
+, buildPackages
 }:
 
 stdenv.mkDerivation rec {
   name = "libva-${lib.optionalString minimal "minimal-"}${version}";
-  version = "2.4.1";
+  version = "2.6.1";
 
   # update libva-utils and vaapiIntel as well
   src = fetchFromGitHub {
     owner  = "01org";
     repo   = "libva";
     rev    = version;
-    sha256 = "06kqff05jhd87yi53gyc2qivgg4sbf19qyznm9s4dyz92k04cl5c";
+    sha256 = "1x34kf38p5rf52bf54ljr9f7knnbilm7kbszqnfk3lzsqrfc7r2g";
   };
 
   outputs = [ "dev" "out" ];
 
-  nativeBuildInputs = [ autoreconfHook pkgconfig ];
+  nativeBuildInputs = [ autoreconfHook pkgconfig wayland ];
 
   buildInputs = [ libdrm ]
     ++ lib.optionals (!minimal) [ libva-minimal libX11 libXext libXfixes wayland libffi libGL ];
@@ -28,7 +29,8 @@ stdenv.mkDerivation rec {
 
   configureFlags = [
     # Add FHS paths for non-NixOS applications.
-    "--with-drivers-path=${libGL_driver.driverLink}/lib/dri:/usr/lib/dri:/usr/lib32/dri"
+    "--with-drivers-path=${mesa.drivers.driverLink}/lib/dri:/usr/lib/dri:/usr/lib32/dri"
+    "ac_cv_path_WAYLAND_SCANNER=${buildPackages.wayland}/bin/wayland-scanner"
   ] ++ lib.optionals (!minimal) [ "--enable-glx" ];
 
   installFlags = [
@@ -37,9 +39,9 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "VAAPI library: Video Acceleration API";
-    homepage = http://www.freedesktop.org/wiki/Software/vaapi;
+    homepage = "http://www.freedesktop.org/wiki/Software/vaapi";
     license = licenses.mit;
-    maintainers = with maintainers; [ garbas ];
+    maintainers = with maintainers; [ ];
     platforms = platforms.unix;
   };
 }

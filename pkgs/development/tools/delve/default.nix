@@ -1,7 +1,7 @@
 { stdenv, buildGoPackage, fetchFromGitHub }:
 
 buildGoPackage rec {
-  name = "delve-${version}";
+  pname = "delve";
   version = "1.2.0";
 
   goPackagePath = "github.com/go-delve/delve";
@@ -16,7 +16,7 @@ buildGoPackage rec {
 
   meta = with stdenv.lib; {
     description = "debugger for the Go programming language";
-    homepage = https://github.com/derekparker/delve;
+    homepage = "https://github.com/derekparker/delve";
     maintainers = with maintainers; [ vdemeester ];
     license = licenses.mit;
     platforms = [ "x86_64-linux" ] ++ platforms.darwin;

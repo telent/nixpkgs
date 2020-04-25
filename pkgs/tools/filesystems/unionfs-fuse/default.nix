@@ -1,7 +1,7 @@
 { stdenv, fetchFromGitHub, cmake, fuse }:
 
 stdenv.mkDerivation rec {
-  name = "unionfs-fuse-${version}";
+  pname = "unionfs-fuse";
   version = "2.0";
 
   src = fetchFromGitHub {
@@ -36,7 +36,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "FUSE UnionFS implementation";
-    homepage = https://github.com/rpodgorny/unionfs-fuse;
+    homepage = "https://github.com/rpodgorny/unionfs-fuse";
     license = licenses.bsd3;
     platforms = platforms.linux;
     maintainers = with maintainers; [ orivej ];

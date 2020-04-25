@@ -3,13 +3,13 @@
 
 buildPythonPackage rec {
   pname = "snapcast";
-  version = "2.0.9";
+  version = "2.1.0";
 
   disabled = !isPy3k;
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "0hlfcg0qdfavjzhxz4v2spjkj6440a1254wrncfkfkyff6rv9x3s";
+    sha256 = "1z3c9p22pm3823jzh917c3rryv02mhigrjkjf9wlhzmjwx5vmjqf";
   };
 
   checkInputs = [ pytest ];
@@ -21,7 +21,7 @@ buildPythonPackage rec {
 
   meta = with stdenv.lib; {
     description = "Control Snapcast, a multi-room synchronous audio solution";
-    homepage = https://github.com/happyleavesaoc/python-snapcast/;
+    homepage = "https://github.com/happyleavesaoc/python-snapcast/";
     license = licenses.mit;
     maintainers = with maintainers; [ peterhoeg ];
   };

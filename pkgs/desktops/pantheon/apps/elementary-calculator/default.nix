@@ -1,32 +1,43 @@
-{ stdenv, fetchFromGitHub, pantheon, pkgconfig
-, meson, ninja, vala, desktop-file-utils, libxml2
-, gtk3, python3, granite, libgee, gobject-introspection
-, elementary-icon-theme, appstream, wrapGAppsHook }:
+{ stdenv
+, fetchFromGitHub
+, pantheon
+, pkgconfig
+, meson
+, ninja
+, vala
+, desktop-file-utils
+, libxml2
+, gtk3
+, python3
+, granite
+, libgee
+, elementary-icon-theme
+, appstream
+, wrapGAppsHook
+}:
 
 stdenv.mkDerivation rec {
-  pname = "calculator";
-  version = "1.5.2";
+  pname = "elementary-calculator";
+  version = "1.5.5";
 
-  name = "elementary-${pname}-${version}";
+  repoName = "calculator";
 
   src = fetchFromGitHub {
     owner = "elementary";
-    repo = pname;
+    repo = repoName;
     rev = version;
-    sha256 = "1vdgl89hdf9q1ya6as7310hlr0xls3w7js2gzsd9z8arb6037ccl";
+    sha256 = "1csxsr2c8qvl97xz9ahwn91z095nzgr0i1mbcb1spljll2sr9lkj";
   };
 
   passthru = {
     updateScript = pantheon.updateScript {
-      repoName = pname;
-      attrPath = "elementary-${pname}";
+      attrPath = "pantheon.${pname}";
     };
   };
 
   nativeBuildInputs = [
     appstream
     desktop-file-utils
-    gobject-introspection
     libxml2
     meson
     ninja
@@ -49,7 +60,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/elementary/calculator;
+    homepage = "https://github.com/elementary/calculator";
     description = "Calculator app designed for elementary OS";
     license = licenses.gpl3Plus;
     platforms = platforms.linux;

@@ -1,6 +1,6 @@
 { config, lib, stdenv, fetchurl, zlib, lzo, libtasn1, nettle, pkgconfig, lzip
 , perl, gmp, autoconf, autogen, automake, libidn, p11-kit, libiconv
-, unbound, dns-root-data, gettext
+, unbound, dns-root-data, gettext, cacert, utillinux
 , guileBindings ? config.gnutls.guile or false, guile
 , tpmSupport ? false, trousers, which, nettools, libunistring
 , withSecurity ? false, Security  # darwin Security.framework
@@ -8,7 +8,7 @@
 
 assert guileBindings -> guile != null;
 let
-  version = "3.6.7";
+  version = "3.6.13";
 
   # XXX: Gnulib's `test-select' fails on FreeBSD:
   # http://hydra.nixos.org/build/2962084/nixlog/1/raw .
@@ -24,11 +24,13 @@ stdenv.mkDerivation {
 
   src = fetchurl {
     url = "mirror://gnupg/gnutls/v3.6/gnutls-${version}.tar.xz";
-    sha256 = "1ql8l6l5bxks2pgpwb1602zc0j6ivhpy27hdfc49h8xgbanhjd2v";
+    sha256 = "0f1gnm0756qms5cpx6yn6xb8d3imc2gkqmygf12n9x6r8zs1s11j";
   };
 
   outputs = [ "bin" "dev" "out" "man" "devdoc" ];
+  # Not normally useful docs.
   outputInfo = "devdoc";
+  outputDoc  = "devdoc";
 
   patches = [ ./nix-ssl-cert-file.patch ]
     # Disable native add_system_trust.
@@ -67,11 +69,14 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = [ perl pkgconfig ]
     ++ lib.optionals (isDarwin && !withSecurity) [ autoconf automake ]
-    ++ lib.optionals doCheck [ which nettools ];
+    ++ lib.optionals doCheck [ which nettools utillinux ];
 
   propagatedBuildInputs = [ nettle ];
 
   inherit doCheck;
+  # stdenv's `NIX_SSL_CERT_FILE=/no-cert-file.crt` broke tests with:
+  #   Error setting the x509 trust file: Error while reading file.
+  checkInputs = [ cacert ];
 
   # Fixup broken libtool and pkgconfig files
   preFixup = lib.optionalString (!isDarwin) ''
@@ -103,7 +108,7 @@ stdenv.mkDerivation {
        tampering, or message forgery."
     '';
 
-    homepage = https://www.gnu.org/software/gnutls/;
+    homepage = "https://www.gnu.org/software/gnutls/";
     license = licenses.lgpl21Plus;
     maintainers = with maintainers; [ eelco fpletz ];
     platforms = platforms.all;

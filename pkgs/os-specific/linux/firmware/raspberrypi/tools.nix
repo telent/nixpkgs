@@ -1,7 +1,7 @@
 { stdenv, fetchFromGitHub, cmake, pkgconfig }:
 
-stdenv.mkDerivation rec {
-  name = "raspberrypi-tools-${version}";
+stdenv.mkDerivation {
+  pname = "raspberrypi-tools";
   version = "2018-10-03";
 
   src = fetchFromGitHub {
@@ -23,7 +23,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Userland tools for the Raspberry Pi board";
-    homepage = https://github.com/raspberrypi/userland;
+    homepage = "https://github.com/raspberrypi/userland";
     license = licenses.bsd3;
     platforms = [ "armv6l-linux" "armv7l-linux" "aarch64-linux" ];
     maintainers = with maintainers; [ dezgeg tavyc ];

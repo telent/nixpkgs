@@ -2,7 +2,7 @@
 
 stdenv.mkDerivation rec {
   version = "2.37";
-  name = "profile-cleaner-${version}";
+  pname = "profile-cleaner";
 
   src = fetchFromGitHub {
     owner = "graysky2";
@@ -27,7 +27,7 @@ stdenv.mkDerivation rec {
       term "browser" is used loosely since profile-cleaner happily works on
       some email clients and newsreaders too.
     '';
-    homepage = https://github.com/graysky2/profile-cleaner;
+    homepage = "https://github.com/graysky2/profile-cleaner";
     license = stdenv.lib.licenses.mit;
     platforms = stdenv.lib.platforms.linux;
     maintainers = [ stdenv.lib.maintainers.devhell ];

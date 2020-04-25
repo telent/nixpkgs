@@ -1,5 +1,6 @@
-{ stdenv, fetchFromGitHub, meson, pkgconfig, ninja
-, wayland, wlroots, gtkmm3, libinput, libsigcxx, jsoncpp, fmt, spdlog
+{ stdenv, fetchFromGitHub, meson, pkgconfig, ninja, wrapGAppsHook
+, wayland, wlroots, gtkmm3, libinput, libsigcxx, jsoncpp, fmt, scdoc, spdlog, gtk-layer-shell
+, howard-hinnant-date, cmake
 , traySupport  ? true,  libdbusmenu-gtk3
 , pulseSupport ? false, libpulseaudio
 , nlSupport    ? true,  libnl
@@ -8,22 +9,22 @@
 , mpdSupport   ? true,  mpd_clientlib
 }:
   stdenv.mkDerivation rec {
-    name = "waybar-${version}";
-    version = "0.6.6";
+    pname = "waybar";
+    version = "0.9.2";
 
     src = fetchFromGitHub {
       owner = "Alexays";
       repo = "Waybar";
       rev = version;
-      sha256 = "0wxd03lkgssz0vsib9qc040vfg1i6nrg7ac2c6qwficx62j2zlm1";
+      sha256 = "1gfxyjzwfqznyrpyr3322z3w844i1lh77kly4hcpy9y5gsfmlafy";
     };
 
     nativeBuildInputs = [
-      meson ninja pkgconfig
+      meson ninja pkgconfig scdoc wrapGAppsHook cmake
     ];
 
     buildInputs = with stdenv.lib;
-      [ wayland wlroots gtkmm3 libinput libsigcxx jsoncpp fmt spdlog ]
+      [ wayland wlroots gtkmm3 libinput libsigcxx jsoncpp fmt spdlog gtk-layer-shell howard-hinnant-date ]
       ++ optional  traySupport  libdbusmenu-gtk3
       ++ optional  pulseSupport libpulseaudio
       ++ optional  nlSupport    libnl
@@ -31,19 +32,25 @@
       ++ optional  swaySupport  sway
       ++ optional  mpdSupport   mpd_clientlib;
 
-    mesonFlags = [
-      "-Ddbusmenu-gtk=${ if traySupport then "enabled" else "disabled" }"
-      "-Dpulseaudio=${ if pulseSupport then "enabled" else "disabled" }"
-      "-Dlibnl=${ if nlSupport then "enabled" else "disabled" }"
-      "-Dlibudev=${ if udevSupport then "enabled" else "disabled" }"
-      "-Dmpd=${ if mpdSupport then "enabled" else "disabled" }"
+    mesonFlags = (stdenv.lib.mapAttrsToList
+      (option: enable: "-D${option}=${if enable then "enabled" else "disabled"}")
+      {
+        dbusmenu-gtk = traySupport;
+        pulseaudio = pulseSupport;
+        libnl = nlSupport;
+        libudev = udevSupport;
+        mpd = mpdSupport;
+      }
+    ) ++ [
       "-Dout=${placeholder "out"}"
+      "-Dsystemd=disabled"
     ];
 
     meta = with stdenv.lib; {
       description = "Highly customizable Wayland bar for Sway and Wlroots based compositors";
       license = licenses.mit;
-      maintainers = with maintainers; [ FlorianFranzen minijackson ];
+      maintainers = with maintainers; [ FlorianFranzen minijackson synthetica ];
       platforms = platforms.unix;
+      homepage = "https://github.com/alexays/waybar";
     };
   }

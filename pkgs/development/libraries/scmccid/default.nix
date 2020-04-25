@@ -2,7 +2,7 @@
 
 assert stdenv ? cc && stdenv.cc.libc != null;
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   name = "scmccid-5.0.11";
 
   src = if stdenv.hostPlatform.system == "i686-linux" then (fetchurl {
@@ -31,7 +31,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = {
-    homepage = http://www.scmmicro.com/support/pc-security-support/downloads.html;
+    homepage = "http://www.scmmicro.com/support/pc-security-support/downloads.html";
     description = "PCSC drivers for linux, for the SCM SCR3310 v2.0 card and others";
     license = stdenv.lib.licenses.unfree;
     maintainers = with stdenv.lib.maintainers; [viric];

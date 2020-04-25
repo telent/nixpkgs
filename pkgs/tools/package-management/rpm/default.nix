@@ -4,7 +4,7 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "rpm-${version}";
+  pname = "rpm";
   version = "4.14.2.1";
 
   src = fetchurl {
@@ -50,13 +50,18 @@ stdenv.mkDerivation rec {
       sed -i $out/lib/rpm/macros -e "s/^%__$tool.*/%__$tool $tool/"
     done
 
+    # Avoid helper scripts pointing to absolute paths
+    for tool in find-provides find-requires; do
+      sed -i $out/lib/rpm/$tool -e "s#/usr/lib/rpm/#$out/lib/rpm/#"
+    done
+
     # symlinks produced by build are incorrect
     ln -sf $out/bin/{rpm,rpmquery}
     ln -sf $out/bin/{rpm,rpmverify}
   '';
 
   meta = with stdenv.lib; {
-    homepage = http://www.rpm.org/;
+    homepage = "http://www.rpm.org/";
     license = licenses.gpl2;
     description = "The RPM Package Manager";
     maintainers = with maintainers; [ copumpkin ];

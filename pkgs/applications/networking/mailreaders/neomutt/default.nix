@@ -1,39 +1,37 @@
 { stdenv, fetchFromGitHub, gettext, makeWrapper, tcl, which, writeScript
 , ncurses, perl , cyrus_sasl, gss, gpgme, kerberos, libidn, libxml2, notmuch, openssl
-, lmdb, libxslt, docbook_xsl, docbook_xml_dtd_42, mailcap, runtimeShell
+, lmdb, libxslt, docbook_xsl, docbook_xml_dtd_42, mailcap, runtimeShell, sqlite, zlib
+, fetchpatch
 }:
 
-let
-  muttWrapper = writeScript "mutt" ''
-    #!${runtimeShell} -eu
-
-    echo 'The neomutt project has renamed the main binary from `mutt` to `neomutt`.'
-    echo ""
-    echo 'This wrapper is provided for compatibility purposes only. You should start calling `neomutt` instead.'
-    echo ""
-    read -p 'Press any key to launch NeoMutt...' -n1 -s
-    exec neomutt "$@"
-  '';
-
-in stdenv.mkDerivation rec {
-  version = "20180716";
-  name = "neomutt-${version}";
+stdenv.mkDerivation rec {
+  version = "20200417";
+  pname = "neomutt";
 
   src = fetchFromGitHub {
     owner  = "neomutt";
     repo   = "neomutt";
-    rev    = "neomutt-${version}";
-    sha256 = "0im2kkahkr04q04irvcimfawxi531ld6wrsa92r2m7l10gmijkl8";
+    rev    = version;
+    sha256 = "0s7943r2s14kavyjf7i70vca252l626539i09a9vk0i9sfi35vx5";
   };
+
+  patches = [
+    # Remove on next release. Fixes the `change-folder`
+    # macro (https://github.com/neomutt/neomutt/issues/2268)
+    (fetchpatch {
+      url = "https://github.com/neomutt/neomutt/commit/9e7537caddb9c6adc720bb3322a7512cf51ab025.patch";
+      sha256 = "1vmlvgnhx1ra3rnyjkpkv6lrqw8xfh2kkmqp43fqn9lnk3pkjxvv";
+    })
+  ];
 
   buildInputs = [
     cyrus_sasl gss gpgme kerberos libidn ncurses
     notmuch openssl perl lmdb
-    mailcap
+    mailcap sqlite
   ];
 
   nativeBuildInputs = [
-    docbook_xsl docbook_xml_dtd_42 gettext libxml2 libxslt.bin makeWrapper tcl which
+    docbook_xsl docbook_xml_dtd_42 gettext libxml2 libxslt.bin makeWrapper tcl which zlib
   ];
 
   enableParallelBuilding = true;
@@ -62,6 +60,7 @@ in stdenv.mkDerivation rec {
   '';
 
   configureFlags = [
+    "--enable-autocrypt"
     "--gpgme"
     "--gss"
     "--lmdb"
@@ -72,6 +71,7 @@ in stdenv.mkDerivation rec {
     "--with-mailpath="
     # Look in $PATH at runtime, instead of hardcoding /usr/bin/sendmail
     "ac_cv_path_SENDMAIL=sendmail"
+    "--zlib"
   ];
 
   # Fix missing libidn in mutt;
@@ -80,19 +80,31 @@ in stdenv.mkDerivation rec {
   NIX_LDFLAGS = "-lidn";
 
   postInstall = ''
-    cp ${muttWrapper} $out/bin/mutt
     wrapProgram "$out/bin/neomutt" --prefix PATH : "$out/libexec/neomutt"
   '';
 
   doCheck = true;
 
+  preCheck = ''
+    cp -r ${fetchFromGitHub {
+      owner = "neomutt";
+      repo = "neomutt-test-files";
+      rev = "1ee274e9ae1330fb901eb7b8275b3079d7869222";
+      sha256 = "0dhilz4rr7616jh8jcvh50a3rr09in43nsv72mm6f3vfklcqincp";
+    }} $(pwd)/test-files
+    (cd test-files && ./setup.sh)
+
+    export NEOMUTT_TEST_DIR=$(pwd)/test-files
+  '';
+
   checkTarget = "test";
+  postCheck = "unset NEOMUTT_TEST_DIR";
 
   meta = with stdenv.lib; {
     description = "A small but very powerful text-based mail client";
-    homepage    = http://www.neomutt.org;
+    homepage    = "http://www.neomutt.org";
     license     = licenses.gpl2Plus;
-    maintainers = with maintainers; [ cstrahan erikryb jfrankenau vrthra ];
+    maintainers = with maintainers; [ cstrahan erikryb jfrankenau vrthra ma27 ];
     platforms   = platforms.unix;
   };
 }

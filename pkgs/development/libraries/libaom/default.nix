@@ -1,7 +1,7 @@
-{ stdenv, fetchgit, yasm, perl, cmake, pkgconfig, python3, writeText }:
+{ stdenv, fetchgit, yasm, perl, cmake, pkgconfig, python3 }:
 
 stdenv.mkDerivation rec {
-  name = "libaom-${version}";
+  pname = "libaom";
   version = "1.0.0-errata1";
 
   src = fetchgit {
@@ -26,7 +26,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "AV1 Bitstream and Decoding Library";
-    homepage    = https://aomedia.org/av1-features/get-started/;
+    homepage    = "https://aomedia.org/av1-features/get-started/";
     maintainers = with maintainers; [ kiloreux ];
     platforms   = platforms.all;
     license = licenses.bsd2;

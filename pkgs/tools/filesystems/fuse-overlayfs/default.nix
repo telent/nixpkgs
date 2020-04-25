@@ -1,25 +1,26 @@
-{ stdenv, lib, fetchFromGitHub, autoreconfHook, pkgconfig, fuse3 }:
+{ stdenv, fetchFromGitHub, autoreconfHook, pkg-config, fuse3 }:
 
 stdenv.mkDerivation rec {
-  name = "fuse-overlayfs-${version}";
-  version = "0.3";
+  pname = "fuse-overlayfs";
+  version = "1.0.0";
 
   src = fetchFromGitHub {
     owner = "containers";
-    repo = "fuse-overlayfs";
+    repo = pname;
     rev = "v${version}";
-    sha256 = "1cch2j397hydrhh62faqa663vas75qbmylqd06fk6nafasa3ri0l";
+    sha256 = "0h1ay2l7zyiqplh8whanw68mcfri79lc03wjjrhqji5ddwznv6fa";
   };
 
-  nativeBuildInputs = [ autoreconfHook pkgconfig ];
+  nativeBuildInputs = [ autoreconfHook pkg-config ];
+
   buildInputs = [ fuse3 ];
 
-  meta = with lib; {
-    homepage = https://github.com/containers/fuse-overlayfs;
+  meta = with stdenv.lib; {
     description = "FUSE implementation for overlayfs";
     longDescription = "An implementation of overlay+shiftfs in FUSE for rootless containers.";
     license = licenses.gpl3;
+    maintainers = with maintainers; [ ma9e ] ++ teams.podman.members;
     platforms = platforms.unix;
-    maintainers = [ maintainers.ma9e ];
+    inherit (src.meta) homepage;
   };
 }

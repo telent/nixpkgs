@@ -1,4 +1,4 @@
-{ stdenv, fetchPypi, buildPythonPackage, pytest, pytestcov, tox }:
+{ stdenv, fetchPypi, buildPythonPackage, pytest, pytestcov }:
 
 buildPythonPackage rec {
   pname = "distro";
@@ -20,7 +20,7 @@ buildPythonPackage rec {
   '';
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/nir0s/distro;
+    homepage = "https://github.com/nir0s/distro";
     description = "Linux Distribution - a Linux OS platform information API.";
     license = licenses.asl20;
     maintainers = with maintainers; [ nand0p ];

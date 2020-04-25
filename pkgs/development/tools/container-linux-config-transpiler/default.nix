@@ -3,7 +3,7 @@
 with lib;
 
 buildGoPackage rec {
-  name = "ct-${version}";
+  pname = "ct";
   version = "0.7.0";
 
   goPackagePath = "github.com/coreos/container-linux-config-transpiler";
@@ -27,7 +27,7 @@ buildGoPackage rec {
   meta = {
     description = "Convert a Container Linux Config into Ignition";
     license = licenses.asl20;
-    homepage = https://github.com/coreos/container-linux-config-transpiler;
+    homepage = "https://github.com/coreos/container-linux-config-transpiler";
     maintainers = with maintainers; [elijahcaine];
     platforms = with platforms; unix;
   };

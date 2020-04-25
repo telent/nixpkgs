@@ -16,7 +16,7 @@ stdenv.mkDerivation rec {
       sha256 = "1v956yf5spw0156rni5z77hzqwmby7ajwdcd6mkhb6zvl36awr90";
     };
 
-  unpackPhase = "true";
+  dontUnpack = true;
 
   installPhase =
     ''
@@ -29,7 +29,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "JavaScript library designed to simplify the client-side scripting of HTML";
-    homepage = http://jquery.com/;
+    homepage = "http://jquery.com/";
     license = licenses.mit;
     platforms = platforms.all;
   };

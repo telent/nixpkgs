@@ -1,6 +1,6 @@
 { stdenv, fetchurl, fetchpatch, pkgconfig, fuse, zlib, glib }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   name = "fuseiso-20070708";
 
   src = fetchurl {
@@ -32,7 +32,7 @@ stdenv.mkDerivation rec {
   ];
 
   meta = {
-    homepage = https://sourceforge.net/projects/fuseiso;
+    homepage = "https://sourceforge.net/projects/fuseiso";
     description = "FUSE module to mount ISO filesystem images";
     platforms = stdenv.lib.platforms.linux;
     license = stdenv.lib.licenses.gpl2;

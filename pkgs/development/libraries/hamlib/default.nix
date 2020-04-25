@@ -4,10 +4,9 @@
 stdenv.mkDerivation rec {
   pname = "hamlib";
   version = "3.3";
-  name = "${pname}-${version}";
 
   src = fetchurl {
-    url = "mirror://sourceforge/${pname}/${name}.tar.gz";
+    url = "mirror://sourceforge/${pname}/${pname}-${version}.tar.gz";
     sha256 = "10788mgrhbc57zpzakcxv5aqnr2819pcshml6fbh8zvnkja562y9";
   };
 
@@ -28,7 +27,7 @@ stdenv.mkDerivation rec {
     command line interface or in a text-oriented interactive interface.
     '';
     license = with stdenv.lib.licenses; [ gpl2Plus lgpl2Plus ];
-    homepage = http://hamlib.sourceforge.net;
+    homepage = "http://hamlib.sourceforge.net";
     maintainers = with stdenv.lib.maintainers; [ relrod ];
     platforms = with stdenv.lib.platforms; unix;
   };

@@ -3,7 +3,7 @@ stdenv.mkDerivation rec {
 
   version = "3.2.6";
 
-  name = "mp3blaster-${version}";
+  pname = "mp3blaster";
 
   src = fetchFromGitHub {
     owner = "stragulus";
@@ -21,7 +21,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "An audio player for the text console";
-    homepage = http://www.mp3blaster.org/;
+    homepage = "http://www.mp3blaster.org/";
     license = licenses.gpl2;
     maintainers = with maintainers; [ earldouglas ];
     platforms = platforms.all;

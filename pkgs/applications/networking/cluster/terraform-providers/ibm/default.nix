@@ -11,7 +11,7 @@
 #
 
 buildGoPackage rec {
-  name = "terraform-provider-ibm-${version}";
+  pname = "terraform-provider-ibm";
   version = "0.11.1";
 
   goPackagePath = "github.com/terraform-providers/terraform-provider-ibm";
@@ -29,7 +29,7 @@ buildGoPackage rec {
   postBuild = "mv go/bin/terraform-provider-ibm{,_v${version}}";
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/IBM-Cloud/terraform-provider-ibm;
+    homepage = "https://github.com/IBM-Cloud/terraform-provider-ibm";
     description = "Terraform provider is used to manage IBM Cloud resources.";
     platforms = platforms.all;
     license = licenses.mpl20;

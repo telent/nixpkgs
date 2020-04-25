@@ -1,20 +1,20 @@
 { stdenv, buildGoPackage, fetchurl, fetchFromGitHub, go-bindata }:
 
 let
-  version = "1.5.0";
+  version = "1.6.4";
 
   # TODO: must build the extension instead of downloading it. But since it's
   # literally an asset that is indifferent regardless of the platform, this
   # might be just enough.
   webext = fetchurl {
     url = "https://github.com/browsh-org/browsh/releases/download/v${version}/browsh-${version}-an.fx.xpi";
-    sha256 = "063m6rcdyf2zcrswkm56k8h3w15124bw5iykklzm60q5jk4ywn3f";
+    sha256 = "1shf1s9s525wns5vrsc4ns21zjxm1si43lx6v0q8ma6vd5x5445l";
   };
 
 in buildGoPackage rec {
   inherit version;
 
-  name = "browsh-${version}";
+  pname = "browsh";
 
   goPackagePath = "browsh";
 
@@ -23,10 +23,10 @@ in buildGoPackage rec {
     owner = "browsh-org";
     repo = "browsh";
     rev = "v${version}";
-    sha256 = "14addyb1zdk1b9mizfxdagyzlkd9nf5gawnbrs44j5a3ggnl14ln";
+    sha256 = "0gvf5k1gm81xxg7ha309kgfkgl5357dli0fbc4z01rmfgbl0rfa0";
   };
 
-  buildInputs = [ go-bindata ];
+  nativeBuildInputs = [ go-bindata ];
 
   # embed the web extension in a go file and place it where it's supposed to
   # be. See
@@ -53,7 +53,7 @@ in buildGoPackage rec {
 
   meta = with stdenv.lib; {
     description = "A fully-modern text-based browser, rendering to TTY and browsers";
-    homepage = https://www.brow.sh/;
+    homepage = "https://www.brow.sh/";
     maintainers = [ maintainers.kalbasit ];
     license = stdenv.lib.licenses.lgpl21;
     platforms = stdenv.lib.platforms.linux ++ stdenv.lib.platforms.darwin;

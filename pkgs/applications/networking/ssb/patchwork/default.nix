@@ -1,46 +1,53 @@
-{
- stdenv,
- appimage-run,
- fetchurl,
- runtimeShell,
- gsettings-desktop-schemas,
- gtk3,
- gobject-introspection,
- wrapGAppsHook,
-}:
+{ appimageTools, symlinkJoin, lib, fetchurl, makeDesktopItem }:
 
-stdenv.mkDerivation rec {
-  # latest version that runs without errors
-  # https://github.com/ssbc/patchwork/issues/972
-  version = "3.11.4";
-  pname = "patchwork";
+let
+  pname = "ssb-patchwork";
+  version = "3.17.6";
+  name = "Patchwork-${version}";
 
   src = fetchurl {
-    url = "https://github.com/ssbc/patchwork/releases/download/v${version}/Patchwork-${version}-linux-x86_64.AppImage";
-    sha256 = "1blsprpkvm0ws9b96gb36f0rbf8f5jgmw4x6dsb1kswr4ysf591s";
+    url = "https://github.com/ssbc/patchwork/releases/download/v${version}/${name}.AppImage";
+    sha256 = "0bq4pi0rmfsyiiapnhkkhikg2a2jzqlna4gvk6gw7wl0r8a111cs";
   };
 
-  nativeBuildInputs = [ wrapGAppsHook ];
-  buildInputs = [ appimage-run gtk3 gsettings-desktop-schemas gobject-introspection ];
+  binary = appimageTools.wrapType2 {
+    name = pname;
+    inherit src;
+  };
+  # we only use this to extract the icon
+  appimage-contents = appimageTools.extractType2 {
+    inherit name src;
+  };
 
-  unpackPhase = ":";
+  desktopItem = makeDesktopItem {
+    name = "ssb-patchwork";
+    exec = "${binary}/bin/ssb-patchwork";
+    icon = "ssb-patchwork.png";
+    comment = "Client for the decentralized social network Secure Scuttlebutt";
+    desktopName = "Patchwork";
+    genericName = "Patchwork";
+    categories = "Network;";
+  };
 
-  installPhase = ''
-    mkdir -p $out/{bin,share}
-    cp $src $out/share/${pname}
-    echo "#!${runtimeShell}" > $out/bin/${pname}
-    echo "${appimage-run}/bin/appimage-run $out/share/${pname}" >> $out/bin/${pname}
-    chmod +x $out/bin/${pname} $out/share/${pname}
-  '';
+in
+  symlinkJoin {
+    inherit name;
+    paths = [ binary ];
 
-  meta = with stdenv.lib; {
-    description = "A decentralized messaging and sharing app built on top of Secure Scuttlebutt (SSB).";
+    postBuild = ''
+      mkdir -p $out/share/pixmaps/ $out/share/applications
+      cp ${appimage-contents}/ssb-patchwork.png $out/share/pixmaps
+      cp ${desktopItem}/share/applications/* $out/share/applications/
+    '';
+
+  meta = with lib; {
+    description = "A decentralized messaging and sharing app built on top of Secure Scuttlebutt (SSB)";
     longDescription = ''
       sea-slang for gossip - a scuttlebutt is basically a watercooler on a ship.
     '';
-    homepage = https://www.scuttlebutt.nz/;
+    homepage = "https://www.scuttlebutt.nz/";
     license = licenses.agpl3;
-    maintainers = with maintainers; [ thedavidmeister ];
+    maintainers = with maintainers; [ asymmetric ninjatrappeur thedavidmeister ];
     platforms = [ "x86_64-linux" ];
   };
 }

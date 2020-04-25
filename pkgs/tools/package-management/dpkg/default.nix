@@ -1,12 +1,12 @@
 { stdenv, fetchurl, perl, zlib, bzip2, xz, makeWrapper, coreutils }:
 
 stdenv.mkDerivation rec {
-  name = "dpkg-${version}";
-  version = "1.19.6";
+  pname = "dpkg";
+  version = "1.20.0";
 
   src = fetchurl {
     url = "mirror://debian/pool/main/d/dpkg/dpkg_${version}.tar.xz";
-    sha256 = "0s1pyj7g8ign630biqq1ycjy8cw733fk1dgas9w59mav3wns3caf";
+    sha256 = "0009dp4p3d2j5vd956achqczf8qizfixha8hw5hzn3h31qmwqcxn";
   };
 
   configureFlags = [
@@ -50,7 +50,7 @@ stdenv.mkDerivation rec {
   '';
 
   buildInputs = [ perl zlib bzip2 xz ];
-  nativeBuildInputs = [ makeWrapper ];
+  nativeBuildInputs = [ makeWrapper perl ];
 
   postInstall =
     ''
@@ -66,7 +66,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "The Debian package manager";
-    homepage = https://wiki.debian.org/Teams/Dpkg;
+    homepage = "https://wiki.debian.org/Teams/Dpkg";
     license = licenses.gpl2Plus;
     platforms = platforms.unix;
     maintainers = with maintainers; [ ];

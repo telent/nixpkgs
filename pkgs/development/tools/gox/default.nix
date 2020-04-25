@@ -1,7 +1,7 @@
 { stdenv, buildGoPackage, fetchFromGitHub }:
 
-buildGoPackage rec {
-  name = "gox-${version}";
+buildGoPackage {
+  pname = "gox";
   version = "20181025";
 
   goPackagePath = "github.com/mitchellh/gox";
@@ -16,7 +16,7 @@ buildGoPackage rec {
   goDeps = ./deps.nix;
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/mitchellh/gox;
+    homepage = "https://github.com/mitchellh/gox";
     description = "A dead simple, no frills Go cross compile tool";
     platforms = platforms.all;
     license = licenses.mpl20;

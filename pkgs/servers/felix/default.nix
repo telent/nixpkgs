@@ -1,7 +1,7 @@
 {stdenv, fetchurl}:
 
 stdenv.mkDerivation rec {
-  name = "apache-felix-${version}";
+  pname = "apache-felix";
   version = "5.6.1";
   src = fetchurl {
     url = "mirror://apache/felix/org.apache.felix.main.distribution-${version}.tar.gz";
@@ -16,7 +16,7 @@ stdenv.mkDerivation rec {
   '';
   meta = with stdenv.lib; {
     description = "An OSGi gateway";
-    homepage = https://felix.apache.org;
+    homepage = "https://felix.apache.org";
     license = licenses.asl20;
     maintainers = [ maintainers.sander ];
   };

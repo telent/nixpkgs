@@ -2,12 +2,12 @@
 , libgweather, meson, ninja, geoclue2, gnome-desktop, python3, gsettings-desktop-schemas }:
 
 stdenv.mkDerivation rec {
-  name = "gnome-weather-${version}";
-  version = "3.32.2";
+  pname = "gnome-weather";
+  version = "3.36.0";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/gnome-weather/${stdenv.lib.versions.majorMinor version}/${name}.tar.xz";
-    sha256 = "0jfxdfbjkrk3x48w6nxgbmazd6jw1fh4mfw12hlly4rs0cjw698s";
+    url = "mirror://gnome/sources/gnome-weather/${stdenv.lib.versions.majorMinor version}/${pname}-${version}.tar.xz";
+    sha256 = "15ahfgqj0rz16y2bdxb7sa4b3b3larg8hn3b41pc5ddnwf9x63zi";
   };
 
   nativeBuildInputs = [ pkgconfig meson ninja wrapGAppsHook python3 ];
@@ -37,9 +37,9 @@ stdenv.mkDerivation rec {
   };
 
   meta = with stdenv.lib; {
-    homepage = https://wiki.gnome.org/Apps/Weather;
+    homepage = "https://wiki.gnome.org/Apps/Weather";
     description = "Access current weather conditions and forecasts";
-    maintainers = gnome3.maintainers;
+    maintainers = teams.gnome.members;
     license = licenses.gpl2;
     platforms = platforms.linux;
   };

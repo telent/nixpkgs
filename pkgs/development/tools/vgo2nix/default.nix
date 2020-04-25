@@ -7,8 +7,8 @@
 , fetchFromGitHub
 }:
 
-buildGoPackage rec {
-  name = "vgo2nix-${version}";
+buildGoPackage {
+  pname = "vgo2nix";
   version = "unstable-2019-02-06";
   goPackagePath = "github.com/adisbladis/vgo2nix";
 
@@ -33,7 +33,7 @@ buildGoPackage rec {
 
   meta = with stdenv.lib; {
     description = "Convert go.mod files to nixpkgs buildGoPackage compatible deps.nix files";
-    homepage = https://github.com/adisbladis/vgo2nix;
+    homepage = "https://github.com/adisbladis/vgo2nix";
     license = licenses.mit;
     maintainers = with maintainers; [ adisbladis ];
   };

@@ -1,13 +1,13 @@
 { stdenv, fetchzip }:
 
 stdenv.mkDerivation rec {
-  version = "1.2.12";
-  name = "zlog-${version}";
+  version = "1.2.14";
+  pname = "zlog";
 
   src = fetchzip {
-    name = "${name}-src";
+    name = "${pname}-${version}-src";
     url = "https://github.com/HardySimpson/zlog/archive/${version}.tar.gz";
-    sha256 = "1ychld0dcfdak2wnmkj941i0xav6ynlb3n6hz1kz03yy74ll2fqi";
+    sha256 = "1qcrfmh2vbarkx7ij3gwk174qmgmhm2j336bfaakln1ixd9lkxa5";
   };
 
   configurePhase = ''
@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description= "Reliable, high-performance, thread safe, flexible, clear-model, pure C logging library";
-    homepage = http://hardysimpson.github.com/zlog;
+    homepage = "http://hardysimpson.github.com/zlog";
     license = licenses.lgpl21;
     platforms = platforms.linux; # cannot test on something else
     maintainers = [ maintainers.matthiasbeyer ];

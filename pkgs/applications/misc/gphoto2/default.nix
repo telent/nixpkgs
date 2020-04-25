@@ -3,11 +3,11 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "gphoto2-2.5.20";
+  name = "gphoto2-2.5.23";
 
   src = fetchurl {
     url = "mirror://sourceforge/gphoto/${name}.tar.bz2";
-    sha256 = "1xj80abkzvqrd6g1j1q946lhbp03gyapyxdwbhc0y14g1ash6vx3";
+    sha256 = "1laqwhxr0xhbykmp0dhd3j4rr2lhj5y228s31afnqxp700hhk1yz";
   };
 
   nativeBuildInputs = [ pkgconfig gettext libtool ];
@@ -21,7 +21,7 @@ stdenv.mkDerivation rec {
       digital cameras. Through libgphoto2, it supports PTP, MTP, and much more..
 
     '';
-    homepage = http://www.gphoto.org/;
+    homepage = "http://www.gphoto.org/";
     license = licenses.gpl2Plus;
     platforms = platforms.unix;
     maintainers = [ maintainers.jcumming ];

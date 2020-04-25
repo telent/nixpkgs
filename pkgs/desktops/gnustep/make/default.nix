@@ -4,8 +4,9 @@ let
   version = "2.7.0";
 in
 
-stdenv.mkDerivation rec {
-  name = "gnustep-make-${version}";
+stdenv.mkDerivation {
+  pname = "gnustep-make";
+  inherit version;
 
   src = fetchurl {
     url = "ftp://ftp.gnustep.org/pub/gnustep/core/gnustep-make-${version}.tar.gz";
@@ -30,7 +31,7 @@ stdenv.mkDerivation rec {
   setupHook = ./setup-hook.sh;
   meta = {
     description = "A build manager for GNUstep";
-    homepage = http://gnustep.org/;
+    homepage = "http://gnustep.org/";
     license = stdenv.lib.licenses.lgpl2Plus;
     maintainers = with stdenv.lib.maintainers; [ ashalkhakov matthewbauer ];
     platforms = stdenv.lib.platforms.unix;

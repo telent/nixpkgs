@@ -27,7 +27,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "C++ interface to the Pango text rendering library";
-    homepage    = https://www.pango.org/;
+    homepage    = "https://www.pango.org/";
     license     = with licenses; [ lgpl2 lgpl21 ];
     maintainers = with maintainers; [ lovek323 raskin ];
     platforms   = platforms.unix;
@@ -36,8 +36,8 @@ stdenv.mkDerivation rec {
       Pango is a library for laying out and rendering of text, with an
       emphasis on internationalization.  Pango can be used anywhere
       that text layout is needed, though most of the work on Pango so
-      far has been done in the context of the GTK+ widget toolkit.
-      Pango forms the core of text and font handling for GTK+-2.x.
+      far has been done in the context of the GTK widget toolkit.
+      Pango forms the core of text and font handling for GTK.
     '';
   };
 }

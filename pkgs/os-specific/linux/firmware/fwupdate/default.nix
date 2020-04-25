@@ -1,8 +1,16 @@
 { efivar, fetchurl, gettext, gnu-efi, libsmbios, pkgconfig, popt, stdenv }:
+
 let
   version = "12";
+
+  arch =
+    if stdenv.hostPlatform.isx86_32
+    then "ia32"
+    else stdenv.hostPlatform.parsed.cpu.name;
+
 in stdenv.mkDerivation {
-  name = "fwupdate-${version}";
+  pname = "fwupdate";
+  inherit version;
   src = fetchurl {
     url = "https://github.com/rhinstaller/fwupdate/releases/download/${version}/fwupdate-${version}.tar.bz2";
     sha256 = "00w7jsg7wrlq4cpfz26m9rbv2jwyf0sansf343vfq02fy5lxars1";
@@ -12,7 +20,11 @@ in stdenv.mkDerivation {
     ./do-not-create-sharedstatedir.patch
   ];
 
-  NIX_CFLAGS_COMPILE = [ "-I${gnu-efi}/include/efi" ];
+  NIX_CFLAGS_COMPILE = builtins.toString [
+    "-I${gnu-efi}/include/efi"
+    "-I${gnu-efi}/include/efi/${arch}"
+    "-Wno-error=address-of-packed-member"
+  ];
 
   # TODO: Just apply the disable to the efi subdir
   hardeningDisable = [ "stackprotector" ];
@@ -39,12 +51,6 @@ in stdenv.mkDerivation {
   propagatedBuildInputs = [
     efivar
   ];
-
-  # TODO: fix wrt cross-compilation
-  preConfigure = ''
-    arch=$(cc -dumpmachine | cut -f1 -d- | sed 's,i[3456789]86,ia32,' )
-    export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -I${gnu-efi}/include/efi/$arch"
-  '';
 
   postInstall = ''
     rm -rf $out/src

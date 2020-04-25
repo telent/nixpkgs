@@ -2,7 +2,7 @@
   pkgconfig, soapysdr-with-plugins, wxGTK, enableDigitalLab ? false }:
 
 stdenv.mkDerivation rec {
-  name = "cubicsdr-${version}";
+  pname = "cubicsdr";
   version = "0.2.5";
 
   src = fetchFromGitHub {
@@ -19,7 +19,7 @@ stdenv.mkDerivation rec {
     ++ stdenv.lib.optional enableDigitalLab "-DENABLE_DIGITAL_LAB=ON";
 
   meta = with stdenv.lib; {
-    homepage = https://cubicsdr.com;
+    homepage = "https://cubicsdr.com";
     description = "Software Defined Radio application";
     license = licenses.gpl2Plus;
     maintainers = with maintainers; [ lasandell ];

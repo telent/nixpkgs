@@ -7,7 +7,6 @@
   deepin,
   deepin-gettext-tools,
   fontconfig,
-  glib,
   go,
   go-dbus-factory,
   go-gir-generator,
@@ -24,9 +23,8 @@
 }:
 
 buildGoPackage rec {
-  name = "${pname}-${version}";
   pname = "dde-api";
-  version = "3.18.3";
+  version = "5.0.0";
 
   goPackagePath = "pkg.deepin.io/dde/api";
 
@@ -34,7 +32,7 @@ buildGoPackage rec {
     owner = "linuxdeepin";
     repo = pname;
     rev = version;
-    sha256 = "0sbzjpjy2d7j22v5sw3mf472lcnsy81n2rgly87k79r5gk9x89ar";
+    sha256 = "0iv4krj6dqdknwvmax7aj40k1h96259kqcfnljadrwpl7cvsvp5p";
   };
 
   goDeps = ./deps.nix;
@@ -45,28 +43,31 @@ buildGoPackage rec {
     pkgconfig
     deepin-gettext-tools # build
     dbus-factory         # build
-    go-dbus-factory      # needed
-    go-gir-generator     # needed
-    go-lib               # build
     deepin.setupHook
-  ];
 
-  buildInputs = [
-    alsaLib     # needed
+    # TODO: using $PATH to find run time executable does not work with cross compiling
     bc          # run (to adjust grub theme?)
     blur-effect # run (is it really needed?)
     coreutils   # run (is it really needed?)
     fontconfig  # run (is it really needed?)
-    #glib        # ? arch
+    rfkill      # run
+    xcur2png    # run
     grub2       # run (is it really needed?)
+  ];
+
+  buildInputs = [
+    go-dbus-factory      # needed
+    go-gir-generator     # needed
+    go-lib               # build
+
+    alsaLib     # needed
+    #glib        # ? arch
     gtk3        # build run
     libcanberra # build run
     libgudev    # needed
     librsvg     # build run
     poppler     # build run
     pulseaudio  # needed
-    rfkill      # run
-    xcur2png    # run
     #locales     # run (locale-helper needs locale-gen, which is unavailable on NixOS?)
   ];
 
@@ -115,11 +116,11 @@ buildGoPackage rec {
     searchHardCodedPaths $out  # debugging
   '';
 
-  passthru.updateScript = deepin.updateScript { inherit name; };
+  passthru.updateScript = deepin.updateScript { name = "${pname}-${version}"; };
 
   meta = with stdenv.lib; {
     description = "Go-lang bindings for dde-daemon";
-    homepage = https://github.com/linuxdeepin/dde-api;
+    homepage = "https://github.com/linuxdeepin/dde-api";
     license = licenses.gpl3;
     platforms = platforms.linux;
     maintainers = with maintainers; [ romildo ];

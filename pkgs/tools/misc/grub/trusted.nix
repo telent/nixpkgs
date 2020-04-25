@@ -6,8 +6,8 @@
 with stdenv.lib;
 let
   pcSystems = {
-    "i686-linux".target = "i386";
-    "x86_64-linux".target = "i386";
+    i686-linux.target = "i386";
+    x86_64-linux.target = "i386";
   };
 
   inPCSystems = any (system: stdenv.hostPlatform.system == system) (mapAttrsToList (name: _: name) pcSystems);
@@ -29,7 +29,8 @@ let
 in
 
 stdenv.mkDerivation rec {
-  name = "trustedGRUB2-${version}";
+  pname = "trustedGRUB2";
+  inherit version;
 
   src = if for_HP_laptop
         then fetchgit {
@@ -92,7 +93,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "GRUB 2.0 extended with TCG (TPM) support for integrity measured boot process (trusted boot)";
-    homepage = https://github.com/Sirrix-AG/TrustedGRUB2;
+    homepage = "https://github.com/Sirrix-AG/TrustedGRUB2";
     license = licenses.gpl3Plus;
     platforms = platforms.gnu ++ platforms.linux;
   };

@@ -11,8 +11,9 @@ daemonlib = fetchgit {
 
 in
 
-stdenv.mkDerivation rec {
-  name = "brickd-${version}";
+stdenv.mkDerivation {
+  pname = "brickd";
+  inherit version;
 
   src = fetchgit {
     url = "git://github.com/Tinkerforge/brickd.git";
@@ -52,7 +53,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = {
-    homepage = https://www.tinkerforge.com/;
+    homepage = "https://www.tinkerforge.com/";
     description = "A daemon (or service on Windows) that acts as a bridge between the Bricks/Bricklets and the API bindings for the different programming languages";
     maintainers = [ stdenv.lib.maintainers.qknight ];
     license = stdenv.lib.licenses.gpl2;

@@ -1,20 +1,20 @@
 { stdenv, fetchurl, makeWrapper
-, fpc, gtk2, glib, pango, atk, gdk_pixbuf
+, fpc, gtk2, glib, pango, atk, gdk-pixbuf
 , libXi, xorgproto, libX11, libXext
 }:
 stdenv.mkDerivation rec {
-  name = "lazarus-${version}";
-  version = "1.8.4";
+  pname = "lazarus";
+  version = "2.0.6";
 
   src = fetchurl {
     url = "mirror://sourceforge/lazarus/Lazarus%20Zip%20_%20GZip/Lazarus%20${version}/lazarus-${version}.tar.gz";
-    sha256 = "1s8hdip973fc1lynklddl0mvg2jd2lzkfk8hzb8jlchs6jn0362s";
+    sha256 = "0v1ax6039nm2bksh646znrkah20ak2zmhaz5p3mz2p60y2qazkc2";
   };
 
   buildInputs = [
     fpc gtk2 glib libXi xorgproto
     libX11 libXext pango atk
-    stdenv.cc makeWrapper gdk_pixbuf
+    stdenv.cc makeWrapper gdk-pixbuf
   ];
 
   makeFlags = [
@@ -40,7 +40,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Lazarus graphical IDE for FreePascal language";
-    homepage = http://www.lazarus.freepascal.org;
+    homepage = "http://www.lazarus.freepascal.org";
     license = licenses.gpl2Plus ;
     platforms = platforms.linux;
     maintainers = [ maintainers.raskin ];

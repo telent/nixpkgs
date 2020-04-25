@@ -1,12 +1,12 @@
 { stdenv, fetchFromGitHub, ... }: stdenv.mkDerivation rec {
-  name = "smarty3-${version}";
-  version = "3.1.33";
+  pname = "smarty3";
+  version = "3.1.35";
 
   src = fetchFromGitHub {
     owner = "smarty-php";
     repo = "smarty";
     rev = "v${version}";
-    sha256 = "12kll8nv4b90nlx3y0213lsncqw2ydshjx4g6dv7jah6j1pv29ix";
+    sha256 = "05prjhlsmjmbjpks3bsx4ifz5izshsabys20c56jgibgnjsflm6k";
   };
 
   installPhase = ''
@@ -22,7 +22,7 @@
       logic. This implies that PHP code is application
       logic, and is separated from the presentation.
     '';
-    homepage = https://www.smarty.net;
+    homepage = "https://www.smarty.net";
     license = licenses.lgpl21Plus;
     maintainers = with maintainers; [ das_j ];
   };

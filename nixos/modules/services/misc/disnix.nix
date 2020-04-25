@@ -17,10 +17,7 @@ in
 
     services.disnix = {
 
-      enable = mkOption {
-        default = false;
-        description = "Whether to enable Disnix";
-      };
+      enable = mkEnableOption "Disnix";
 
       enableMultiUser = mkOption {
         type = types.bool;
@@ -61,10 +58,7 @@ in
       ++ optional cfg.useWebServiceInterface "${pkgs.dbus_java}/share/java/dbus.jar";
     services.tomcat.webapps = optional cfg.useWebServiceInterface pkgs.DisnixWebService;
 
-    users.groups = singleton
-      { name = "disnix";
-        gid = config.ids.gids.disnix;
-      };
+    users.groups.disnix.gid = config.ids.gids.disnix;
 
     systemd.services = {
       disnix = mkIf cfg.enableMultiUser {

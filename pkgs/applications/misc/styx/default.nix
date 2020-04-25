@@ -3,7 +3,7 @@
 , perlPackages, python27 }:
 
 stdenv.mkDerivation rec {
-  name    = "styx-${version}";
+  pname = "styx";
   version = "0.7.1";
 
   src = fetchFromGitHub {
@@ -13,7 +13,7 @@ stdenv.mkDerivation rec {
     sha256 = "01lklz7l9klqmmsncikwjnk3glzyz15c30118s82yd1chwpwhpfl";
   };
 
-  server = "${caddy.bin}/bin/caddy";
+  server = "${caddy}/bin/caddy";
   linkcheck = "${linkchecker}/bin/linkchecker";
 
   nativeBuildInputs = [ asciidoctor ];
@@ -63,8 +63,8 @@ stdenv.mkDerivation rec {
   meta = with stdenv.lib; {
     description  = "Nix based static site generator";
     maintainers  = with maintainers; [ ericsagnes ];
-    homepage     = https://styx-static.github.io/styx-site/;
-    downloadPage = https://github.com/styx-static/styx/;
+    homepage     = "https://styx-static.github.io/styx-site/";
+    downloadPage = "https://github.com/styx-static/styx/";
     platforms    = platforms.all;
     license      = licenses.mit;
   };

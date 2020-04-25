@@ -7,7 +7,7 @@ stdenv.mkDerivation rec {
   version = "0.6.6";
 
   # Upstream recommends and supports git
-  src = fetchFromGitHub rec {
+  src = fetchFromGitHub {
     repo = pname;
     owner = pname;
     rev = "v${version}";
@@ -55,7 +55,7 @@ stdenv.mkDerivation rec {
       to user space and vice versa. The toolkit can be used for network
       development and analysis, debugging, auditing or network reconnaissance.
     '';
-    homepage = http://netsniff-ng.org/;
+    homepage = "http://netsniff-ng.org/";
     license = licenses.gpl2;
     platforms = platforms.linux;
   };

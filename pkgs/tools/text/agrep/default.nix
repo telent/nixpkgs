@@ -1,7 +1,7 @@
 { stdenv, fetchFromGitHub }:
 
-stdenv.mkDerivation rec {
-  name = "agrep-${version}";
+stdenv.mkDerivation {
+  pname = "agrep";
   version = "3.41.5";
 
   src = fetchFromGitHub {
@@ -23,7 +23,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Approximate grep for fast fuzzy string searching";
-    homepage = https://www.tgries.de/agrep/;
+    homepage = "https://www.tgries.de/agrep/";
     license = stdenv.lib.licenses.isc;
     platforms = stdenv.lib.platforms.linux;
   };

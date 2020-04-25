@@ -1,8 +1,8 @@
-{ stdenv, fetchFromGitHub, buildDunePackage, alcotest, result, bigstringaf }:
+{ lib, fetchFromGitHub, buildDunePackage, ocaml, alcotest, result, bigstringaf }:
 
 buildDunePackage rec {
   pname = "angstrom";
-  version = "0.10.0";
+  version = "0.12.1";
 
   minimumOCamlVersion = "4.03";
 
@@ -10,17 +10,17 @@ buildDunePackage rec {
     owner  = "inhabitedtype";
     repo   = pname;
     rev    = version;
-    sha256 = "0lh6024yf9ds0nh9i93r9m6p5psi8nvrqxl5x7jwl13zb0r9xfpw";
+    sha256 = "0w0wavqzdy2hrh7cjyl9w72ad4vndhwhknwvyacvkwkja5wys5b2";
   };
 
-  buildInputs = [ alcotest ];
+  checkInputs = [ alcotest ];
   propagatedBuildInputs = [ bigstringaf result ];
-  doCheck = true;
+  doCheck = lib.versionAtLeast ocaml.version "4.05";
 
   meta = {
-    homepage = https://github.com/inhabitedtype/angstrom;
+    homepage = "https://github.com/inhabitedtype/angstrom";
     description = "OCaml parser combinators built for speed and memory efficiency";
-    license = stdenv.lib.licenses.bsd3;
-    maintainers = with stdenv.lib.maintainers; [ sternenseemann ];
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ sternenseemann ];
   };
 }

@@ -19,12 +19,12 @@ let
   };
 
 in stdenv.mkDerivation rec {
-  name = "nano-${version}";
-  version = "3.2";
+  pname = "nano";
+  version = "4.9.1";
 
   src = fetchurl {
-    url = "mirror://gnu/nano/${name}.tar.xz";
-    sha256 = "0jb3zq0v84xb0chyynkcp2jhs9660wmpkic294p4p6c96npp69yi";
+    url = "mirror://gnu/nano/${pname}-${version}.tar.xz";
+    sha256 = "0v5s58j3lbg5s6gapl9kjmzph7zgwaam53qspycy2sxaxw65mkaj";
   };
 
   nativeBuildInputs = [ texinfo ] ++ optional enableNls gettext;
@@ -45,7 +45,7 @@ in stdenv.mkDerivation rec {
   enableParallelBuilding = true;
 
   meta = {
-    homepage = https://www.nano-editor.org/;
+    homepage = "https://www.nano-editor.org/";
     description = "A small, user-friendly console text editor";
     license = licenses.gpl3Plus;
     maintainers = with maintainers; [

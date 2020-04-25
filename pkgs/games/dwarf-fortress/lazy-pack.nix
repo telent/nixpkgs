@@ -1,4 +1,4 @@
-{ stdenvNoCC, lib, buildEnv, callPackage
+{ stdenvNoCC, lib, buildEnv
 , df-games, themes, latestVersion, versionToName
 , dfVersion ? latestVersion
   # This package should, at any given time, provide an opinionated "optimal"
@@ -42,6 +42,6 @@ buildEnv {
     maintainers = with maintainers; [ Baughn numinit ];
     license = licenses.mit;
     platforms = platforms.all;
-    homepage = https://github.com/NixOS/nixpkgs/;
+    homepage = "https://github.com/NixOS/nixpkgs/";
   };
 }

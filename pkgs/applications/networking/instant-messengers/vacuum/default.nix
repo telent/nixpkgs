@@ -3,8 +3,8 @@
   , xorgproto, libX11, libXScrnSaver
   , xz, zlib
 }:
-stdenv.mkDerivation rec {
-  name = "vacuum-im-${version}";
+stdenv.mkDerivation {
+  pname = "vacuum-im";
   version = "1.3.0.20160104";
 
   src = fetchFromGitHub {
@@ -36,6 +36,6 @@ stdenv.mkDerivation rec {
     maintainers = [ maintainers.raskin ];
     platforms = platforms.linux;
     license = licenses.gpl3;
-    homepage = http://www.vacuum-im.org;
+    homepage = "http://www.vacuum-im.org";
   };
 }

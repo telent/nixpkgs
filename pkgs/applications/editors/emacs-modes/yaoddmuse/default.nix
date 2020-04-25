@@ -1,6 +1,6 @@
 {stdenv, fetchurl, emacs}:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   name = "yaoddmuse-0.1.2";
 
   src = fetchurl {
@@ -24,7 +24,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Comprehensive Emacs integration with Oddmuse wikis";
-    homepage = http://emacswiki.org/emacs/Yaoddmuse;
+    homepage = "http://emacswiki.org/emacs/Yaoddmuse";
     platforms = stdenv.lib.platforms.all;
   };
 }

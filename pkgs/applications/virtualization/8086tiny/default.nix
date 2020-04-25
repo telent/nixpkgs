@@ -4,9 +4,9 @@
 
 assert sdlSupport -> (SDL != null);
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
 
-  name = "8086tiny-${version}";
+  pname = "8086tiny";
   version = "1.25";
 
   src = fetchurl {
@@ -29,7 +29,7 @@ stdenv.mkDerivation rec {
 
     8086tiny is based on an IOCCC 2013 winning entry. In fact that is the "unobfuscated" version :)
     '';
-    homepage = http://www.megalith.co.uk/8086tiny/index.html;
+    homepage = "http://www.megalith.co.uk/8086tiny/index.html";
     license = stdenv.lib.licenses.mit;
     maintainers = [ stdenv.lib.maintainers.AndersonTorres ];
     platforms = stdenv.lib.platforms.linux;

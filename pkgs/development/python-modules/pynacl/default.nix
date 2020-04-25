@@ -35,10 +35,13 @@ buildPythonPackage rec {
     py.test
   '';
 
+  # https://github.com/pyca/pynacl/issues/550
+  PYTEST_ADDOPTS = "-k 'not test_wrong_types'";
+
   meta = with stdenv.lib; {
     maintainers = with maintainers; [ va1entin ];
     description = "Python binding to the Networking and Cryptography (NaCl) library";
-    homepage = https://github.com/pyca/pynacl/;
+    homepage = "https://github.com/pyca/pynacl/";
     license = licenses.asl20;
   };
 }

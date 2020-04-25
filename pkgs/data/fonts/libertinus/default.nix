@@ -1,7 +1,7 @@
 { lib, fetchFromGitHub }:
 
 let
-  version = "6.8";
+  version = "6.9";
 in fetchFromGitHub rec {
   name = "libertinus-${version}";
 
@@ -14,7 +14,7 @@ in fetchFromGitHub rec {
     install -m444 -Dt $out/share/fonts/opentype *.otf
     install -m444 -Dt $out/share/doc/${name}    *.txt
   '';
-  sha256 = "0iwbw3sw8rcsifpzw72g3cz0a960scv7cib8mwrw53282waqq2gc";
+  sha256 = "0765a7w0askkhrjmjk638gcm9h6fcm1jpaza8iw9afr3sz1s0xlq";
 
   meta = with lib; {
     description = "A fork of the Linux Libertine and Linux Biolinum fonts";
@@ -23,7 +23,7 @@ in fetchFromGitHub rec {
       that started as an OpenType math companion of the Libertine font family,
       but grown as a full fork to address some of the bugs in the fonts.
     '';
-    homepage = https://github.com/alif-type/libertinus;
+    homepage = "https://github.com/alif-type/libertinus";
     license = licenses.ofl;
     maintainers = with maintainers; [ siddharthist ];
     platforms = platforms.all;

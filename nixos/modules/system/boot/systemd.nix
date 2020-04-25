@@ -63,6 +63,7 @@ let
       "systemd-logind.service"
       "autovt@.service"
       "systemd-user-sessions.service"
+      "dbus-org.freedesktop.import1.service"
       "dbus-org.freedesktop.machine1.service"
       "user@.service"
       "user-runtime-dir@.service"
@@ -75,6 +76,10 @@ let
       "systemd-journald-audit.socket"
       "systemd-journald-dev-log.socket"
       "syslog.socket"
+
+      # Coredumps.
+      "systemd-coredump.socket"
+      "systemd-coredump@.service"
 
       # SysV init compatibility.
       "systemd-initctl.socket"
@@ -108,11 +113,13 @@ let
       # Hibernate / suspend.
       "hibernate.target"
       "suspend.target"
+      "suspend-then-hibernate.target"
       "sleep.target"
       "hybrid-sleep.target"
       "systemd-hibernate.service"
       "systemd-hybrid-sleep.service"
       "systemd-suspend.service"
+      "systemd-suspend-then-hibernate.service"
 
       # Reboot stuff.
       "reboot.target"
@@ -139,6 +146,7 @@ let
       "user.slice"
       "machine.slice"
       "machines.target"
+      "systemd-importd.service"
       "systemd-machined.service"
       "systemd-nspawn@.service"
 
@@ -186,6 +194,9 @@ let
       "sockets.target"
       "sound.target"
       "systemd-exit.service"
+      "systemd-tmpfiles-clean.service"
+      "systemd-tmpfiles-clean.timer"
+      "systemd-tmpfiles-setup.service"
       "timers.target"
     ];
 
@@ -229,7 +240,7 @@ let
   serviceConfig = { name, config, ... }: {
     config = mkMerge
       [ { # Default path for systemd services.  Should be quite minimal.
-          path =
+          path = mkAfter
             [ pkgs.coreutils
               pkgs.findutils
               pkgs.gnugrep
@@ -319,7 +330,7 @@ let
           [Service]
           ${let env = cfg.globalEnvironment // def.environment;
             in concatMapStrings (n:
-              let s = optionalString (env."${n}" != null)
+              let s = optionalString (env.${n} != null)
                 "Environment=${builtins.toJSON "${n}=${env.${n}}"}\n";
               # systemd max line length is now 1MiB
               # https://github.com/systemd/systemd/commit/e6dde451a51dc5aaa7f4d98d39b8fe735f73d2af
@@ -397,7 +408,6 @@ let
 in
 
 {
-
   ###### interface
 
   options = {
@@ -424,7 +434,8 @@ in
     systemd.packages = mkOption {
       default = [];
       type = types.listOf types.package;
-      description = "Packages providing systemd units.";
+      example = literalExample "[ pkgs.systemd-cryptsetup-generator ]";
+      description = "Packages providing systemd units and hooks.";
     };
 
     systemd.targets = mkOption {
@@ -486,7 +497,7 @@ in
     systemd.generators = mkOption {
       type = types.attrsOf types.path;
       default = {};
-      example = { "systemd-gpt-auto-generator" = "/dev/null"; };
+      example = { systemd-gpt-auto-generator = "/dev/null"; };
       description = ''
         Definition of systemd generators.
         For each <literal>NAME = VALUE</literal> pair of the attrSet, a link is generated from
@@ -494,11 +505,14 @@ in
       '';
     };
 
-    systemd.generator-packages = mkOption {
-      default = [];
-      type = types.listOf types.package;
-      example = literalExample "[ pkgs.systemd-cryptsetup-generator ]";
-      description = "Packages providing systemd generators.";
+    systemd.shutdown = mkOption {
+      type = types.attrsOf types.path;
+      default = {};
+      description = ''
+        Definition of systemd shutdown executables.
+        For each <literal>NAME = VALUE</literal> pair of the attrSet, a link is generated from
+        <literal>/etc/systemd/system-shutdown/NAME</literal> to <literal>VALUE</literal>.
+      '';
     };
 
     systemd.defaultUnit = mkOption {
@@ -517,7 +531,7 @@ in
     };
 
     systemd.globalEnvironment = mkOption {
-      type = with types; attrsOf (nullOr (either str (either path package)));
+      type = with types; attrsOf (nullOr (oneOf [ str path package ]));
       default = {};
       example = { TZ = "CET"; };
       description = ''
@@ -526,10 +540,30 @@ in
     };
 
     systemd.enableCgroupAccounting = mkOption {
-      default = false;
+      default = true;
       type = types.bool;
       description = ''
         Whether to enable cgroup accounting.
+      '';
+    };
+
+    systemd.coredump.enable = mkOption {
+      default = true;
+      type = types.bool;
+      description = ''
+        Whether core dumps should be processed by
+        <command>systemd-coredump</command>. If disabled, core dumps
+        appear in the current directory of the crashing process.
+      '';
+    };
+
+    systemd.coredump.extraConfig = mkOption {
+      default = "";
+      type = types.lines;
+      example = "Storage=journal";
+      description = ''
+        Extra config options for systemd-coredump. See coredump.conf(5) man page
+        for available options.
       '';
     };
 
@@ -559,17 +593,33 @@ in
         each other's limit. The value may be specified in the following
         units: s, min, h, ms, us. To turn off any kind of rate limiting,
         set either value to 0.
+
+        See <option>services.journald.rateLimitBurst</option> for important
+        considerations when setting this value.
       '';
     };
 
     services.journald.rateLimitBurst = mkOption {
-      default = 1000;
+      default = 10000;
       type = types.int;
       description = ''
         Configures the rate limiting burst limit (number of messages per
         interval) that is applied to all messages generated on the system.
         This rate limiting is applied per-service, so that two services
         which log do not interfere with each other's limit.
+
+        Note that the effective rate limit is multiplied by a factor derived
+        from the available free disk space for the journal as described on
+        <link xlink:href="https://www.freedesktop.org/software/systemd/man/journald.conf.html">
+        journald.conf(5)</link>.
+
+        Note that the total amount of logs stored is limited by journald settings
+        such as <literal>SystemMaxUse</literal>, which defaults to a 4 GB cap.
+
+        It is thus recommended to compute what period of time that you will be
+        able to store logs for when an application logs at full burst rate.
+        With default settings for log lines that are 100 Bytes long, this can
+        amount to just a few hours.
       '';
     };
 
@@ -663,6 +713,16 @@ in
       '';
     };
 
+    systemd.sleep.extraConfig = mkOption {
+      default = "";
+      type = types.lines;
+      example = "HibernateDelaySec=1h";
+      description = ''
+        Extra config options for systemd sleep state logic.
+        See sleep.conf.d(5) man page for available options.
+      '';
+    };
+
     systemd.user.extraConfig = mkOption {
       default = "";
       type = types.lines;
@@ -742,6 +802,18 @@ in
       '';
     };
 
+    systemd.suppressedSystemUnits = mkOption {
+      default = [ ];
+      type = types.listOf types.str;
+      example = [ "systemd-backlight@.service" ];
+      description = ''
+        A list of units to suppress when generating system systemd configuration directory. This has
+        priority over upstream units, <option>systemd.units</option>, and
+        <option>systemd.additionalUpstreamSystemUnits</option>. The main purpose of this is to
+        suppress a upstream systemd unit with any modifications made to it by other NixOS modules.
+      '';
+    };
+
   };
 
 
@@ -758,21 +830,27 @@ in
     environment.systemPackages = [ systemd ];
 
     environment.etc = let
-      # generate contents for /etc/systemd/system-generators from
-      # systemd.generators and systemd.generator-packages
-      generators = pkgs.runCommand "system-generators" {
+      # generate contents for /etc/systemd/system-${type} from attrset of links and packages
+      hooks = type: links: pkgs.runCommand "system-${type}" {
           preferLocalBuild = true;
-          packages = cfg.generator-packages;
-        } ''
+          packages = cfg.packages;
+      } ''
+        set -e
         mkdir -p $out
         for package in $packages
         do
-          ln -s $package/lib/systemd/system-generators/* $out/
-        done;
-        ${concatStrings (mapAttrsToList (generator: target: "ln -s ${target} $out/${generator};\n") cfg.generators)}
+          for hook in $package/lib/systemd/system-${type}/*
+          do
+            ln -s $hook $out/
+          done
+        done
+        ${concatStrings (mapAttrsToList (exec: target: "ln -s ${target} $out/${exec};\n") links)}
       '';
+
+      enabledUpstreamSystemUnits = filter (n: ! elem n cfg.suppressedSystemUnits) upstreamSystemUnits;
+      enabledUnits = filterAttrs (n: v: ! elem n cfg.suppressedSystemUnits) cfg.units;
     in ({
-      "systemd/system".source = generateUnits "system" cfg.units upstreamSystemUnits upstreamSystemWants;
+      "systemd/system".source = generateUnits "system" enabledUnits enabledUpstreamSystemUnits upstreamSystemWants;
 
       "systemd/user".source = generateUnits "user" cfg.user.units upstreamUserUnits [];
 
@@ -782,9 +860,9 @@ in
           DefaultCPUAccounting=yes
           DefaultIOAccounting=yes
           DefaultBlockIOAccounting=yes
-          DefaultMemoryAccounting=yes
-          DefaultTasksAccounting=yes
+          DefaultIPAccounting=yes
         ''}
+        DefaultLimitCORE=infinity
         ${config.systemd.extraConfig}
       '';
 
@@ -808,6 +886,12 @@ in
         ${config.services.journald.extraConfig}
       '';
 
+      "systemd/coredump.conf".text =
+        ''
+          [Coredump]
+          ${config.systemd.coredump.extraConfig}
+        '';
+
       "systemd/logind.conf".text = ''
         [Login]
         KillUserProcesses=${if config.services.logind.killUserProcesses then "yes" else "no"}
@@ -819,19 +903,34 @@ in
 
       "systemd/sleep.conf".text = ''
         [Sleep]
+        ${config.systemd.sleep.extraConfig}
       '';
 
-      "tmpfiles.d/systemd.conf".source = "${systemd}/example/tmpfiles.d/systemd.conf";
-      "tmpfiles.d/x11.conf".source = "${systemd}/example/tmpfiles.d/x11.conf";
+      # install provided sysctl snippets
+      "sysctl.d/50-coredump.conf".source = "${systemd}/example/sysctl.d/50-coredump.conf";
+      "sysctl.d/50-default.conf".source = "${systemd}/example/sysctl.d/50-default.conf";
 
-      "tmpfiles.d/nixos.conf".text = ''
+      "tmpfiles.d/00-nixos.conf".text = ''
         # This file is created automatically and should not be modified.
         # Please change the option ‘systemd.tmpfiles.rules’ instead.
 
         ${concatStringsSep "\n" cfg.tmpfiles.rules}
       '';
 
-      "systemd/system-generators" = { source = generators; };
+      "tmpfiles.d/home.conf".source = "${systemd}/example/tmpfiles.d/home.conf";
+      "tmpfiles.d/journal-nocow.conf".source = "${systemd}/example/tmpfiles.d/journal-nocow.conf";
+      "tmpfiles.d/portables.conf".source = "${systemd}/example/tmpfiles.d/portables.conf";
+      "tmpfiles.d/static-nodes-permissions.conf".source = "${systemd}/example/tmpfiles.d/static-nodes-permissions.conf";
+      "tmpfiles.d/systemd.conf".source = "${systemd}/example/tmpfiles.d/systemd.conf";
+      "tmpfiles.d/systemd-nologin.conf".source = "${systemd}/example/tmpfiles.d/systemd-nologin.conf";
+      "tmpfiles.d/systemd-nspawn.conf".source = "${systemd}/example/tmpfiles.d/systemd-nspawn.conf";
+      "tmpfiles.d/systemd-tmp.conf".source = "${systemd}/example/tmpfiles.d/systemd-tmp.conf";
+      "tmpfiles.d/tmp.conf".source = "${systemd}/example/tmpfiles.d/tmp.conf";
+      "tmpfiles.d/var.conf".source = "${systemd}/example/tmpfiles.d/var.conf";
+      "tmpfiles.d/x11.conf".source = "${systemd}/example/tmpfiles.d/x11.conf";
+
+      "systemd/system-generators" = { source = hooks "generators" cfg.generators; };
+      "systemd/system-shutdown" = { source = hooks "shutdown" cfg.shutdown; };
     });
 
     services.dbus.enable = true;
@@ -941,6 +1040,9 @@ in
     systemd.services.systemd-remount-fs.unitConfig.ConditionVirtualization = "!container";
     systemd.services.systemd-random-seed.unitConfig.ConditionVirtualization = "!container";
 
+    boot.kernel.sysctl = mkIf (!cfg.coredump.enable) {
+      "kernel.core_pattern" = "core";
+    };
   };
 
   # FIXME: Remove these eventually.
@@ -948,6 +1050,7 @@ in
     [ (mkRenamedOptionModule [ "boot" "systemd" "sockets" ] [ "systemd" "sockets" ])
       (mkRenamedOptionModule [ "boot" "systemd" "targets" ] [ "systemd" "targets" ])
       (mkRenamedOptionModule [ "boot" "systemd" "services" ] [ "systemd" "services" ])
+      (mkRenamedOptionModule [ "jobs" ] [ "systemd" "services" ])
+      (mkRemovedOptionModule [ "systemd" "generator-packages" ] "Use systemd.packages instead.")
     ];
-
 }

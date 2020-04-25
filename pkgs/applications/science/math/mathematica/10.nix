@@ -26,7 +26,7 @@ in
 stdenv.mkDerivation rec {
   version = "10.0.2";
 
-  name = "mathematica-${version}";
+  pname = "mathematica";
 
   src = requireFile rec {
     name = "Mathematica_${version}_LINUX.sh";
@@ -130,7 +130,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Wolfram Mathematica computational software system";
-    homepage = http://www.wolfram.com/mathematica/;
+    homepage = "http://www.wolfram.com/mathematica/";
     license = stdenv.lib.licenses.unfree;
   };
 }

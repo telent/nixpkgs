@@ -1,10 +1,10 @@
-{ buildOpenRAEngine, fetchFromGitHub, abbrevCommit, extraPostFetch }:
+{ buildOpenRAEngine, fetchFromGitHub, extraPostFetch }:
 
 let
   buildUpstreamOpenRAEngine = { version, rev, sha256 }: name: (buildOpenRAEngine {
     inherit version;
     description = "Open-source re-implementation of Westwood Studios' 2D Command and Conquer games";
-    homepage = https://www.openra.net/;
+    homepage = "https://www.openra.net/";
     mods = [ "cnc" "d2k" "ra" "ts" ];
     src = fetchFromGitHub {
       owner = "OpenRA";

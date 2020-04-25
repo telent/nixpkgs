@@ -1,24 +1,22 @@
-{ stdenv, buildGoPackage, fetchFromGitHub }:
+{ stdenv, buildGoModule, fetchFromGitHub }:
 
-buildGoPackage rec {
-  name = "mautrix-unstable-${version}";
-  version = "2019-02-24";
-
-  goPackagePath = "maunium.net/go/mautrix-whatsapp";
+buildGoModule {
+  pname = "mautrix-whatsapp-unstable";
+  version = "2020-04-21";
 
   src = fetchFromGitHub {
     owner = "tulir";
     repo = "mautrix-whatsapp";
-    rev = "485acf6de654b8fb70007876c074fb004eb9717b";
-    sha256 = "1v7h3s8h0aiq6g06h9j1sidw8y5aiw24sgdh9knr1c90pvvc7pmv";
+    rev = "53fe1b18184fc0967658805abc8560641f8d2cb0";
+    sha256 = "0rahj9v7cgvk4w3m41jbs8vnya37dhq5wxyhyg74kwrv8a2nqxra";
   };
 
-  goDeps = ./deps.nix;
+  modSha256 = "0jn88a4hagwfkw9bv8cg12ywsg35znmfkmhi1v7k2qpj5qzi81w6";
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/tulir/mautrix-whatsapp;
+    homepage = "https://github.com/tulir/mautrix-whatsapp";
     description = "Matrix <-> Whatsapp hybrid puppeting/relaybot bridge";
     license = licenses.agpl3;
-    maintainers = with maintainers; [ vskilet ];
+    maintainers = with maintainers; [ vskilet ma27 ];
   };
 }

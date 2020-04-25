@@ -11,13 +11,20 @@ let
   docbookFiles = "${docbook_xsl}/share/xml/docbook-xsl/catalog.xml:${docbook_xml_dtd_44}/xml/dtd/docbook/catalog.xml";
 in
 stdenv.mkDerivation rec {
-  name = "sssd-${version}";
+  pname = "sssd";
   version = "1.16.4";
 
   src = fetchurl {
-    url = "https://fedorahosted.org/released/sssd/${name}.tar.gz";
+    url = "https://fedorahosted.org/released/sssd/${pname}-${version}.tar.gz";
     sha256 = "0ngr7cgimyjc6flqkm7psxagp1m4jlzpqkn28pliifbmdg6i5ckb";
   };
+  patches = [
+    # Fix build failure against samba 4.12.0rc1
+    (fetchpatch {
+      url = "https://github.com/SSSD/sssd/commit/bc56b10aea999284458dcc293b54cf65288e325d.patch";
+      sha256 = "0q74sx5n41srq3kdn55l5j1sq4xrjsnl5y4v8yh5mwsijj74yh4g";
+    })
+  ];
 
   # Something is looking for <libxml/foo.h> instead of <libxml2/libxml/foo.h>
   NIX_CFLAGS_COMPILE = "-I${libxml2.dev}/include/libxml2";
@@ -83,7 +90,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "System Security Services Daemon";
-    homepage = https://fedorahosted.org/sssd/;
+    homepage = "https://fedorahosted.org/sssd/";
     license = licenses.gpl3;
     platforms = platforms.linux;
     maintainers = [ maintainers.e-user ];

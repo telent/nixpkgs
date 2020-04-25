@@ -1,7 +1,7 @@
 { stdenv, fetchzip, gnugrep }:
 
 stdenv.mkDerivation rec {
-  name = "bats-${version}";
+  pname = "bats";
   version = "1.1.0";
 
   src = fetchzip {
@@ -17,7 +17,7 @@ stdenv.mkDerivation rec {
   installPhase = "./install.sh $out";
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/bats-core/bats-core;
+    homepage = "https://github.com/bats-core/bats-core";
     description = "Bash Automated Testing System";
     maintainers = [ maintainers.lnl7 ];
     license = licenses.mit;

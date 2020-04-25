@@ -1,16 +1,17 @@
-{ fetchFromGitHub, fetchurl, stdenv, bam, pkgconfig, makeWrapper, python, alsaLib
-, libX11, libGLU, SDL2, lua5_3, zlib, freetype, wavpack
+{ fetchFromGitHub, stdenv, cmake, pkgconfig, python3, alsaLib
+, libX11, libGLU, SDL2, lua5_3, zlib, freetype, wavpack, icoutils
 }:
 
 stdenv.mkDerivation rec {
   pname = "teeworlds";
-  version = "0.7.3.1";
+  version = "0.7.4";
 
   src = fetchFromGitHub {
     owner = "teeworlds";
     repo = "teeworlds";
     rev = version;
-    sha256 = "05qj6gdw167pan1gwq82ffz03nmlhhzrv1sslpfm8w81nq4b5c72";
+    sha256 = "1llrzcc9p8pswk58rj4qh4g67nlji8q2kw3hxh3qpli85jvkdmyx";
+    fetchSubmodules = true;
   };
 
   postPatch = ''
@@ -20,29 +21,19 @@ stdenv.mkDerivation rec {
                 '#define DATA_DIR "${placeholder "out"}/share/teeworlds/data"'
   '';
 
-  nativeBuildInputs = [ bam pkgconfig ];
-
-  configurePhase = ''
-    bam config
-  '';
-
-  buildPhase = ''
-    bam conf=release
-  '';
-
-  installPhase = ''
-    mkdir -p $out/bin $out/share/teeworlds
-    cp build/x86_64/release/teeworlds{,_srv} $out/bin
-    cp -r build/x86_64/release/data $out/share/teeworlds
-  '';
+  nativeBuildInputs = [ cmake pkgconfig icoutils ];
 
   buildInputs = [
-    python alsaLib libX11 libGLU SDL2 lua5_3 zlib freetype wavpack
+    python3 alsaLib libX11 libGLU SDL2 lua5_3 zlib freetype wavpack
   ];
 
   postInstall = ''
-    mkdir -p $out/share/doc/teeworlds
-    cp -v *.txt $out/share/doc/teeworlds/
+    # Convert and install desktop icon
+    mkdir -p $out/share/pixmaps
+    icotool --extract --index 1 --output $out/share/pixmaps/teeworlds.png $src/other/icons/teeworlds.ico
+
+    # Install menu item
+    install -D $src/other/teeworlds.desktop $out/share/applications/teeworlds.desktop
   '';
 
   meta = {
@@ -55,9 +46,9 @@ stdenv.mkDerivation rec {
       Flag.  You can even design your own maps!
     '';
 
-    homepage = https://teeworlds.com/;
+    homepage = "https://teeworlds.com/";
     license = "BSD-style, see `license.txt'";
     maintainers = with stdenv.lib.maintainers; [ astsmtl ];
-    platforms = ["x86_64-linux" "i686-linux"];
+    platforms = stdenv.lib.platforms.linux;
   };
 }

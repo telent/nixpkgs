@@ -1,7 +1,7 @@
 {stdenv, git, xdg_utils, gnugrep, fetchFromGitHub, makeWrapper}:
 
 stdenv.mkDerivation rec {
-  name = "git-open-${version}";
+  pname = "git-open";
   version = "2.0.0";
 
   src = fetchFromGitHub {
@@ -23,7 +23,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/paulirish/git-open;
+    homepage = "https://github.com/paulirish/git-open";
     description = "Open the GitHub page or website for a repository in your browser";
     license = licenses.mit;
     platforms = platforms.all;

@@ -21,7 +21,7 @@ stdenv.mkDerivation rec {
   passthru = {
     updateScript = gnome3.updateScript {
       packageName = pname;
-      attrPath = "gnom3.gnome-nettool";
+      attrPath = "gnome3.${pname}";
       versionPolicy = "none";
     };
   };
@@ -29,7 +29,7 @@ stdenv.mkDerivation rec {
   meta = with stdenv.lib; {
     homepage = "https://gitlab.gnome.org/GNOME/gnome-nettool";
     description = "A collection of networking tools";
-    maintainers = gnome3.maintainers;
+    maintainers = teams.gnome.members;
     license = licenses.gpl2;
     platforms = platforms.linux;
   };

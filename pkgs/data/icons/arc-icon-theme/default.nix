@@ -1,4 +1,4 @@
-{ stdenv, fetchFromGitHub, autoreconfHook, gtk3, moka-icon-theme }:
+{ stdenv, fetchFromGitHub, autoreconfHook, gtk3, moka-icon-theme, hicolor-icon-theme }:
 
 stdenv.mkDerivation rec {
   name = "${package-name}-${version}";
@@ -14,11 +14,17 @@ stdenv.mkDerivation rec {
 
   nativeBuildInputs = [ autoreconfHook gtk3 moka-icon-theme ];
 
+  propagatedBuildInputs = [
+    hicolor-icon-theme
+  ];
+
+  dontDropIconThemeCache = true;
+
   postFixup = "gtk-update-icon-cache $out/share/icons/Arc";
 
   meta = with stdenv.lib; {
     description = "Arc icon theme";
-    homepage = https://github.com/horst3180/arc-icon-theme;
+    homepage = "https://github.com/horst3180/arc-icon-theme";
     license = licenses.gpl3;
     # moka-icon-theme dependency is restricted to linux
     platforms = platforms.linux;

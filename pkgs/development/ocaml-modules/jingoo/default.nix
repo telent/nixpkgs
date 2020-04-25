@@ -1,4 +1,4 @@
-{ stdenv, fetchFromGitHub, ocaml, findlib, ounit, pcre, uutf }:
+{ stdenv, fetchFromGitHub, ocaml, findlib, pcre, uutf }:
 
 if !stdenv.lib.versionAtLeast ocaml.version "4.02"
 then throw "jingoo is not available for OCaml ${ocaml.version}"
@@ -21,7 +21,7 @@ stdenv.mkDerivation rec {
   createFindlibDestdir = true;
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/tategakibunko/jingoo;
+    homepage = "https://github.com/tategakibunko/jingoo";
     description = "OCaml template engine almost compatible with jinja2";
     license = licenses.mit;
     maintainers = [ maintainers.ericbmerritt ];

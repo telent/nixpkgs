@@ -2,10 +2,12 @@
 , fetchFromGitHub
 , cmake
 , ninja
+, vala
 , pkgconfig
 , pantheon
 , gtk3
 , glib
+, glib-networking
 , libxml2
 , webkitgtk
 , clutter-gtk
@@ -14,7 +16,6 @@
 , libnotify
 , sqlite
 , gst_all_1
-, libsoup
 , json-glib
 , libgee
 , wrapGAppsHook
@@ -22,20 +23,20 @@
 
 stdenv.mkDerivation rec {
   pname = "vocal";
-  version = "2.4.1";
+  version = "2.4.2";
 
   src = fetchFromGitHub {
     owner = "needle-and-thread";
     repo = pname;
     rev = version;
-    sha256 = "0jz72nmc6qmadsvcpk339x1fm4wg6yx9r1bagr7mcgnz3x5papnr";
+    sha256 = "1c4n89rdl9r13kmmh2qymmy9sa6shjwai7df48k2kfn0pnzq5mad";
   };
 
   nativeBuildInputs = [
     cmake
     libxml2
     ninja
-    pantheon.vala
+    vala
     pkgconfig
     wrapGAppsHook
   ];
@@ -56,14 +57,22 @@ stdenv.mkDerivation rec {
     pantheon.granite
     sqlite
     webkitgtk
+    glib-networking
   ];
+
+  passthru = {
+    updateScript = pantheon.updateScript {
+      attrPath = pname;
+    };
+  };
+
 
   meta = with stdenv.lib; {
     description = "The podcast client for the modern free desktop";
     longDescription = ''
       Vocal is a powerful, fast, and intuitive application that helps users find new podcasts, manage their libraries, and enjoy the best that indepedent audio and video publishing has to offer. Vocal features full support for both episode downloading and streaming, native system integration, iTunes store search and top 100 charts (with international results support), iTunes link parsing, OPML importing and exporting, and so much more. Plus, it has great smart features like automatically keeping your library clean from old files, and the ability to set custom skip intervals.
     '';
-    homepage = https://github.com/needle-and-thread/vocal;
+    homepage = "https://github.com/needle-and-thread/vocal";
     license = licenses.gpl3Plus;
     maintainers = with maintainers; [ worldofpeace ];
     platforms = platforms.linux;

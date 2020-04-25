@@ -2,8 +2,8 @@
 zlib, libpng, boost, qt5, guile
 }:
 
-stdenv.mkDerivation rec {
-  name = "libfive-${version}";
+stdenv.mkDerivation {
+  pname = "libfive";
   version = "2018-07-01";
 
   src = fetchFromGitHub {
@@ -22,7 +22,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Infrastructure for solid modeling with F-Reps in C, C++, and Guile";
-    homepage = https://libfive.com/;
+    homepage = "https://libfive.com/";
     maintainers = with maintainers; [ hodapp ];
     license = licenses.lgpl2;
     platforms = platforms.linux;

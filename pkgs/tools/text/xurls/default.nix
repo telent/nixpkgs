@@ -2,7 +2,7 @@
 
 buildGoPackage rec {
   version = "2.0.0";
-  name = "xurls-${version}";
+  pname = "xurls";
 
   src = fetchFromGitHub {
     owner = "mvdan";
@@ -16,8 +16,8 @@ buildGoPackage rec {
 
   meta = with stdenv.lib; {
     description = "Extract urls from text";
-    homepage = https://github.com/mvdan/xurls;
-    maintainers = with maintainers; [ koral ndowens ];
+    homepage = "https://github.com/mvdan/xurls";
+    maintainers = with maintainers; [ koral ];
     platforms = platforms.unix;
     license = licenses.bsd3;
   };

@@ -7,7 +7,7 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "audacious-${version}";
+  pname = "audacious";
   version = "3.9";
 
   src = fetchurl {
@@ -60,7 +60,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Audio player";
-    homepage = https://audacious-media-player.org/;
+    homepage = "https://audacious-media-player.org/";
     maintainers = with maintainers; [ eelco ramkromberg ];
     platforms = with platforms; linux;
     license = with licenses; [

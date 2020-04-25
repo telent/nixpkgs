@@ -111,16 +111,25 @@ in
   config = mkIf cfg.enable {
     systemd.services.gitlab-runner = {
       path = cfg.packages;
-      environment = config.networking.proxy.envVars;
+      environment = config.networking.proxy.envVars // {
+        # Gitlab runner will not start if the HOME variable is not set
+        HOME = cfg.workDir;
+      };
       description = "Gitlab Runner";
       after = [ "network.target" ]
         ++ optional hasDocker "docker.service";
       requires = optional hasDocker "docker.service";
       wantedBy = [ "multi-user.target" ];
+      reloadIfChanged = true;
+      restartTriggers = [
+         config.environment.etc."gitlab-runner/config.toml".source
+      ];
       serviceConfig = {
+        StateDirectory = "gitlab-runner";
+        ExecReload= "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
         ExecStart = ''${cfg.package.bin}/bin/gitlab-runner run \
           --working-directory ${cfg.workDir} \
-          --config ${configFile} \
+          --config /etc/gitlab-runner/config.toml \
           --service gitlab-runner \
           --user gitlab-runner \
         '';
@@ -134,6 +143,9 @@ in
 
     # Make the gitlab-runner command availabe so users can query the runner
     environment.systemPackages = [ cfg.package ];
+
+    # Make sure the config can be reloaded on change
+    environment.etc."gitlab-runner/config.toml".source = configFile;
 
     users.users.gitlab-runner = {
       group = "gitlab-runner";

@@ -10,7 +10,7 @@ with lib;
 
 let
   version = "3.11.0";
-  ver = stdenv.lib.elemAt (stdenv.lib.splitString "." version);
+  ver = stdenv.lib.elemAt (stdenv.lib.splitVersion version);
   versionMajor = ver 0;
   versionMinor = ver 1;
   versionPatch = ver 2;
@@ -21,7 +21,7 @@ let
   k8sgitMajor = "0";
   k8sgitMinor = "1";
 in buildGoPackage rec {
-  name = "openshift-origin-${version}";
+  pname = "openshift-origin";
   inherit version;
 
   src = fetchFromGitHub {
@@ -33,7 +33,9 @@ in buildGoPackage rec {
 
   goPackagePath = "github.com/openshift/origin";
 
-  buildInputs = [ which rsync go-bindata kerberos clang ];
+  buildInputs = [ kerberos ];
+
+  nativeBuildInputs = [ which rsync go-bindata clang ];
 
   patchPhase = ''
     patchShebangs ./hack
@@ -79,7 +81,7 @@ in buildGoPackage rec {
   meta = with stdenv.lib; {
     description = "Build, deploy, and manage your applications with Docker and Kubernetes";
     license = licenses.asl20;
-    homepage = http://www.openshift.org;
+    homepage = "http://www.openshift.org";
     maintainers = with maintainers; [offline bachp moretea];
     platforms = platforms.unix;
   };

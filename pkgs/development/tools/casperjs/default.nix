@@ -2,9 +2,10 @@
 
 let version = "1.1.1";
 
-in stdenv.mkDerivation rec {
+in stdenv.mkDerivation {
 
-  name = "casperjs-${version}";
+  pname = "casperjs";
+  inherit version;
 
   src = fetchFromGitHub {
     owner = "casperjs";
@@ -45,7 +46,7 @@ in stdenv.mkDerivation rec {
       syntactic sugar for doing common tasks.
     '';
 
-    homepage = http://casperjs.org;
+    homepage = "http://casperjs.org";
     license = stdenv.lib.licenses.mit;
 
     maintainers = [ stdenv.lib.maintainers.bluescreen303 ];

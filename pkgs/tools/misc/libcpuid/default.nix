@@ -1,7 +1,7 @@
 { stdenv, fetchFromGitHub, autoreconfHook }:
 
 stdenv.mkDerivation rec {
-  name = "libcpuid-${version}";
+  pname = "libcpuid";
   version = "0.4.1";
 
   src = fetchFromGitHub {
@@ -19,7 +19,7 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ autoreconfHook ];
 
   meta = with stdenv.lib; {
-    homepage = http://libcpuid.sourceforge.net/;
+    homepage = "http://libcpuid.sourceforge.net/";
     description = "A small C library for x86 CPU detection and feature extraction";
     license = licenses.bsd2;
     maintainers = with maintainers; [ orivej artuuge ];

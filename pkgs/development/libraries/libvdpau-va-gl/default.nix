@@ -2,7 +2,7 @@
 , libXext, libvdpau, glib, libva, ffmpeg, libGLU }:
 
 stdenv.mkDerivation rec {
-  name = "libvdpau-va-gl-${version}";
+  pname = "libvdpau-va-gl";
   version = "0.4.2";
 
   src = fetchFromGitHub {
@@ -18,7 +18,7 @@ stdenv.mkDerivation rec {
   doCheck = false; # fails. needs DRI access
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/i-rinat/libvdpau-va-gl;
+    homepage = "https://github.com/i-rinat/libvdpau-va-gl";
     description = "VDPAU driver with OpenGL/VAAPI backend";
     license = licenses.lgpl3;
     platforms = platforms.linux;

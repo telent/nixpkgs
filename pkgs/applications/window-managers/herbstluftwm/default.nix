@@ -1,11 +1,11 @@
 { stdenv, fetchurl, pkgconfig, glib, libX11, libXext, libXinerama }:
 
 stdenv.mkDerivation rec {
-  name = "herbstluftwm-0.7.1";
+  name = "herbstluftwm-0.7.2";
 
   src = fetchurl {
     url = "https://herbstluftwm.org/tarballs/${name}.tar.gz";
-    sha256 = "0d47lbjxxqd8d96hby47bdhyn9mlih7h28712j1vckiz05ig63nw";
+    sha256 = "1kc18aj9j3nfz6fj4qxg9s3gg4jvn6kzi3ii24hfm0vqdpy17xnz";
   };
 
   patchPhase = ''
@@ -21,7 +21,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "A manual tiling window manager for X";
-    homepage = http://herbstluftwm.org/;
+    homepage = "http://herbstluftwm.org/";
     license = stdenv.lib.licenses.bsd2;
     platforms = stdenv.lib.platforms.linux;
     maintainers = with stdenv.lib.maintainers; [ the-kenny ];

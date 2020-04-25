@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
 
   name = "mathematica-9.0.0";
 
-  src = requireFile rec {
+  src = requireFile {
     name = "Mathematica_9.0.0_LINUX.sh";
     message = '' 
       This nix expression requires that Mathematica_9.0.0_LINUX.sh is
@@ -116,7 +116,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "Wolfram Mathematica computational software system";
-    homepage = http://www.wolfram.com/mathematica/;
+    homepage = "http://www.wolfram.com/mathematica/";
     license = stdenv.lib.licenses.unfree;
   };
 }

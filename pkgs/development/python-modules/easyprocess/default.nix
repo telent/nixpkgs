@@ -2,11 +2,11 @@
 
 buildPythonPackage rec {
   pname = "EasyProcess";
-  version = "0.2.5";
+  version = "0.2.8";
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "0gdl6y37g8rns2i26d2zlx7x4kbpql9h5qd8k23ka69q6frcpb8k";
+    sha256 = "da7f67a006e2eb63d86a8f3f4baa9d6752dab9676009a67193a4e433f2f41c2a";
   };
 
   # No tests
@@ -14,7 +14,7 @@ buildPythonPackage rec {
 
   meta = with stdenv.lib; {
     description = "Easy to use python subprocess interface";
-    homepage = https://github.com/ponty/EasyProcess;
+    homepage = "https://github.com/ponty/EasyProcess";
     license = licenses.bsdOriginal;
     maintainers = with maintainers; [ layus ];
   };

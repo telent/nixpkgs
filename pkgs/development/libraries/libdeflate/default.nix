@@ -1,14 +1,14 @@
 { stdenv, lib, fetchFromGitHub }:
 
 stdenv.mkDerivation rec {
-  name = "libdeflate-${version}";
-  version = "1.2";
+  pname = "libdeflate";
+  version = "1.5";
 
   src = fetchFromGitHub {
     owner = "ebiggers";
     repo = "libdeflate";
     rev = "v${version}";
-    sha256 = "0kmp38s7vahvbgzzhs5v0bfyjgas1in7jn69gpyh70kl08279ly0";
+    sha256 = "1v0y7998p8a8wpblnpdyk5zzvpj8pbrpzxwxmv0b0axrhaarxrf3";
   };
 
   postPatch = ''
@@ -24,8 +24,8 @@ stdenv.mkDerivation rec {
   meta = with lib; {
     description = "Fast DEFLATE/zlib/gzip compressor and decompressor";
     license = licenses.mit;
-    homepage = https://github.com/ebiggers/libdeflate;
-    platforms = platforms.linux;
+    homepage = "https://github.com/ebiggers/libdeflate";
+    platforms = platforms.unix;
     maintainers = with maintainers; [ orivej ];
   };
 }

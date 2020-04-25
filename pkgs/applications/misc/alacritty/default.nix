@@ -1,84 +1,93 @@
-{ stdenv,
-  lib,
-  fetchFromGitHub,
-  rustPlatform,
-  cmake,
-  makeWrapper,
-  ncurses,
-  expat,
-  pkgconfig,
-  freetype,
-  fontconfig,
-  libX11,
-  gzip,
-  libXcursor,
-  libXxf86vm,
-  libXi,
-  libXrandr,
-  libGL,
-  xclip,
-  wayland,
-  libxkbcommon,
+{ stdenv
+, lib
+, fetchFromGitHub
+, rustPlatform
+
+, cmake
+, gzip
+, installShellFiles
+, makeWrapper
+, ncurses
+, pkgconfig
+, python3
+
+, expat
+, fontconfig
+, freetype
+, libGL
+, libX11
+, libXcursor
+, libXi
+, libXrandr
+, libXxf86vm
+, libxcb
+, libxkbcommon
+, wayland
+, xdg_utils
+
   # Darwin Frameworks
-  cf-private,
-  AppKit,
-  CoreFoundation,
-  CoreGraphics,
-  CoreServices,
-  CoreText,
-  Foundation,
-  OpenGL }:
-
-with rustPlatform;
-
+, AppKit
+, CoreGraphics
+, CoreServices
+, CoreText
+, Foundation
+, OpenGL
+}:
 let
   rpathLibs = [
     expat
-    freetype
     fontconfig
+    freetype
+    libGL
     libX11
     libXcursor
-    libXxf86vm
-    libXrandr
-    libGL
     libXi
+    libXrandr
+    libXxf86vm
+    libxcb
   ] ++ lib.optionals stdenv.isLinux [
-    wayland
     libxkbcommon
+    wayland
   ];
-in buildRustPackage rec {
+in
+rustPlatform.buildRustPackage rec {
   pname = "alacritty";
-  version = "0.3.2";
+  version = "0.4.2";
 
   src = fetchFromGitHub {
-    owner = "jwilm";
+    owner = "alacritty";
     repo = pname;
     rev = "v${version}";
-    sha256 = "16lhxfpwysd5ngw8yq76vbzjdmfzs9plsvairf768hnl290jcpbh";
+    sha256 = "133d8vm7ihlvgw8n1jghhh35h664h0f52h6gci54f11vl6c1spws";
   };
 
-  cargoSha256 = "02q5kkr0zygpm9i2hd1sr246f18pyia1lq9dwjagqk7d2x3xlc7p";
+  cargoSha256 = "07gq63qd11zz229b8jp9wqggz39qfpzd223z1zk1xch7rhqq0pn4";
 
   nativeBuildInputs = [
     cmake
-    makeWrapper
-    pkgconfig
-    ncurses
     gzip
+    installShellFiles
+    makeWrapper
+    ncurses
+    pkgconfig
+    python3
   ];
 
   buildInputs = rpathLibs
-    ++ lib.optionals stdenv.isDarwin [
-      AppKit CoreFoundation CoreGraphics CoreServices CoreText Foundation OpenGL
-      # Needed for CFURLResourceIsReachable symbols.
-      cf-private
-    ];
+  ++ lib.optionals stdenv.isDarwin [
+    AppKit
+    CoreGraphics
+    CoreServices
+    CoreText
+    Foundation
+    OpenGL
+  ];
 
   outputs = [ "out" "terminfo" ];
 
   postPatch = ''
-    substituteInPlace copypasta/src/x11.rs \
-      --replace Command::new\(\"xclip\"\) Command::new\(\"${xclip}/bin/xclip\"\)
+    substituteInPlace alacritty/src/config/mouse.rs \
+      --replace xdg-open ${xdg_utils}/bin/xdg-open
   '';
 
   postBuild = lib.optionalString stdenv.isDarwin "make app";
@@ -88,24 +97,32 @@ in buildRustPackage rec {
 
     install -D target/release/alacritty $out/bin/alacritty
 
-  '' + (if stdenv.isDarwin then ''
-    mkdir $out/Applications
-    cp -r target/release/osx/Alacritty.app $out/Applications/Alacritty.app
-  '' else ''
-    install -D extra/linux/alacritty.desktop -t $out/share/applications/
-    install -D extra/logo/alacritty-term.svg $out/share/icons/hicolor/scalable/apps/Alacritty.svg
-    patchelf --set-rpath "${stdenv.lib.makeLibraryPath rpathLibs}" $out/bin/alacritty
-  '') + ''
+  '' + (
+    if stdenv.isDarwin then ''
+      mkdir $out/Applications
+      cp -r target/release/osx/Alacritty.app $out/Applications/Alacritty.app
+    '' else ''
+      install -D extra/linux/Alacritty.desktop -t $out/share/applications/
+      install -D extra/logo/alacritty-term.svg $out/share/icons/hicolor/scalable/apps/Alacritty.svg
 
-    install -D extra/completions/_alacritty -t "$out/share/zsh/site-functions/"
-    install -D extra/completions/alacritty.bash -t "$out/etc/bash_completion.d/"
-    install -D extra/completions/alacritty.fish -t "$out/share/fish/vendor_completions.d/"
+      # patchelf generates an ELF that binutils' "strip" doesn't like:
+      #    strip: not enough room for program headers, try linking with -N
+      # As a workaround, strip manually before running patchelf.
+      strip -S $out/bin/alacritty
+
+      patchelf --set-rpath "${lib.makeLibraryPath rpathLibs}" $out/bin/alacritty
+    ''
+  ) + ''
+
+    installShellCompletion --zsh extra/completions/_alacritty
+    installShellCompletion --bash extra/completions/alacritty.bash
+    installShellCompletion --fish extra/completions/alacritty.fish
 
     install -dm 755 "$out/share/man/man1"
     gzip -c extra/alacritty.man > "$out/share/man/man1/alacritty.1.gz"
 
     install -dm 755 "$terminfo/share/terminfo/a/"
-    tic -x -o "$terminfo/share/terminfo" extra/alacritty.info
+    tic -xe alacritty,alacritty-direct -o "$terminfo/share/terminfo" extra/alacritty.info
     mkdir -p $out/nix-support
     echo "$terminfo" >> $out/nix-support/propagated-user-env-packages
 
@@ -114,11 +131,11 @@ in buildRustPackage rec {
 
   dontPatchELF = true;
 
-  meta = with stdenv.lib; {
-    description = "GPU-accelerated terminal emulator";
-    homepage = https://github.com/jwilm/alacritty;
-    license = with licenses; [ asl20 ];
-    maintainers = with maintainers; [ mic92 ];
-    platforms = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" ];
+  meta = with lib; {
+    description = "A cross-platform, GPU-accelerated terminal emulator";
+    homepage = "https://github.com/alacritty/alacritty";
+    license = licenses.asl20;
+    maintainers = with maintainers; [ filalex77 mic92 cole-h ];
+    platforms = platforms.unix;
   };
 }

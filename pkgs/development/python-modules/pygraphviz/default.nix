@@ -3,11 +3,12 @@
 
 buildPythonPackage rec {
   pname = "pygraphviz";
-  version = "1.3.1";
+  version = "1.5";
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "7c294cbc9d88946be671cc0d8602aac176d8c56695c0a7d871eadea75a958408";
+    sha256 = "179i3mjprhn200gcj6jq7c4mdrzckyqlh1srz78hynnw0nijka2h";
+    extension = "zip";
   };
 
   nativeBuildInputs = [ pkgconfig ];
@@ -30,7 +31,7 @@ buildPythonPackage rec {
 
   meta = with stdenv.lib; {
     description = "Python interface to Graphviz graph drawing package";
-    homepage = https://github.com/pygraphviz/pygraphviz;
+    homepage = "https://github.com/pygraphviz/pygraphviz";
     license = licenses.bsd3;
     maintainers = with maintainers; [ matthiasbeyer ];
   };

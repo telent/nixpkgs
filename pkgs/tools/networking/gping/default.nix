@@ -1,5 +1,4 @@
-{ stdenv
-, lib
+{ lib
 , iputils
 , python3
 , python3Packages
@@ -26,7 +25,7 @@ python3Packages.buildPythonApplication rec {
 
   meta = with lib; {
     description = "Ping, but with a graph";
-    homepage = https://github.com/orf/gping;
+    homepage = "https://github.com/orf/gping";
     license = licenses.gpl2;
     maintainers = with maintainers; [ andrew-d ];
   };

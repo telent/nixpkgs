@@ -7,11 +7,12 @@ let
 
   src = fetchFromGitHub {
     inherit owner repo sha256;
-    rev    = "${version}";
+    rev    = version;
   };
 
   backend = buildGoPackage {
-    name = "uchiwa-backend-${version}";
+    pname = "uchiwa-backend";
+    inherit version;
     goPackagePath = "github.com/${owner}/${repo}";
     inherit src;
     postInstall = ''
@@ -26,8 +27,9 @@ let
     inherit src;
   };
 
-in stdenv.mkDerivation rec {
-  name = "uchiwa-${version}";
+in stdenv.mkDerivation {
+  pname = "uchiwa";
+  inherit version;
 
   inherit src;
 
@@ -43,7 +45,7 @@ in stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "A Dashboard for the sensu monitoring framework";
-    homepage    = http://sensuapp.org/;
+    homepage    = "http://sensuapp.org/";
     license     = licenses.mit;
     maintainers = with maintainers; [ peterhoeg ];
     platforms   = platforms.unix;

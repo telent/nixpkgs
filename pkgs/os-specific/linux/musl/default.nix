@@ -29,11 +29,11 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "musl";
-  version = "1.1.22";
+  version = "1.1.24";
 
   src = fetchurl {
     url    = "https://www.musl-libc.org/releases/${pname}-${version}.tar.gz";
-    sha256 = "1qr9xqdzziy5bsyyqlh6k8yz056ll55d5yvc0gbhz61ginj422cb";
+    sha256 = "18r2a00k82hz0mqdvgm7crzc7305l36109c0j9yjmkxj2alcjw0k";
   };
 
   enableParallelBuilding = true;
@@ -53,7 +53,7 @@ stdenv.mkDerivation rec {
   patches = [
     # Minor touchup to build system making dynamic linker symlink relative
     (fetchurl {
-      url = https://raw.githubusercontent.com/openwrt/openwrt/87606e25afac6776d1bbc67ed284434ec5a832b4/toolchain/musl/patches/300-relative.patch;
+      url = "https://raw.githubusercontent.com/openwrt/openwrt/87606e25afac6776d1bbc67ed284434ec5a832b4/toolchain/musl/patches/300-relative.patch";
       sha256 = "0hfadrycb60sm6hb6by4ycgaqc9sgrhh42k39v8xpmcvdzxrsq2n";
     })
   ];
@@ -110,11 +110,11 @@ stdenv.mkDerivation rec {
 
   passthru.linuxHeaders = linuxHeaders;
 
-  meta = {
+  meta = with lib; {
     description = "An efficient, small, quality libc implementation";
     homepage    = "http://www.musl-libc.org";
-    license     = lib.licenses.mit;
-    platforms   = lib.platforms.linux;
-    maintainers = [ lib.maintainers.thoughtpolice ];
+    license     = licenses.mit;
+    platforms   = platforms.linux;
+    maintainers = with maintainers; [ thoughtpolice dtzWill ];
   };
 }

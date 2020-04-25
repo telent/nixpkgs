@@ -1,7 +1,7 @@
 { stdenv, fetchFromGitHub, openssl }:
 
-stdenv.mkDerivation rec {
-  name = "hash_extender-${version}";
+stdenv.mkDerivation {
+  pname = "hash_extender";
   version = "2017-04-10";
 
   src = fetchFromGitHub {
@@ -20,7 +20,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Tool to automate hash length extension attacks";
-    homepage = https://github.com/iagox86/hash_extender;
+    homepage = "https://github.com/iagox86/hash_extender";
     license = licenses.bsd3;
     maintainers = with maintainers; [ geistesk ];
   };

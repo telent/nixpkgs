@@ -1,7 +1,7 @@
 { stdenv, fetchgit, fetchFromGitHub, go, fuse }:
 
 stdenv.mkDerivation rec {
-  name = "tmsu-${version}";
+  pname = "tmsu";
   version = "0.7.4";
 
   go-sqlite3 = fetchgit {
@@ -53,7 +53,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    homepage    = http://www.tmsu.org;
+    homepage    = "http://www.tmsu.org";
     description = "A tool for tagging your files using a virtual filesystem";
     maintainers = with maintainers; [ pSub ];
     license     = licenses.gpl3;

@@ -1,7 +1,7 @@
 { stdenv, fetchurl, libusb, readline }:
 
-stdenv.mkDerivation rec {
-  name = "libnfc-${version}";
+stdenv.mkDerivation {
+  pname = "libnfc";
   version = "1.7.1";
 
   src = fetchurl {
@@ -14,7 +14,7 @@ stdenv.mkDerivation rec {
   meta = with stdenv.lib; {
     description = "Open source library libnfc for Near Field Communication";
     license = licenses.gpl3;
-    homepage = https://github.com/nfc-tools/libnfc;
+    homepage = "https://github.com/nfc-tools/libnfc";
     maintainers = with maintainers; [offline];
     platforms = platforms.unix;
   };

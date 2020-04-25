@@ -2,9 +2,9 @@
 
 assert (openssl != null) == (gnutls == null);
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   version = "unstable-2018-10-08";
-  name = "openconnect_pa-${version}";
+  pname = "openconnect_pa";
   
   outputs = [ "out" "dev" ];
 
@@ -32,7 +32,7 @@ stdenv.mkDerivation rec {
   
   meta = with stdenv.lib; {
     description = "OpenConnect client extended to support Palo Alto Networks' GlobalProtect VPN";
-    homepage = https://github.com/dlenski/openconnect/;
+    homepage = "https://github.com/dlenski/openconnect/";
     license = licenses.lgpl21;
     maintainers = with maintainers; [ chessai ];
     platforms = platforms.linux;

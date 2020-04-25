@@ -1,5 +1,5 @@
 { lib, buildPythonPackage, fetchPypi, isPy3k
-, wrapGAppsHook, gobject-introspection, pygobject3, graphviz, gnome3, gtk3 }:
+, wrapGAppsHook, gobject-introspection, pygobject3, graphviz, gtk3 }:
 
 buildPythonPackage rec {
   pname = "xdot";
@@ -17,7 +17,7 @@ buildPythonPackage rec {
 
   meta = with lib; {
     description = "xdot.py is an interactive viewer for graphs written in Graphviz's dot";
-    homepage = https://github.com/jrfonseca/xdot.py;
+    homepage = "https://github.com/jrfonseca/xdot.py";
     license = licenses.lgpl3Plus;
   };
 }

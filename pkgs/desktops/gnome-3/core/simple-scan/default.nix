@@ -1,18 +1,18 @@
 { stdenv, fetchurl, meson, ninja, pkgconfig, gettext, itstool, python3, wrapGAppsHook
-, cairo, gdk_pixbuf, colord, glib, gtk3, gusb, packagekit, libwebp
+, cairo, gdk-pixbuf, colord, glib, gtk3, gusb, packagekit, libwebp
 , libxml2, sane-backends, vala, gnome3, gobject-introspection }:
 
 stdenv.mkDerivation rec {
-  name = "simple-scan-${version}";
-  version = "3.32.2.1";
+  pname = "simple-scan";
+  version = "3.36.1";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/simple-scan/${stdenv.lib.versions.majorMinor version}/${name}.tar.xz";
-    sha256 = "0xqb642bsd2hddsm4bd199vyq8jcipdlxm0br3mjlc5vjcxgkxyp";
+    url = "mirror://gnome/sources/simple-scan/${stdenv.lib.versions.majorMinor version}/${pname}-${version}.tar.xz";
+    sha256 = "0bprm9gfnlrs0k8jvy9pqm1rjq47z5pgahqjjj1i7q2k4a8g09vl";
   };
 
   buildInputs = [
-    cairo gdk_pixbuf colord glib gnome3.adwaita-icon-theme gusb
+    cairo gdk-pixbuf colord glib gnome3.adwaita-icon-theme gusb
     gtk3 libwebp packagekit sane-backends vala
   ];
   nativeBuildInputs = [
@@ -43,9 +43,9 @@ stdenv.mkDerivation rec {
       XSANE uses. This means that all existing scanners will work and the
       interface is well tested.
     '';
-    homepage = https://gitlab.gnome.org/GNOME/simple-scan;
+    homepage = "https://gitlab.gnome.org/GNOME/simple-scan";
     license = licenses.gpl3Plus;
-    maintainers = gnome3.maintainers;
+    maintainers = teams.gnome.members;
     platforms = platforms.linux;
   };
 }

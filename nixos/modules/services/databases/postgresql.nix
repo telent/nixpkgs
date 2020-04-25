@@ -6,23 +6,10 @@ let
 
   cfg = config.services.postgresql;
 
-  # see description of extraPlugins
-  postgresqlAndPlugins = pg:
-    if cfg.extraPlugins == [] then pg
-    else pkgs.buildEnv {
-      name = "postgresql-and-plugins-${(builtins.parseDrvName pg.name).version}";
-      paths = [ pg pg.lib ] ++ cfg.extraPlugins;
-      buildInputs = [ pkgs.makeWrapper ];
-      postBuild =
-        ''
-          mkdir -p $out/bin
-          rm $out/bin/{pg_config,postgres,pg_ctl}
-          cp --target-directory=$out/bin ${pg}/bin/{postgres,pg_config,pg_ctl}
-          wrapProgram $out/bin/postgres --set NIX_PGLIBDIR $out/lib
-        '';
-    };
-
-  postgresql = postgresqlAndPlugins cfg.package;
+  postgresql =
+    if cfg.extraPlugins == []
+      then cfg.package
+      else cfg.package.withPackages (_: cfg.extraPlugins);
 
   # The main PostgreSQL configuration file.
   configFile = pkgs.writeText "postgresql.conf"
@@ -33,7 +20,9 @@ let
       listen_addresses = '${if cfg.enableTCPIP then "*" else "localhost"}'
       port = ${toString cfg.port}
       ${cfg.extraConfig}
-    '';
+    ''; 
+
+  groupAccessAvailable = versionAtLeast postgresql.version "11.0";
 
 in
 
@@ -55,7 +44,7 @@ in
 
       package = mkOption {
         type = types.package;
-        example = literalExample "pkgs.postgresql_9_6";
+        example = literalExample "pkgs.postgresql_11";
         description = ''
           PostgreSQL package to use.
         '';
@@ -71,7 +60,7 @@ in
 
       dataDir = mkOption {
         type = types.path;
-        example = "/var/lib/postgresql/9.6";
+        example = "/var/lib/postgresql/11";
         description = ''
           Data directory for PostgreSQL.
         '';
@@ -94,6 +83,20 @@ in
         default = "";
         description = ''
           Defines the mapping from system users to database users.
+
+          The general form is:
+
+          map-name system-username database-username
+        '';
+      };
+
+      initdbArgs = mkOption {
+        type = with types; listOf str;
+        default = [];
+        example = [ "--data-checksums" "--allow-group-access" ];
+        description = ''
+          Additional arguments passed to <literal>initdb</literal> during data dir
+          initialisation.
         '';
       };
 
@@ -192,17 +195,11 @@ in
       extraPlugins = mkOption {
         type = types.listOf types.path;
         default = [];
-        example = literalExample "[ (pkgs.postgis.override { postgresql = pkgs.postgresql_9_4; }) ]";
+        example = literalExample "with pkgs.postgresql_11.pkgs; [ postgis pg_repack ]";
         description = ''
-          When this list contains elements a new store path is created.
-          PostgreSQL and the elements are symlinked into it. Then pg_config,
-          postgres and pg_ctl are copied to make them use the new
-          $out/lib directory as pkglibdir. This makes it possible to use postgis
-          without patching the .sql files which reference $libdir/postgis-1.5.
+          List of PostgreSQL plugins. PostgreSQL version for each plugin should
+          match version for <literal>services.postgresql.package</literal> value.
         '';
-        # Note: the duplication of executables is about 4MB size.
-        # So a nicer solution was patching postgresql to allow setting the
-        # libdir explicitely.
       };
 
       extraConfig = mkOption {
@@ -235,24 +232,26 @@ in
 
   ###### implementation
 
-  config = mkIf config.services.postgresql.enable {
+  config = mkIf cfg.enable {
 
     services.postgresql.package =
       # Note: when changing the default, make it conditional on
       # ‘system.stateVersion’ to maintain compatibility with existing
       # systems!
-      mkDefault (if versionAtLeast config.system.stateVersion "17.09" then pkgs.postgresql_9_6
+      mkDefault (if versionAtLeast config.system.stateVersion "20.03" then pkgs.postgresql_11
+            else if versionAtLeast config.system.stateVersion "17.09" then pkgs.postgresql_9_6
             else if versionAtLeast config.system.stateVersion "16.03" then pkgs.postgresql_9_5
-            else pkgs.postgresql_9_4);
+            else throw "postgresql_9_4 was removed, please upgrade your postgresql version.");
 
     services.postgresql.dataDir =
-      mkDefault (if versionAtLeast config.system.stateVersion "17.09" then "/var/lib/postgresql/${config.services.postgresql.package.psqlSchema}"
-                 else "/var/db/postgresql");
+      mkDefault (if versionAtLeast config.system.stateVersion "17.09"
+                  then "/var/lib/postgresql/${cfg.package.psqlSchema}"
+                  else "/var/db/postgresql");
 
     services.postgresql.authentication = mkAfter
       ''
         # Generated file; do not edit!
-        local all all              ident
+        local all all              peer
         host  all all 127.0.0.1/32 md5
         host  all all ::1/128      md5
       '';
@@ -269,6 +268,10 @@ in
     users.groups.postgres.gid = config.ids.gids.postgres;
 
     environment.systemPackages = [ postgresql ];
+
+    environment.pathsToLink = [
+     "/share/postgresql"
+    ];
 
     systemd.services.postgresql =
       { description = "PostgreSQL Server";
@@ -294,7 +297,7 @@ in
           ''
             # Initialise the database.
             if ! test -e ${cfg.dataDir}/PG_VERSION; then
-              initdb -U ${cfg.superUser}
+              initdb -U ${cfg.superUser} ${concatStringsSep " " cfg.initdbArgs}
               # See postStart!
               touch "${cfg.dataDir}/.first_startup"
             fi
@@ -303,8 +306,12 @@ in
               ln -sfn "${pkgs.writeText "recovery.conf" cfg.recoveryConfig}" \
                 "${cfg.dataDir}/recovery.conf"
             ''}
+            ${optionalString (!groupAccessAvailable) ''
+              # postgresql pre 11.0 doesn't start if state directory mode is group accessible
+              chmod 0700 "${cfg.dataDir}"
+            ''}
 
-             exec postgres
+            exec postgres
           '';
 
         serviceConfig =
@@ -313,7 +320,7 @@ in
             Group = "postgres";
             PermissionsStartOnly = true;
             RuntimeDirectory = "postgresql";
-            Type = if lib.versionAtLeast cfg.package.version "9.6"
+            Type = if versionAtLeast cfg.package.version "9.6"
                    then "notify"
                    else "simple";
 
@@ -345,13 +352,13 @@ in
             fi
           '' + optionalString (cfg.ensureDatabases != []) ''
             ${concatMapStrings (database: ''
-              $PSQL -tAc "SELECT 1 FROM pg_database WHERE datname = '${database}'" | grep -q 1 || $PSQL -tAc "CREATE DATABASE ${database}"
+              $PSQL -tAc "SELECT 1 FROM pg_database WHERE datname = '${database}'" | grep -q 1 || $PSQL -tAc 'CREATE DATABASE "${database}"'
             '') cfg.ensureDatabases}
           '' + ''
             ${concatMapStrings (user: ''
-              $PSQL -tAc "SELECT 1 FROM pg_roles WHERE rolname='${user.name}'" | grep -q 1 || $PSQL -tAc "CREATE USER ${user.name}"
+              $PSQL -tAc "SELECT 1 FROM pg_roles WHERE rolname='${user.name}'" | grep -q 1 || $PSQL -tAc 'CREATE USER "${user.name}"'
               ${concatStringsSep "\n" (mapAttrsToList (database: permission: ''
-                $PSQL -tAc "GRANT ${permission} ON ${database} TO ${user.name}"
+                $PSQL -tAc 'GRANT ${permission} ON ${database} TO "${user.name}"'
               '') user.ensurePermissions)}
             '') cfg.ensureUsers}
           '';
@@ -362,5 +369,5 @@ in
   };
 
   meta.doc = ./postgresql.xml;
-  meta.maintainers = with lib.maintainers; [ thoughtpolice ];
+  meta.maintainers = with lib.maintainers; [ thoughtpolice danbst ];
 }

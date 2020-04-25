@@ -1,12 +1,12 @@
 { stdenv, fetchzip, jre }:
 
 stdenv.mkDerivation rec {
-  name = "atlassian-cli-${version}";
-  version = "8.2.0";
+  pname = "atlassian-cli";
+  version = "9.2.0";
   
   src = fetchzip {
-    url  = "https://bobswift.atlassian.net/wiki/download/attachments/16285777/${name}-distribution.zip";
-    sha256  = "0lcyyay2fyywcn096y33d77r6fpvwggv5qdkky5qy16lh6rfx1lm";
+    url  = "https://bobswift.atlassian.net/wiki/download/attachments/16285777/${pname}-${version}-distribution.zip";
+    sha256  = "0rdnbx3zfz3lpgka7bb8jzapkr81l2yvgsbmn8hrhva5k61xwx3d";
     extraPostFetch = "chmod go-w $out";
   };
   
@@ -41,7 +41,7 @@ stdenv.mkDerivation rec {
   
   meta = with stdenv.lib; {
     description = "An integrated family of CLI’s for various Atlassian applications";
-    homepage = https://bobswift.atlassian.net/wiki/spaces/ACLI/overview;
+    homepage = "https://bobswift.atlassian.net/wiki/spaces/ACLI/overview";
     license = licenses.unfreeRedistributable;
     maintainers = with maintainers; [ twey ];
     inherit (jre.meta) platforms;

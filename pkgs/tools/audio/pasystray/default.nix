@@ -4,13 +4,13 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "pasystray-${version}";
+  pname = "pasystray";
   version = "0.7.1";
 
   src = fetchFromGitHub {
     owner = "christophgysin";
     repo = "pasystray";
-    rev = name;
+    rev = "${pname}-${version}";
     sha256 = "0xx1bm9kimgq11a359ikabdndqg5q54pn1d1dyyjnrj0s41168fk";
   };
 
@@ -23,7 +23,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "PulseAudio system tray";
-    homepage = https://github.com/christophgysin/pasystray;
+    homepage = "https://github.com/christophgysin/pasystray";
     license = licenses.lgpl21Plus;
     maintainers = with maintainers; [ exlevan kamilchm ];
     platforms = platforms.linux;

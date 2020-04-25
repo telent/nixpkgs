@@ -3,7 +3,7 @@
 
 # Each of the dependencies below are optional.
 # Gnupg can be built without them at the cost of reduced functionality.
-, pinentry ? null, guiSupport ? true
+, pinentry ? null, guiSupport ? false
 , openldap ? null, bzip2 ? null, libusb ? null, curl ? null
 }:
 
@@ -12,11 +12,11 @@ with stdenv.lib;
 assert guiSupport -> pinentry != null;
 
 stdenv.mkDerivation rec {
-  name = "gnupg-${version}";
+  pname = "gnupg";
   version = "2.0.30";
 
   src = fetchurl {
-    url = "mirror://gnupg/gnupg/${name}.tar.bz2";
+    url = "mirror://gnupg/gnupg/${pname}-${version}.tar.bz2";
     sha256 = "0wax4cy14hh0h7kg9hj0hjn9424b71z8lrrc5kbsasrn9xd7hag3";
   };
 
@@ -46,7 +46,7 @@ stdenv.mkDerivation rec {
   doCheck = true;
 
   meta = with stdenv.lib; {
-    homepage = https://gnupg.org;
+    homepage = "https://gnupg.org";
     description = "Stable (2.0) release of the GNU Privacy Guard, a GPL OpenPGP implementation";
     license = licenses.gpl3Plus;
     longDescription = ''

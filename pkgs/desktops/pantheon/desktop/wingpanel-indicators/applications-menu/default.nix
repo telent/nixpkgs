@@ -1,25 +1,45 @@
-{ stdenv, fetchFromGitHub, pantheon, substituteAll, meson, ninja, python3
-, pkgconfig, vala, granite, libgee, gettext, gtk3, appstream, gnome-menus
-, json-glib, plank, bamf, switchboard, libunity, libsoup, wingpanel, libwnck3
-, zeitgeist, bc }:
+{ stdenv
+, fetchFromGitHub
+, pantheon
+, substituteAll
+, meson
+, ninja
+, python3
+, pkgconfig
+, vala
+, granite
+, libgee
+, gettext
+, gtk3
+, appstream
+, gnome-menus
+, json-glib
+, plank
+, bamf
+, switchboard
+, libunity
+, libsoup
+, wingpanel
+, zeitgeist
+, bc
+}:
 
 stdenv.mkDerivation rec {
-  pname = "applications-menu";
-  version = "2.4.3";
+  pname = "wingpanel-applications-menu";
+  version = "2.6.0";
 
-  name = "wingpanel-${pname}-${version}";
+  repoName = "applications-menu";
 
   src = fetchFromGitHub {
     owner = "elementary";
-    repo = pname;
+    repo = repoName;
     rev = version;
-    sha256 = "15mwfynaa57jii43x77iaz5gqjlylh5zxc70am8zgp8vhgzflvyd";
+    sha256 = "16ki1x6697jmfqajynx2zvwqrpjpshnd08y7vf6g7xc7zwwh38c5";
   };
 
   passthru = {
     updateScript = pantheon.updateScript {
-      repoName = pname;
-      attrPath = "wingpanel-${pname}";
+      attrPath = "pantheon.${pname}";
     };
   };
 
@@ -42,7 +62,6 @@ stdenv.mkDerivation rec {
     libgee
     libsoup
     libunity
-    libwnck3
     plank
     switchboard
     wingpanel
@@ -50,16 +69,13 @@ stdenv.mkDerivation rec {
    ];
 
   mesonFlags = [
-    "--sysconfdir=${placeholder ''out''}/etc"
+    "--sysconfdir=${placeholder "out"}/etc"
   ];
-
-  PKG_CONFIG_WINGPANEL_2_0_INDICATORSDIR = "${placeholder ''out''}/lib/wingpanel";
-  PKG_CONFIG_SWITCHBOARD_2_0_PLUGSDIR = "${placeholder ''out''}/lib/switchboard";
 
   patches = [
     (substituteAll {
-      src = ./bc.patch;
-      exec = "${bc}/bin/bc";
+      src = ./fix-paths.patch;
+      bc = "${bc}/bin/bc";
     })
   ];
 
@@ -70,7 +86,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Lightweight and stylish app launcher for Pantheon";
-    homepage = https://github.com/elementary/applications-menu;
+    homepage = "https://github.com/elementary/applications-menu";
     license = licenses.gpl3Plus;
     platforms = platforms.linux;
     maintainers = pantheon.maintainers;

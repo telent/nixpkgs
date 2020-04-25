@@ -3,7 +3,6 @@
 , pkgconfig
 , gnome3
 , gtk3
-, glib
 , wrapGAppsHook
 , gobject-introspection
 , itstool
@@ -18,13 +17,13 @@
 
  python3.pkgs.buildPythonApplication rec {
   name = "accerciser-${version}";
-  version = "3.32.2";
+  version = "3.36.0";
 
   format = "other";
 
   src = fetchurl {
     url = "mirror://gnome/sources/accerciser/${stdenv.lib.versions.majorMinor version}/${name}.tar.xz";
-    sha256 = "05ssj8whzhf98lpcaca7m45h03g0wx0i8jlsrh3yn943mshzidy8";
+    sha256 = "1iwi7mnayw1f90s439flh0zkgmj4qx10dzgj38nd5f3wvqmhabk3";
   };
 
   nativeBuildInputs = [
@@ -49,6 +48,7 @@
     pyatspi
     pycairo
     pygobject3
+    setuptools
     xlib
   ];
 
@@ -64,9 +64,9 @@
   };
 
   meta = with stdenv.lib; {
-    homepage = https://wiki.gnome.org/Apps/Accerciser;
+    homepage = "https://wiki.gnome.org/Apps/Accerciser";
     description = "Interactive Python accessibility explorer";
-    maintainers = gnome3.maintainers;
+    maintainers = teams.gnome.members;
     license = licenses.bsd3;
     platforms = platforms.linux;
   };

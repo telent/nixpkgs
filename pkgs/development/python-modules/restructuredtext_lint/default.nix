@@ -1,7 +1,6 @@
 { lib
 , buildPythonPackage
 , fetchPypi
-, isPy37
 , docutils
 , nose
 , testtools
@@ -25,7 +24,7 @@ buildPythonPackage rec {
 
   meta = {
     description = "reStructuredText linter";
-    homepage = https://github.com/twolfson/restructuredtext-lint;
+    homepage = "https://github.com/twolfson/restructuredtext-lint";
     license = lib.licenses.unlicense;
   };
 }

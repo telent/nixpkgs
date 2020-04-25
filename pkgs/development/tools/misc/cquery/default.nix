@@ -14,8 +14,8 @@ let
   stdenv = llvmPackages.stdenv;
 
 in
-stdenv.mkDerivation rec {
-  name    = "cquery-${version}";
+stdenv.mkDerivation {
+  pname = "cquery";
   version = "2018-10-14";
 
   inherit src;
@@ -26,7 +26,6 @@ stdenv.mkDerivation rec {
   cmakeFlags = [
     "-DSYSTEM_CLANG=ON"
     "-DCLANG_CXX=ON"
-    "-DCMAKE_OSX_DEPLOYMENT_TARGET=10.12"
   ];
 
   shell = runtimeShell;
@@ -57,7 +56,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "A c/c++ language server powered by libclang";
-    homepage    = https://github.com/cquery-project/cquery;
+    homepage    = "https://github.com/cquery-project/cquery";
     license     = licenses.mit;
     platforms   = platforms.linux ++ platforms.darwin;
     maintainers = [ maintainers.tobim ];

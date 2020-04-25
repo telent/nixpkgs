@@ -1,7 +1,7 @@
 { stdenv, fetchFromGitHub, wxGTK, wxsqlite3, sqlite }:
 
 stdenv.mkDerivation rec {
-  name = "wxsqliteplus-${version}";
+  pname = "wxsqliteplus";
   version = "0.3.6";
 
   src = fetchFromGitHub {
@@ -29,7 +29,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    homepage = http://guanlisheng.com/;
+    homepage = "http://guanlisheng.com/";
     description = "A simple SQLite database browser built with wxWidgets";
     platforms = platforms.unix;
     maintainers = with maintainers; [ vrthra ];

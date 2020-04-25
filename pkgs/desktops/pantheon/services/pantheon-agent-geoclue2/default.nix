@@ -1,26 +1,37 @@
-{ stdenv, fetchFromGitHub, fetchpatch, pantheon, pkgconfig, meson, ninja, vala, glib
-, gtk3, libgee, desktop-file-utils, geoclue2, gobject-introspection, wrapGAppsHook }:
+{ stdenv
+, fetchFromGitHub
+, pantheon
+, pkgconfig
+, meson
+, ninja
+, vala
+, glib
+, gtk3
+, libgee
+, desktop-file-utils
+, geoclue2
+, wrapGAppsHook
+}:
 
 stdenv.mkDerivation rec {
   pname = "pantheon-agent-geoclue2";
-  version = "1.0.1";
+  version = "1.0.4";
 
   src = fetchFromGitHub {
     owner = "elementary";
     repo = pname;
     rev = version;
-    sha256 = "0fww65dnbg9zn0gy1q2db39kjra50ykzw05pmn9iwxkijyxi8hm5";
+    sha256 = "1lky7pw47d5mdza3bhq0ahdhgdv159ixngdsc1ys6j1kszsfxc1f";
   };
 
   passthru = {
     updateScript = pantheon.updateScript {
-      repoName = pname;
+      attrPath = "pantheon.${pname}";
     };
   };
 
   nativeBuildInputs = [
     desktop-file-utils
-    gobject-introspection
     meson
     ninja
     pkgconfig
@@ -41,7 +52,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Pantheon Geoclue2 Agent";
-    homepage = https://github.com/elementary/pantheon-agent-geoclue2;
+    homepage = "https://github.com/elementary/pantheon-agent-geoclue2";
     license = licenses.gpl3Plus;
     platforms = platforms.linux;
     maintainers = pantheon.maintainers;

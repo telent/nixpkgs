@@ -1,4 +1,4 @@
-{ stdenv, fetchFromGitHub, meson, ninja, python3, gtk3, pantheon }:
+{ stdenv, fetchFromGitHub, meson, ninja, python3, gtk3, pantheon, hicolor-icon-theme }:
 
 stdenv.mkDerivation rec {
   name = "${package-name}-${version}";
@@ -14,13 +14,19 @@ stdenv.mkDerivation rec {
 
   nativeBuildInputs = [ meson ninja python3 gtk3 pantheon.elementary-icon-theme ];
 
+  propagatedBuildInputs = [
+    hicolor-icon-theme
+  ];
+
+  dontDropIconThemeCache = true;
+
   postPatch = ''
     patchShebangs meson/post_install.py
   '';
 
   meta = with stdenv.lib; {
     description = "A sexy and modern icon theme with Tango influences";
-    homepage = https://snwh.org/moka;
+    homepage = "https://snwh.org/moka";
     license = with licenses; [ cc-by-sa-40 gpl3 ];
     platforms = platforms.all;
     maintainers = with maintainers; [ romildo ];

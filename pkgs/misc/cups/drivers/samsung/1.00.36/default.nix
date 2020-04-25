@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, glibc, cups, libusb, libxml2, ghostscript, perl }:
+{ stdenv, fetchurl, cups, libusb, libxml2, perl }:
 
 let
 
@@ -7,7 +7,7 @@ let
       else "i386";
 
 in stdenv.mkDerivation rec {
-  name = "samsung-unified-linux-driver-${version}";
+  pname = "samsung-unified-linux-driver";
   version = "1.00.36";
 
   src = fetchurl {
@@ -104,8 +104,8 @@ in stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Unified Linux Driver for Samsung printers and scanners";
-    homepage = http://www.bchemnet.com/suldr;
-    downloadPage = http://www.bchemnet.com/suldr/driver/;
+    homepage = "http://www.bchemnet.com/suldr";
+    downloadPage = "http://www.bchemnet.com/suldr/driver/";
     license = licenses.unfree;
 
     # Tested on linux-x86_64. Might work on linux-i386.

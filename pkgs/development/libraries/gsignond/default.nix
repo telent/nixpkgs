@@ -52,7 +52,7 @@ unwrapped = stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "D-Bus service which performs user authentication on behalf of its clients";
-    homepage = https://gitlab.com/accounts-sso/gsignond;
+    homepage = "https://gitlab.com/accounts-sso/gsignond";
     license = licenses.lgpl21Plus;
     maintainers = with maintainers; [ worldofpeace ];
     platforms = platforms.linux;
@@ -61,7 +61,7 @@ unwrapped = stdenv.mkDerivation rec {
 
 in if plugins == [] then unwrapped
     else import ./wrapper.nix {
-      inherit stdenv makeWrapper symlinkJoin gsignondPlugins plugins;
+      inherit makeWrapper symlinkJoin plugins;
       gsignond = unwrapped;
     }
 

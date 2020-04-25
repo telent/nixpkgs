@@ -1,13 +1,17 @@
-{ stdenv, fetchurl, openssl, libsamplerate, alsaLib }:
+{ stdenv, fetchFromGitHub, openssl, libsamplerate, alsaLib }:
 
 stdenv.mkDerivation rec {
-  name = "pjsip-${version}";
-  version = "2.8";
+  pname = "pjsip";
+  version = "2.10";
 
-  src = fetchurl {
-    url = "https://www.pjsip.org/release/${version}/pjproject-${version}.tar.bz2";
-    sha256 = "0ybg0113rp3fk49rm2v0pcgqb28h3dv1pdy9594w2ggiz7bhngah";
+  src = fetchFromGitHub {
+    owner = pname;
+    repo = "pjproject";
+    rev = version;
+    sha256 = "1aklicpgwc88578k03i5d5cm5h8mfm7hmx8vfprchbmaa2p8f4z0";
   };
+
+  patches = [ ./fix-aarch64.patch ];
 
   buildInputs = [ openssl libsamplerate alsaLib ];
 
@@ -18,8 +22,8 @@ stdenv.mkDerivation rec {
   postInstall = ''
     mkdir -p $out/bin
     cp pjsip-apps/bin/pjsua-* $out/bin/pjsua
-    mkdir -p $out/share/${name}/samples
-    cp pjsip-apps/bin/samples/*/* $out/share/${name}/samples
+    mkdir -p $out/share/${pname}-${version}/samples
+    cp pjsip-apps/bin/samples/*/* $out/share/${pname}-${version}/samples
   '';
 
   # We need the libgcc_s.so.1 loadable (for pthread_cancel to work)
@@ -27,7 +31,7 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "A multimedia communication library written in C, implementing standard based protocols such as SIP, SDP, RTP, STUN, TURN, and ICE";
-    homepage = https://pjsip.org/;
+    homepage = "https://pjsip.org/";
     license = stdenv.lib.licenses.gpl2Plus;
     maintainers = with stdenv.lib.maintainers; [olynch];
     platforms = with stdenv.lib.platforms; linux;

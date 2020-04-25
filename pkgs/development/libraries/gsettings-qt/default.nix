@@ -1,11 +1,14 @@
-{ stdenv, fetchbzr, pkgconfig, qmake, qtbase, qtdeclarative, glib, gobject-introspection }:
+{ stdenv, fetchbzr, pkgconfig
+, qmake, qtbase, qtdeclarative, wrapQtAppsHook
+, glib, gobject-introspection
+}:
 
-stdenv.mkDerivation rec {
-  name = "gsettings-qt-${version}";
+stdenv.mkDerivation {
+  pname = "gsettings-qt";
   version = "0.1.20170824";
 
   src = fetchbzr {
-    url = http://bazaar.launchpad.net/~system-settings-touch/gsettings-qt/trunk;
+    url = "http://bazaar.launchpad.net/~system-settings-touch/gsettings-qt/trunk";
     rev = "85";
     sha256 = "1kcw0fgdyndx9c0dyha11wkj0gi05spdc1adf1609mrinbb4rnyi";
   };
@@ -14,6 +17,7 @@ stdenv.mkDerivation rec {
     pkgconfig
     qmake
     gobject-introspection
+    wrapQtAppsHook
   ];
 
   buildInputs = [
@@ -50,7 +54,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Qt/QML bindings for GSettings";
-    homepage = https://launchpad.net/gsettings-qt;
+    homepage = "https://launchpad.net/gsettings-qt";
     license = licenses.lgpl3;
     platforms = platforms.linux;
     maintainers = [ maintainers.romildo ];

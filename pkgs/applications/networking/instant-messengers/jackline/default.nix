@@ -1,22 +1,23 @@
 { stdenv, fetchFromGitHub, ocamlPackages }:
 
-assert stdenv.lib.versionAtLeast ocamlPackages.ocaml.version "4.02.2";
+assert stdenv.lib.versionAtLeast ocamlPackages.ocaml.version "4.07";
 
-stdenv.mkDerivation rec {
-  version = "2018-05-11";
-  name = "jackline-${version}";
+stdenv.mkDerivation {
+  pname = "jackline";
+  version = "unstable-2020-03-22";
 
   src = fetchFromGitHub {
     owner  = "hannesm";
     repo   = "jackline";
-    rev    = "bc36b1c8b80fee6baba4f91011cd01b82a06e8eb";
-    sha256 = "1xx2yx8a95m84sa1bkxi3rlx7pd39zkqwk3znj0zzz3cni6apfrz";
+    rev    = "52f84525c74c43e8d03fb1e6ff025ccb2699e4aa";
+    sha256 = "0wir573ah1w16xzdn9rfwk3569zq4ff5frp0ywq70va4gdlb679c";
   };
 
   buildInputs = with ocamlPackages; [
-                  ocaml ocamlbuild findlib topkg ppx_sexp_conv
-                  erm_xmpp tls nocrypto x509 ocaml_lwt otr astring
-                  ptime notty sexplib hex uutf
+                  ocaml ocamlbuild findlib topkg ppx_sexp_conv ppx_deriving
+                  erm_xmpp tls mirage-crypto mirage-crypto-pk x509 domain-name
+                  ocaml_lwt otr astring ptime mtime notty sexplib hex uutf
+                  dns-client base64
                 ];
 
   buildPhase = "${ocamlPackages.topkg.run} build --pinned true";
@@ -24,8 +25,8 @@ stdenv.mkDerivation rec {
   inherit (ocamlPackages.topkg) installPhase;
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/hannesm/jackline;
-    description = "Terminal-based XMPP client in OCaml";
+    homepage = "https://github.com/hannesm/jackline";
+    description = "minimalistic secure XMPP client in OCaml";
     license = licenses.bsd2;
     maintainers = with maintainers; [ sternenseemann ];
   };

@@ -1,14 +1,14 @@
 { stdenv, fetchurl, pkgconfig, libnl }:
 
-let
-  ver = "2019.1";
-in
+let cfg = import ./version.nix; in
+
 stdenv.mkDerivation rec {
-  name = "batctl-${ver}";
+  pname = "batctl";
+  inherit (cfg) version;
 
   src = fetchurl {
-    url = "https://downloads.open-mesh.org/batman/releases/batman-adv-${ver}/${name}.tar.gz";
-    sha256 = "14wp8rvm2m1r5qz7p1m08bzg2gmqyldkw1p6gk8rkdyqb3q0abg8";
+    url = "https://downloads.open-mesh.org/batman/releases/batman-adv-${version}/${pname}-${version}.tar.gz";
+    sha256 = cfg.sha256.${pname};
   };
 
   nativeBuildInputs = [ pkgconfig ];
@@ -19,7 +19,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = {
-    homepage = https://www.open-mesh.org/projects/batman-adv/wiki/Wiki;
+    homepage = "https://www.open-mesh.org/projects/batman-adv/wiki/Wiki";
     description = "B.A.T.M.A.N. routing protocol in a linux kernel module for layer 2, control tool";
     license = stdenv.lib.licenses.gpl2;
     maintainers = with stdenv.lib.maintainers; [ fpletz ];

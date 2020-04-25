@@ -16,7 +16,7 @@
 
 buildPythonPackage rec {
   pname = "pyopencl";
-  version = "2018.2.5";
+  version = "2019.1.2";
 
   checkInputs = [ pytest ];
   buildInputs = [ opencl-headers ocl-icd pybind11 ];
@@ -25,7 +25,7 @@ buildPythonPackage rec {
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "1qgi6diw9m7yldmql9kh08792053ib6zkplh8v2mqv6waaflmrnn";
+    sha256 = "7803f3128dbd28ae6f5b851a80ef586a35b9575406ea7bb068b8e1516f8043f0";
   };
 
   # py.test is not needed during runtime, so remove it from `install_requires`
@@ -42,7 +42,7 @@ buildPythonPackage rec {
 
   meta = with stdenv.lib; {
     description = "Python wrapper for OpenCL";
-    homepage = https://github.com/pyopencl/pyopencl;
+    homepage = "https://github.com/pyopencl/pyopencl";
     license = licenses.mit;
     maintainers = [ maintainers.fridh ];
   };

@@ -1,10 +1,10 @@
-{ stdenv, fetchurl, pkgconfig, qt5, fetchFromGitHub }:
+{ stdenv, pkgconfig, qt5, fetchFromGitHub }:
 
 with qt5;
 
 stdenv.mkDerivation rec {
   version = "0.10.0";
-  name = "featherpad-${version}";
+  pname = "featherpad";
   src = fetchFromGitHub {
     owner = "tsujan";
     repo = "FeatherPad";
@@ -15,7 +15,7 @@ stdenv.mkDerivation rec {
   buildInputs = [ qtbase qtsvg qtx11extras ];
   meta = with stdenv.lib; {
     description = "Lightweight Qt5 Plain-Text Editor for Linux";
-    homepage = https://github.com/tsujan/FeatherPad;
+    homepage = "https://github.com/tsujan/FeatherPad";
     platforms = platforms.linux;
     maintainers = [ maintainers.flosse ];
     license = licenses.gpl3;

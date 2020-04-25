@@ -1,7 +1,7 @@
 { stdenv, fetchFromGitHub, ocaml, camlidl, fuse, findlib }:
 
 stdenv.mkDerivation rec {
-  name = "ocamlfuse-${version}";
+  pname = "ocamlfuse";
   version = "2.7.1_cvs5";
 
   src = fetchFromGitHub {
@@ -19,7 +19,7 @@ stdenv.mkDerivation rec {
   createFindlibDestdir = true;
 
   meta = {
-    homepage = https://sourceforge.net/projects/ocamlfuse;
+    homepage = "https://sourceforge.net/projects/ocamlfuse";
     description = "OCaml bindings for FUSE";
     license = stdenv.lib.licenses.gpl2;
     platforms = stdenv.lib.platforms.linux;

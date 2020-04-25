@@ -1,11 +1,11 @@
 { lib, buildPythonPackage, fetchPypi, dateutil, requests, pytz, pyproj , pytest } :
 buildPythonPackage rec {
   pname = "OWSLib";
-  version = "0.17.1";
+  version = "0.19.0";
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "19dm6dxj9hsiq0bnb4d6ms3sh2hcss9d9fhpjgkwxzrw9mlzvrxj";
+    sha256 = "0rdhymayyc6w1izlv1bf2wgx2dfxbp4k1vll5s1364isw60rjj8x";
   };
 
   buildInputs = [ pytest ];
@@ -17,6 +17,6 @@ buildPythonPackage rec {
   meta = with lib; {
     description = "client for Open Geospatial Consortium web service interface standards";
     license = licenses.bsd3;
-    homepage = https://www.osgeo.org/projects/owslib/;
+    homepage = "https://www.osgeo.org/projects/owslib/";
   };
 }

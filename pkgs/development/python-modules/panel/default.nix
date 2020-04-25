@@ -7,27 +7,17 @@
 , markdown
 , pyct
 , testpath
-, pytest
-, scipy
-, plotly
-, altair
-, vega_datasets
-, hvplot
+, tqdm
 }:
 
 buildPythonPackage rec {
   pname = "panel";
-  version = "0.4.0";
+  version = "0.8.3";
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "21fc6729909dba4ba8c9a84b7fadd293322cc2594d15ac73b0f66a5ceffd1f98";
+    sha256 = "0iz20k7mqn0560r4358yrzvrrfn00h8s6dim7p7y4icpgjw2mjnb";
   };
-
-  postPatch = ''
-    substituteInPlace setup.py \
-      --replace "testpath<0.4" "testpath"
-  '';
 
   propagatedBuildInputs = [
     bokeh
@@ -36,6 +26,7 @@ buildPythonPackage rec {
     markdown
     pyct
     testpath
+    tqdm
   ];
 
   # infinite recursion in test dependencies (hvplot)
@@ -43,7 +34,7 @@ buildPythonPackage rec {
 
   meta = with lib; {
     description = "A high level dashboarding library for python visualization libraries";
-    homepage = http://pyviz.org;
+    homepage = "https://pyviz.org";
     license = licenses.bsd3;
     maintainers = [ maintainers.costrouc ];
   };

@@ -1,31 +1,23 @@
-{ stdenv, buildGoPackage, fetchFromGitHub }:
+{ stdenv, buildGoModule, fetchFromGitHub }:
 
-buildGoPackage rec {
-  name = "git-lfs-${version}";
-  version = "2.7.2";
-
-  goPackagePath = "github.com/git-lfs/git-lfs";
+buildGoModule rec {
+  pname = "git-lfs";
+  version = "2.10.0";
 
   src = fetchFromGitHub {
     rev = "v${version}";
     owner = "git-lfs";
     repo = "git-lfs";
-    sha256 = "1nf40rbdz901vsahg5cm09pznpina6wimmxl0lmh8pn0mi51yzvc";
+    sha256 = "1y5ryk0iz5g5sqaw79ml6fr5kvjgzcah481pk5qmnb2ipb1xlng9";
   };
 
-  preBuild = ''
-    pushd go/src/github.com/git-lfs/git-lfs
-    go generate ./commands
-    popd
-  '';
+  modSha256 = "1rvvgyg4gqbli4pwfnmyz59gf14k7925mdqj6ykp542gwnsjgjp2";
 
-  postInstall = ''
-    rm -v $bin/bin/{man,script,cmd}
-  '';
+  subPackages = [ "." ];
 
   meta = with stdenv.lib; {
     description = "Git extension for versioning large files";
-    homepage    = https://git-lfs.github.com/;
+    homepage    = "https://git-lfs.github.com/";
     license     = [ licenses.mit ];
     maintainers = [ maintainers.twey ];
   };

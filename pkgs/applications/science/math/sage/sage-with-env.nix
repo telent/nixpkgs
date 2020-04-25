@@ -2,7 +2,8 @@
 , lib
 , makeWrapper
 , sage-env
-, openblasCompat
+, blas
+, lapack
 , pkg-config
 , three
 , singular
@@ -21,6 +22,9 @@
 , pythonEnv
 }:
 
+# lots of segfaults with (64 bit) blas
+assert (!blas.isILP64) && (!lapack.isILP64);
+
 # Wrapper that combined `sagelib` with `sage-env` to produce an actually
 # executable sage. No tests are run yet and no documentation is built.
 
@@ -29,7 +33,7 @@ let
     pythonEnv # for patchShebangs
     makeWrapper
     pkg-config
-    openblasCompat # lots of segfaults with regular (64 bit) openblas
+    blas lapack
     singular
     three
     pynac
@@ -87,7 +91,7 @@ let
 in
 stdenv.mkDerivation rec {
   version = src.version;
-  name = "sage-with-env-${version}";
+  pname = "sage-with-env";
   src = sage-env.lib.src;
 
   inherit buildInputs;
@@ -99,6 +103,13 @@ stdenv.mkDerivation rec {
     for pkg in ${lib.concatStringsSep " " input_names}; do
       touch "installed/$pkg"
     done
+
+    # threejs version is in format 0.<version>.minor, but sage currently still
+    # relies on installed_packages for the online version of threejs to work
+    # and expects the format r<version>. This is a hotfix for now.
+    # upstream: https://trac.sagemath.org/ticket/26434
+    rm "installed/threejs"*
+    touch "installed/threejs-r${lib.versions.minor three.version}"
   '';
 
   installPhase = ''

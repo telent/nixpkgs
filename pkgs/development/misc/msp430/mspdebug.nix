@@ -3,7 +3,8 @@
 let
   version = "0.25";
 in stdenv.mkDerivation {
-  name = "mspdebug-${version}";
+  pname = "mspdebug";
+  inherit version;
   src = fetchFromGitHub {
     owner = "dlbeer";
     repo = "mspdebug";
@@ -17,7 +18,7 @@ in stdenv.mkDerivation {
 
   meta = with stdenv.lib; {
     description = "A free programmer, debugger, and gdb proxy for MSP430 MCUs";
-    homepage = https://dlbeer.co.nz/mspdebug/;
+    homepage = "https://dlbeer.co.nz/mspdebug/";
     license = licenses.gpl2;
     platforms = platforms.all;
     maintainers = with maintainers; [ aerialx ];

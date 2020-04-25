@@ -2,17 +2,17 @@
 , intltool, libsoup, libxml2, libsecret, icu, sqlite, tzdata, libcanberra-gtk3, gcr
 , p11-kit, db, nspr, nss, libical, gperf, wrapGAppsHook, glib-networking, pcre
 , vala, cmake, ninja, kerberos, openldap, webkitgtk, libaccounts-glib, json-glib
-, glib, gtk3, gnome-online-accounts, libgweather, libgdata }:
+, glib, gtk3, gnome-online-accounts, libgweather, libgdata, gsettings-desktop-schemas }:
 
 stdenv.mkDerivation rec {
-  name = "evolution-data-server-${version}";
-  version = "3.32.2";
+  pname = "evolution-data-server";
+  version = "3.36.1";
 
   outputs = [ "out" "dev" ];
 
   src = fetchurl {
-    url = "mirror://gnome/sources/evolution-data-server/${stdenv.lib.versions.majorMinor version}/${name}.tar.xz";
-    sha256 = "1jdk3az797kznkg40nbxb3ddyx8s6favzxlc4vr840zxcl84k9vy";
+    url = "mirror://gnome/sources/evolution-data-server/${stdenv.lib.versions.majorMinor version}/${pname}-${version}.tar.xz";
+    sha256 = "15k7k225jfv5a45hmjk94xq90np2r9f5v8yj0xi3166vvlp2n4hk";
   };
 
   patches = [
@@ -20,8 +20,13 @@ stdenv.mkDerivation rec {
       src = ./fix-paths.patch;
       inherit tzdata;
     })
-    ./hardcode-gsettings.patch
   ];
+
+  prePatch = ''
+    substitute ${./hardcode-gsettings.patch} hardcode-gsettings.patch --subst-var-by ESD_GSETTINGS_PATH ${glib.makeSchemaPath "$out" "${pname}-${version}"} \
+      --subst-var-by GDS_GSETTINGS_PATH ${glib.getSchemaPath gsettings-desktop-schemas}
+    patches="$patches $PWD/hardcode-gsettings.patch"
+  '';
 
   nativeBuildInputs = [
     cmake ninja pkgconfig intltool python3 gperf wrapGAppsHook gobject-introspection vala
@@ -43,11 +48,6 @@ stdenv.mkDerivation rec {
     "-DINCLUDE_INSTALL_DIR=${placeholder "dev"}/include"
   ];
 
-  postPatch = ''
-    substituteInPlace src/libedataserver/e-source-registry.c --subst-var-by ESD_GSETTINGS_PATH $out/share/gsettings-schemas/${name}/glib-2.0/schemas
-  '';
-
-
   passthru = {
     updateScript = gnome3.updateScript {
       packageName = "evolution-data-server";
@@ -56,9 +56,9 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Unified backend for programs that work with contacts, tasks, and calendar information";
-    homepage = https://wiki.gnome.org/Apps/Evolution;
+    homepage = "https://wiki.gnome.org/Apps/Evolution";
     license = licenses.lgpl2;
-    maintainers = gnome3.maintainers;
+    maintainers = teams.gnome.members;
     platforms = platforms.linux;
   };
 }

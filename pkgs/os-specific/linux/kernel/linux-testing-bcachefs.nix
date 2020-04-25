@@ -1,13 +1,13 @@
 { stdenv, buildPackages, fetchgit, fetchpatch, perl, buildLinux, ... } @ args:
 
-buildLinux (args // rec {
-  version = "5.0.2019.05.08";
-  modDirVersion = "5.0.0";
+buildLinux (args // {
+  version = "5.3.2020.04.04";
+  modDirVersion = "5.3.0";
 
   src = fetchgit {
     url = "https://evilpiepirate.org/git/bcachefs.git";
-    rev = "454bd4f82d85bb42a86b8eb0172b13e86e5788a7";
-    sha256 = "1k11yz464lr02yncy231p06ja7w72w9l1nr7cihyiyj1ynzwpdls";
+    rev = "a27d7265e75f6d65c2b972ce4ac27abfc153c230";
+    sha256 = "0wnjl4xs7073d5ipcsplv5qpcxb7zpfqd5gqvh3mhqc5j3qn816x";
   };
 
   extraConfig = "BCACHEFS_FS m";

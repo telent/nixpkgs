@@ -1,9 +1,11 @@
-{stdenv, fetchFromGitHub, ocaml, lablgtk, fontschumachermisc, xset, makeWrapper, ncurses
+{stdenv, fetchFromGitHub, ocamlPackages, fontschumachermisc, xset, makeWrapper, ncurses
 , enableX11 ? true}:
+
+let inherit (ocamlPackages) ocaml lablgtk; in
 
 stdenv.mkDerivation (rec {
 
-  name = "unison-${version}";
+  pname = "unison";
   version = "2.51.2";
   src = fetchFromGitHub {
     owner = "bcpierce00";
@@ -25,6 +27,12 @@ stdenv.mkDerivation (rec {
     "UISTYLE=${if enableX11 then "gtk2" else "text"}"
   ] ++ stdenv.lib.optional (!ocaml.nativeCompilers) "NATIVE=false";
 
+  patches = [
+    # NOTE: Only needed until Unison 2.51.3 is released!
+    ./4.08-compatibility.patch
+    ./lablgtk.patch
+  ];
+
   preInstall = "mkdir -p $out/bin";
 
   postInstall = if enableX11 then ''
@@ -37,7 +45,7 @@ stdenv.mkDerivation (rec {
   dontStrip = !ocaml.nativeCompilers;
 
   meta = {
-    homepage = http://www.cis.upenn.edu/~bcpierce/unison/;
+    homepage = "https://www.cis.upenn.edu/~bcpierce/unison/";
     description = "Bidirectional file synchronizer";
     license = stdenv.lib.licenses.gpl3Plus;
     maintainers = with stdenv.lib.maintainers; [viric];

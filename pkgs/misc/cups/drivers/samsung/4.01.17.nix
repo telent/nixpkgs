@@ -20,7 +20,7 @@ let
   appendPath = if stdenv.hostPlatform.system == "x86_64-linux" then "64" else "";
   libPath = stdenv.lib.makeLibraryPath [ cups libusb ] + ":$out/lib:${stdenv.cc.cc.lib}/lib${appendPath}";
 in stdenv.mkDerivation rec {
-  name = "samsung-UnifiedLinuxDriver-${version}";
+  pname = "samsung-UnifiedLinuxDriver";
   version = "4.01.17";
 
   src = fetchurl {
@@ -74,7 +74,7 @@ in stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Samsung's Linux printing drivers; includes binaries without source code";
-    homepage = http://www.samsung.com/;
+    homepage = "http://www.samsung.com/";
     license = licenses.unfree;
     platforms = platforms.linux;
     maintainers = with maintainers; [ joko ];

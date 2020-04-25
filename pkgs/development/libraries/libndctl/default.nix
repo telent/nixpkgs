@@ -1,17 +1,17 @@
 { stdenv, fetchFromGitHub, autoreconfHook
 , asciidoctor, pkgconfig, xmlto, docbook_xsl, docbook_xml_dtd_45, libxslt
-, json_c, kmod, which, file, utillinux, systemd, keyutils
+, json_c, kmod, which, utillinux, systemd, keyutils
 }:
 
 stdenv.mkDerivation rec {
-  name = "libndctl-${version}";
-  version = "65";
+  pname = "libndctl";
+  version = "67";
 
   src = fetchFromGitHub {
     owner  = "pmem";
     repo   = "ndctl";
     rev    = "v${version}";
-    sha256 = "0d8hzfvyxs2q8kgkwgdizlml41kin4mhx3vpdsjk34pfi7mqy69y";
+    sha256 = "076jgw1g2aafqgnq705in0wnabysqk46dq5yxdv1qzgjmyhka39n";
   };
 
   outputs = [ "out" "lib" "man" "dev" ];
@@ -41,7 +41,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Tools for managing the Linux Non-Volatile Memory Device sub-system";
-    homepage    = https://github.com/pmem/ndctl;
+    homepage    = "https://github.com/pmem/ndctl";
     license     = licenses.lgpl21;
     maintainers = with maintainers; [ thoughtpolice ];
     platforms   = platforms.linux;

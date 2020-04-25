@@ -1,4 +1,5 @@
-{ stdenv
+{ lib
+, mkDerivation
 , fetchurl
 , cmake
 , extra-cmake-modules
@@ -31,7 +32,7 @@
 , enableKisTablet ? false # enable improved graphics tablet support
 }:
 
-with stdenv.lib;
+with lib;
 
 let
   commonDeps = [
@@ -57,13 +58,13 @@ let
     qtx11extras
   ];
 
-in stdenv.mkDerivation rec {
-  name = "drawpile-${version}";
-  version = "2.1.8";
+in mkDerivation rec {
+  pname = "drawpile";
+  version = "2.1.17";
 
   src = fetchurl {
     url = "https://drawpile.net/files/src/drawpile-${version}.tar.gz";
-    sha256 = "1gm58zb7nh9h6v0i5pr49sfi17piik5jj757nhl0wrd10nwkipn5";
+    sha256 = "11lhn1mymhqk9g5sh384xhj3qw8h9lv88pr768y9q6kg3sl7nzzf";
   };
 
   nativeBuildInputs = [
@@ -85,8 +86,8 @@ in stdenv.mkDerivation rec {
 
   meta = {
     description = "A collaborative drawing program that allows multiple users to sketch on the same canvas simultaneously";
-    homepage = https://drawpile.net/;
-    downloadPage = https://drawpile.net/download/;
+    homepage = "https://drawpile.net/";
+    downloadPage = "https://drawpile.net/download/";
     license = licenses.gpl3;
     maintainers = with maintainers; [ fgaz ];
     platforms = platforms.unix;

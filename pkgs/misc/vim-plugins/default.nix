@@ -1,5 +1,5 @@
 # TODO check that no license information gets lost
-{ callPackage, config, lib, stdenv, vimUtils, vim, darwin, llvmPackages }:
+{ callPackage, config, lib, vimUtils, vim, darwin, llvmPackages }:
 
 let
 
@@ -11,7 +11,6 @@ let
 
   # TL;DR
   # * Add your plugin to ./vim-plugin-names
-  # * sort -udf ./vim-plugin-names > sorted && mv sorted vim-plugin-names
   # * run ./update.py
   #
   # If additional modifications to the build process are required,

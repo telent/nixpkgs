@@ -1,11 +1,11 @@
 { stdenv, fetchurl, pkgconfig, libpcap, ncurses, expat, pcre, libnl }:
 
 stdenv.mkDerivation rec {
-  name = "kismet-${version}";
+  pname = "kismet";
   version = "2016-07-R1";
 
   src = fetchurl {
-    url = "https://www.kismetwireless.net/code/${name}.tar.xz";
+    url = "https://www.kismetwireless.net/code/${pname}-${version}.tar.xz";
     sha256 = "0dz28y4ay4lskhl0lawqy2dkcrhgfkbg06v22qxzzw8i6caizcmx";
   };
 
@@ -21,7 +21,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Wireless network sniffer";
-    homepage = https://www.kismetwireless.net/;
+    homepage = "https://www.kismetwireless.net/";
     license = licenses.gpl3;
     platforms = platforms.linux;
   };

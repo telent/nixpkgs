@@ -3,13 +3,13 @@
 }:
 
 stdenv.mkDerivation rec {
-  name = "openct-${version}";
+  pname = "openct";
   version = "0.6.20";
 
   src = fetchFromGitHub {
     owner = "OpenSC";
     repo = "openct";
-    rev = name;
+    rev = "${pname}-${version}";
     sha256 = "09wxq0jxdxhci3zr7jd3zcxjkl3j0r1v00k3q8gqrg9gighh8nk2";
   };
 
@@ -33,7 +33,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    homepage = https://github.com/OpenSC/openct/;
+    homepage = "https://github.com/OpenSC/openct/";
     license = licenses.lgpl21;
     description = "Drivers for several smart card readers";
     platforms = platforms.all;

@@ -1,7 +1,7 @@
 { stdenv, fetchurl, linuxHeaders }:
 
 stdenv.mkDerivation rec {
-  name = "input-utils-${version}";
+  pname = "input-utils";
   version = "1.3";
   
   src = fetchurl {
@@ -22,7 +22,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Input layer utilities, includes lsinput";
-    homepage    = https://www.kraxel.org/blog/linux/input/;
+    homepage    = "https://www.kraxel.org/blog/linux/input/";
     license     = licenses.gpl2;
     maintainers = with maintainers; [ samueldr ];
     platforms   = platforms.linux;

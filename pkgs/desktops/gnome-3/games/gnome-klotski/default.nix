@@ -5,13 +5,13 @@
 
 let
   pname = "gnome-klotski";
-  version = "3.32.0";
+  version = "3.36.0";
 in stdenv.mkDerivation rec {
   name = "${pname}-${version}";
 
   src = fetchurl {
     url = "mirror://gnome/sources/${pname}/${stdenv.lib.versions.majorMinor version}/${name}.tar.xz";
-    sha256 = "1p4s15gxj6gasix22z9vlx2yrx196fvcxr6v6qrl569idfgjbi72";
+    sha256 = "06gsg3s8hyhhsk11f1ld2anzv1czg1429483gbv9lr2p7fnq7pyy";
   };
 
   nativeBuildInputs = [
@@ -28,15 +28,15 @@ in stdenv.mkDerivation rec {
 
   passthru = {
     updateScript = gnome3.updateScript {
-      packageName = "${pname}";
+      packageName = pname;
       attrPath = "gnome3.${pname}";
     };
   };
 
   meta = with stdenv.lib; {
-    homepage = https://wiki.gnome.org/Apps/Klotski;
+    homepage = "https://wiki.gnome.org/Apps/Klotski";
     description = "Slide blocks to solve the puzzle";
-    maintainers = gnome3.maintainers;
+    maintainers = teams.gnome.members;
     license = licenses.gpl2;
     platforms = platforms.linux;
   };

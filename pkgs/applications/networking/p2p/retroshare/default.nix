@@ -3,7 +3,7 @@
 , qtmultimedia, qtx11extras, qttools }:
 
 stdenv.mkDerivation rec {
-  name = "retroshare-${version}";
+  pname = "retroshare";
   version = "0.6.2";
 
   src = fetchFromGitHub {
@@ -50,7 +50,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "";
-    homepage = http://retroshare.sourceforge.net/;
+    homepage = "http://retroshare.sourceforge.net/";
     license = licenses.gpl2Plus;
     platforms = platforms.linux;
     maintainers = [ maintainers.domenkozar ];

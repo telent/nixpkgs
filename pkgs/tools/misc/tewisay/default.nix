@@ -1,7 +1,7 @@
 { stdenv, buildGoPackage, fetchFromGitHub, makeWrapper }:
 
 buildGoPackage rec {
-  name = "tewisay-unstable-${version}";
+  pname = "tewisay-unstable";
   version = "2017-04-14";
 
   goPackagePath = "github.com/lucy/tewisay";
@@ -27,7 +27,7 @@ buildGoPackage rec {
   '';
 
   meta = {
-    homepage = https://github.com/lucy/tewisay;
+    homepage = "https://github.com/lucy/tewisay";
     description = "Cowsay replacement with unicode and partial ansi escape support";
     license = stdenv.lib.licenses.cc0;
     maintainers = [ stdenv.lib.maintainers.chiiruno ];

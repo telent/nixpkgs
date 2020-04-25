@@ -1,24 +1,26 @@
-{ stdenv, buildGoPackage, fetchFromGitHub }:
+{ stdenv, buildGoModule, fetchFromGitHub }:
 
-buildGoPackage rec {
-  name = "minio-${version}";
-  version = "2019-02-26T19-51-46Z";
+buildGoModule rec {
+  pname = "minio";
+  version = "2020-03-25T07-03-04Z";
 
   src = fetchFromGitHub {
     owner = "minio";
     repo = "minio";
     rev = "RELEASE.${version}";
-    sha256 = "1f2c7wzcb47msb0iqrcc0idz39wdm9fz61q835ks1nx4qs6hi2db";
+    sha256 = "0xdflc7pfx1misbh695x8kmqpysi5iydsarr9mwmjragf5b1kbl5";
   };
 
-  goPackagePath = "github.com/minio/minio";
+  modSha256 = "09kbibsfa7qq55paqr7wcs4gpwk6g5pknc5fjssmd12nm2cji96k";
+
+  subPackages = [ "." ];
 
   buildFlagsArray = [''-ldflags=
     -X github.com/minio/minio/cmd.Version=${version}
   ''];
 
   meta = with stdenv.lib; {
-    homepage = https://www.minio.io/;
+    homepage = "https://www.minio.io/";
     description = "An S3-compatible object storage server";
     maintainers = with maintainers; [ eelco bachp ];
     platforms = platforms.unix;

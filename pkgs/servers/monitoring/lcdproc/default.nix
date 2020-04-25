@@ -2,7 +2,7 @@
 , doxygen, freetype, libX11, libftdi, libusb, libusb1, ncurses, perl }:
 
 stdenv.mkDerivation rec {
-  name = "lcdproc-${version}";
+  pname = "lcdproc";
   version = "0.5.9";
 
   src = fetchFromGitHub {
@@ -41,7 +41,7 @@ stdenv.mkDerivation rec {
 
   meta = with stdenv.lib; {
     description = "Client/server suite for controlling a wide variety of LCD devices";
-    homepage    = http://lcdproc.org/;
+    homepage    = "http://lcdproc.org/";
     license     = licenses.gpl2;
     maintainers = with maintainers; [ peterhoeg ];
     platforms   = platforms.unix;

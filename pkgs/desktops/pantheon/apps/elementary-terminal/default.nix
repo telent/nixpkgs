@@ -1,31 +1,47 @@
-{ stdenv, fetchFromGitHub, pantheon, pkgconfig, meson, ninja, python3
-, vala, desktop-file-utils, gtk3, libxml2, granite, libnotify, vte, libgee
-, elementary-icon-theme, appstream, gobject-introspection, wrapGAppsHook }:
+{ stdenv
+, fetchFromGitHub
+, fetchpatch
+, pantheon
+, pkgconfig
+, meson
+, ninja
+, python3
+, vala
+, desktop-file-utils
+, gtk3
+, libxml2
+, granite
+, libnotify
+, vte
+, libgee
+, elementary-icon-theme
+, appstream
+, pcre2
+, wrapGAppsHook
+}:
 
 stdenv.mkDerivation rec {
-  pname = "terminal";
-  version = "5.3.4";
+  pname = "elementary-terminal";
+  version = "5.5.2";
 
-  name = "elementary-${pname}-${version}";
+  repoName = "terminal";
 
   src = fetchFromGitHub {
     owner = "elementary";
-    repo = pname;
+    repo = repoName;
     rev = version;
-    sha256 = "08vwgd385j7cbi7c8442sjygzw9qy2phsi5lva4jaxwm8l15hk86";
+    sha256 = "119iwmzbpkj4nmxinqfsh73lx23g8gbl6ha6wc4mc4fq9hpnc9c2";
   };
 
   passthru = {
     updateScript = pantheon.updateScript {
-      repoName = pname;
-      attrPath = "elementary-${pname}";
+      attrPath = "pantheon.${pname}";
     };
   };
 
   nativeBuildInputs = [
     appstream
     desktop-file-utils
-    gobject-introspection
     libxml2
     meson
     ninja
@@ -41,6 +57,7 @@ stdenv.mkDerivation rec {
     gtk3
     libgee
     libnotify
+    pcre2
     vte
   ];
 
@@ -58,7 +75,7 @@ stdenv.mkDerivation rec {
       A super lightweight, beautiful, and simple terminal. Comes with sane defaults, browser-class tabs, sudo paste protection,
       smart copy/paste, and little to no configuration.
     '';
-    homepage = https://github.com/elementary/terminal;
+    homepage = "https://github.com/elementary/terminal";
     license = licenses.lgpl3;
     platforms = platforms.linux;
     maintainers = pantheon.maintainers;

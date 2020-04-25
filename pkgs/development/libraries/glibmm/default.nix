@@ -2,11 +2,11 @@
 
 stdenv.mkDerivation rec {
   pname = "glibmm";
-  version = "2.60.0";
+  version = "2.62.0";
 
   src = fetchurl {
     url = "mirror://gnome/sources/${pname}/${stdenv.lib.versions.majorMinor version}/${pname}-${version}.tar.xz";
-    sha256 = "1g7jxqd270dv2d83r7pf5893mwpz7d5xib0q01na2yalh34v38d3";
+    sha256 = "1ziwx6r7k7wbvg4qq1rgrv8zninapgrmhn1hs6926a3krh9ryr9n";
   };
 
   outputs = [ "out" "dev" ];
@@ -30,7 +30,7 @@ stdenv.mkDerivation rec {
   meta = with stdenv.lib; {
     description = "C++ interface to the GLib library";
 
-    homepage = https://gtkmm.org/;
+    homepage = "https://gtkmm.org/";
 
     license = licenses.lgpl2Plus;
 

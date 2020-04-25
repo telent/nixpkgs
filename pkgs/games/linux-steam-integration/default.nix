@@ -1,11 +1,12 @@
-{ stdenv, fetchFromGitHub, meson, ninja, pkgconfig, git, gtk, pkgs, gettext,
+{ stdenv, fetchFromGitHub, meson, ninja, pkgconfig, git, gtk, gettext,
   gcc_multi, libressl, gnome3, steam }:
 
 let
   version = "0.7.3";
 
-in stdenv.mkDerivation rec {
-  name = "linux-steam-integration-${version}";
+in stdenv.mkDerivation {
+  pname = "linux-steam-integration";
+  inherit version;
 
   src = fetchFromGitHub {
     owner = "clearlinux";
@@ -72,7 +73,7 @@ in stdenv.mkDerivation rec {
       various workarounds to get games working, and fixes long standing bugs in
       both games and the client
     '';
-    homepage = https://github.com/clearlinux/linux-steam-integration;
+    homepage = "https://github.com/clearlinux/linux-steam-integration";
     license = licenses.lgpl21;
     maintainers = [ maintainers.etu ];
     platforms = [ "x86_64-linux" ];

@@ -1,6 +1,5 @@
 { lib, fetchurl, buildPythonPackage
 , zip, ffmpeg_4, rtmpdump, phantomjs2, atomicparsley, pycryptodome, pandoc
-, fetchpatch
 # Pandoc is required to build the package's man page. Release tarballs contain a
 # formatted man page already, though, it will still be installed. We keep the
 # manpage argument in place in case someone wants to use this derivation to
@@ -11,7 +10,7 @@
 , rtmpSupport ? true
 , phantomjsSupport ? false
 , hlsEncryptedSupport ? true
-, makeWrapper }:
+, installShellFiles, makeWrapper }:
 
 buildPythonPackage rec {
 
@@ -19,14 +18,14 @@ buildPythonPackage rec {
   # The websites youtube-dl deals with are a very moving target. That means that
   # downloads break constantly. Because of that, updates should always be backported
   # to the latest stable release.
-  version = "2019.05.20";
+  version = "2020.03.24";
 
   src = fetchurl {
     url = "https://yt-dl.org/downloads/${version}/${pname}-${version}.tar.gz";
-    sha256 = "18xwdfvpkqrnj0kb8xj8hgwhgiqpv7x7x7zzr4x3vynb9grcv9m8";
+    sha256 = "05l4asakakxn53wrvxn6c03fd80zdizdbj6r2cj8c1ja3sj9i8s5";
   };
 
-  nativeBuildInputs = [ makeWrapper ];
+  nativeBuildInputs = [ installShellFiles makeWrapper ];
   buildInputs = [ zip ] ++ lib.optional generateManPage pandoc;
   propagatedBuildInputs = lib.optional hlsEncryptedSupport pycryptodome;
 
@@ -47,16 +46,14 @@ buildPythonPackage rec {
   ];
 
   postInstall = ''
-    mkdir -p $out/share/zsh/site-functions
-    cp youtube-dl.zsh $out/share/zsh/site-functions/_youtube-dl
+    installShellCompletion youtube-dl.zsh
   '';
 
   # Requires network
   doCheck = false;
 
   meta = with lib; {
-    homepage = https://rg3.github.io/youtube-dl/;
-    repositories.git = https://github.com/rg3/youtube-dl.git;
+    homepage = "https://ytdl-org.github.io/youtube-dl/";
     description = "Command-line tool to download videos from YouTube.com and other sites";
     longDescription = ''
       youtube-dl is a small, Python-based command-line program
@@ -66,6 +63,6 @@ buildPythonPackage rec {
     '';
     license = licenses.publicDomain;
     platforms = with platforms; linux ++ darwin;
-    maintainers = with maintainers; [ bluescreen303 phreedom AndersonTorres fuuzetsu fpletz enzime ];
+    maintainers = with maintainers; [ bluescreen303 phreedom AndersonTorres fpletz enzime ma27 ];
   };
 }

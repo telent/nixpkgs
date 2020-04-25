@@ -1,7 +1,7 @@
 { stdenv, buildGoPackage, fetchFromGitHub }:
 
-buildGoPackage rec {
-  name = "ipfs-migrator-${version}";
+buildGoPackage {
+  pname = "ipfs-migrator";
   version = "7";
 
   goPackagePath = "github.com/ipfs/fs-repo-migrations";
@@ -19,7 +19,7 @@ buildGoPackage rec {
 
   meta = with stdenv.lib; {
     description = "Migration tool for ipfs repositories";
-    homepage = https://ipfs.io/;
+    homepage = "https://ipfs.io/";
     license = licenses.mit;
     platforms = platforms.unix;
     maintainers = with maintainers; [ elitak ];

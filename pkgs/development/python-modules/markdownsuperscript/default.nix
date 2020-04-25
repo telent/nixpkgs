@@ -1,4 +1,5 @@
-{ stdenv, buildPythonPackage, fetchPypi, markdown }:
+{ stdenv, buildPythonPackage, fetchPypi, markdown,
+  pytest, pytestrunner, pytestcov, coverage }:
 
 buildPythonPackage rec {
   pname = "MarkdownSuperscript";
@@ -11,11 +12,19 @@ buildPythonPackage rec {
 
   propagatedBuildInputs = [ markdown ];
 
-  doCheck = false; # See https://github.com/NixOS/nixpkgs/pull/26985
+  postPatch = ''
+    # remove version bounds for Markdown dependency
+    sed 's/\["Markdown.*"\]/["Markdown"]/' -i setup.py
+
+    # remove version bounds for test dependencies
+    sed 's/=.*//' -i requirements/*.txt
+  '';
+
+  checkInputs = [ pytest pytestrunner pytestcov coverage ];
 
   meta = {
     description = "An extension to the Python Markdown package enabling superscript text";
-    homepage = https://github.com/jambonrose/markdown_superscript_extension;
+    homepage = "https://github.com/jambonrose/markdown_superscript_extension";
     license = stdenv.lib.licenses.bsd2;
   };
 }

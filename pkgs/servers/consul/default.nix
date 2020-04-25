@@ -1,8 +1,8 @@
 { stdenv, buildGoPackage, fetchFromGitHub }:
 
 buildGoPackage rec {
-  name = "consul-${version}";
-  version = "1.4.2";
+  pname = "consul";
+  version = "1.7.2";
   rev = "v${version}";
 
   goPackagePath = "github.com/hashicorp/consul";
@@ -17,9 +17,9 @@ buildGoPackage rec {
   # to apply your changes as patches on top of a release commit.
   src = fetchFromGitHub {
     owner = "hashicorp";
-    repo = "consul";
+    repo = pname;
     inherit rev;
-    sha256 = "1nprl9kcb98ikcmk7safji3hl4kfacx0gnh05k8m4ysfz6mr7zri";
+    sha256 = "1q587d8aqfkwg4fymr56fnf038vkxbdqz5yilz96dzny27dhspj4";
   };
 
   preBuild = ''
@@ -28,7 +28,7 @@ buildGoPackage rec {
 
   meta = with stdenv.lib; {
     description = "Tool for service discovery, monitoring and configuration";
-    homepage = https://www.consul.io/;
+    homepage = "https://www.consul.io/";
     platforms = platforms.linux ++ platforms.darwin;
     license = licenses.mpl20;
     maintainers = with maintainers; [ pradeepchhetri vdemeester nh2 ];

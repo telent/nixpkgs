@@ -11,11 +11,10 @@
 buildPythonPackage rec {
   version  = "2.7";
   pname = "powerline";
-  name = pname + "-" + version;
 
   src = fetchurl {
     url    = "https://github.com/powerline/powerline/archive/${version}.tar.gz";
-    name   = "${name}.tar.gz";
+    name   = "${pname}-${version}.tar.gz";
     sha256 = "1h1j2rfphvfdq6mmfyn5bql45hzrwxkhpc2jcwf0vrl3slzkl5s5";
   };
 
@@ -41,7 +40,7 @@ buildPythonPackage rec {
     '';
 
   meta = {
-    homepage    = https://github.com/powerline/powerline;
+    homepage    = "https://github.com/powerline/powerline";
     description = "The ultimate statusline/prompt utility";
     license     = lib.licenses.mit;
   };

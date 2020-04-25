@@ -3,8 +3,9 @@
 let
   version = "2.6.0";
 in
-stdenv.mkDerivation rec {
-  name = "ign-math2-${version}";
+stdenv.mkDerivation {
+  pname = "ign-math2";
+  inherit version;
 
   src = fetchurl {
     url = "http://gazebosim.org/distributions/ign-math/releases/ignition-math2-${version}.tar.bz2";
@@ -17,7 +18,7 @@ stdenv.mkDerivation rec {
   '';
 
   meta = with stdenv.lib; {
-    homepage = https://ignitionrobotics.org/libraries/math;
+    homepage = "https://ignitionrobotics.org/libraries/math";
     description = "Math library by Ingition Robotics, created for the Gazebo project";
     license = licenses.asl20;
     maintainers = with maintainers; [ pxc ];

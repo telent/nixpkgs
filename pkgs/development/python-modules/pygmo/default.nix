@@ -1,5 +1,4 @@
 { lib
-, fetchFromGitHub
 , buildPythonPackage
 , eigen
 , nlopt
@@ -28,7 +27,7 @@ let
     '';
   });
 
-in buildPythonPackage rec {
+in buildPythonPackage {
   pname = "pygmo";
   version = pagmo2WithPython.version;
 
@@ -46,7 +45,7 @@ in buildPythonPackage rec {
 
   meta = with lib; {
     description = "Parallel optimisation for Python";
-    homepage = https://esa.github.io/pagmo2/;
+    homepage = "https://esa.github.io/pagmo2/";
     license = licenses.gpl3Plus;
     maintainers = [ maintainers.costrouc ];
   };
